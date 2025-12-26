@@ -111,12 +111,12 @@ class DashboardManager:
         # Confidence sensor
         await self.ha_client.set_sensor_state(
             'sensor.ha_sentry_confidence',
-            f"{confidence:.2f}",
+            f"{confidence * 100:.0f}",
             {
                 'friendly_name': 'Analysis Confidence',
                 'icon': 'mdi:gauge',
                 'unit_of_measurement': '%',
-                'confidence_percent': f"{confidence * 100:.0f}",
+                'confidence_decimal': f"{confidence:.2f}",
                 'last_check': datetime.now().isoformat()
             }
         )

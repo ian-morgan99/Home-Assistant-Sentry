@@ -3,7 +3,7 @@ Main Sentry Service - Coordinates update checking and analysis
 """
 import asyncio
 import logging
-from datetime import datetime, time
+from datetime import datetime, time, timedelta
 from typing import Dict, List
 
 from ha_client import HomeAssistantClient
@@ -48,7 +48,6 @@ class SentryService:
                 
                 # If target time has passed today, schedule for tomorrow
                 if target_time <= now:
-                    from datetime import timedelta
                     target_time += timedelta(days=1)
                 
                 wait_seconds = (target_time - now).total_seconds()

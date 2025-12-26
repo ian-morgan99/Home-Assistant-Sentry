@@ -5,7 +5,6 @@ Supports OpenAI-compatible endpoints (OpenAI, LMStudio, OpenWebUI, Ollama)
 import logging
 import json
 from typing import Dict, List, Optional
-from openai import OpenAI
 
 logger = logging.getLogger(__name__)
 
@@ -24,6 +23,13 @@ class AIClient:
     def _initialize_client(self):
         """Initialize OpenAI-compatible client"""
         try:
+            # Import OpenAI only when AI is enabled
+            from openai import OpenAI
+            
+            # Configure based on provider
+            # Import OpenAI only when AI is enabled
+            from openai import OpenAI
+            
             # Configure based on provider
             if self.config.ai_provider == 'ollama':
                 # Ollama typically runs on localhost:11434
