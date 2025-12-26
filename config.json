@@ -1,0 +1,45 @@
+{
+  "name": "Home Assistant Sentry",
+  "version": "1.0.0",
+  "slug": "ha_sentry",
+  "description": "Daily review of add-on and HACS updates with AI-powered conflict detection",
+  "url": "https://github.com/ian-morgan99/Home-Assistant-Sentry",
+  "arch": ["armhf", "armv7", "aarch64", "amd64", "i386"],
+  "startup": "services",
+  "boot": "auto",
+  "init": false,
+  "hassio_api": true,
+  "hassio_role": "manager",
+  "homeassistant_api": true,
+  "ports": {
+    "8099/tcp": 8099
+  },
+  "ports_description": {
+    "8099/tcp": "Web interface (future use)"
+  },
+  "options": {
+    "ai_enabled": true,
+    "ai_provider": "openai",
+    "ai_endpoint": "http://localhost:11434",
+    "ai_model": "gpt-3.5-turbo",
+    "api_key": "",
+    "check_schedule": "02:00",
+    "create_dashboard_entities": true,
+    "check_addons": true,
+    "check_hacs": true,
+    "safety_threshold": 0.7
+  },
+  "schema": {
+    "ai_enabled": "bool",
+    "ai_provider": "list(openai|ollama|lmstudio|openwebui)",
+    "ai_endpoint": "str",
+    "ai_model": "str",
+    "api_key": "password?",
+    "check_schedule": "str",
+    "create_dashboard_entities": "bool",
+    "check_addons": "bool",
+    "check_hacs": "bool",
+    "safety_threshold": "float(0.0,1.0)"
+  },
+  "image": "ghcr.io/ian-morgan99/home-assistant-sentry-{arch}"
+}
