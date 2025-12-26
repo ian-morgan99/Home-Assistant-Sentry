@@ -1,0 +1,158 @@
+# Quick Start Guide - Home Assistant Sentry
+
+Get up and running with Home Assistant Sentry in 5 minutes!
+
+## Prerequisites
+
+- Home Assistant OS or Supervised
+- Home Assistant Core 2023.1+
+- (Optional) Ollama, LMStudio, OpenWebUI, or OpenAI API key
+
+## Installation Steps
+
+### 1. Add the Repository
+
+1. Open Home Assistant
+2. Navigate to **Supervisor** → **Add-on Store**
+3. Click the **menu** (⋮) in the top right
+4. Select **Repositories**
+5. Add: `https://github.com/ian-morgan99/Home-Assistant-Sentry`
+6. Click **Close**
+
+### 2. Install the Add-on
+
+1. Find **"Home Assistant Sentry"** in the add-on store
+2. Click on it
+3. Click **Install**
+4. Wait for installation to complete (may take a few minutes)
+
+### 3. Configure the Add-on
+
+#### Option A: Basic Setup (No AI)
+
+Go to the **Configuration** tab and use:
+
+```yaml
+ai_enabled: false
+check_schedule: "02:00"
+create_dashboard_entities: true
+check_addons: true
+check_hacs: true
+```
+
+#### Option B: With Local AI (Ollama - Recommended)
+
+First, install and set up Ollama on your network, then:
+
+```yaml
+ai_enabled: true
+ai_provider: "ollama"
+ai_endpoint: "http://your-ollama-host:11434"
+ai_model: "llama2"
+check_schedule: "02:00"
+create_dashboard_entities: true
+check_addons: true
+check_hacs: true
+safety_threshold: 0.7
+```
+
+### 4. Start the Add-on
+
+1. Click on the **Info** tab
+2. Click **Start**
+3. (Optional) Enable **Start on boot**
+4. (Optional) Enable **Watchdog**
+
+### 5. Check the Logs
+
+1. Click on the **Log** tab
+2. Look for:
+   - "Starting Home Assistant Sentry..."
+   - "Configuration loaded"
+   - "Starting update check cycle"
+   - "Analysis complete"
+
+### 6. View Your Dashboard
+
+1. Go to **Developer Tools** → **States**
+2. Search for `sensor.ha_sentry`
+3. You should see sensors like:
+   - `sensor.ha_sentry_update_status`
+   - `sensor.ha_sentry_updates_available`
+   - `sensor.ha_sentry_confidence`
+
+### 7. Check Notifications
+
+1. Click the notification bell icon in Home Assistant
+2. Look for the "🔔 Home Assistant Sentry Update Report" notification
+
+## Creating a Dashboard Card
+
+Add this to your Lovelace dashboard:
+
+```yaml
+type: entities
+title: Update Monitor
+entities:
+  - entity: sensor.ha_sentry_update_status
+    name: Status
+  - entity: sensor.ha_sentry_updates_available
+    name: Updates Available
+  - entity: sensor.ha_sentry_confidence
+    name: Confidence
+```
+
+## Troubleshooting
+
+### No updates showing?
+
+- Make sure you have add-ons installed and updates available
+- Check that HACS is installed if checking HACS integrations
+- Wait for the first scheduled check to complete
+
+### AI not working?
+
+- Verify your AI endpoint is accessible
+- Test with `ai_enabled: false` first
+- Check the logs for connection errors
+
+### Sensors not appearing?
+
+- Verify `create_dashboard_entities: true`
+- Wait for the first check cycle to complete
+- Check Developer Tools → States for `sensor.ha_sentry_*`
+
+## Next Steps
+
+1. **Customize the schedule**: Change `check_schedule` to your preferred time
+2. **Try different AI models**: Experiment with models like `llama2`, `mistral`, or `codellama` (Ollama)
+3. **Adjust safety threshold**: Tune based on your risk tolerance
+4. **Add automations**: Create automations based on the sensors
+5. **Read the docs**: Check out DOCS.md for advanced features
+
+## Common Questions
+
+**Q: When does the first check run?**  
+A: Immediately when the add-on starts, then daily at the scheduled time.
+
+**Q: Do I need AI enabled?**  
+A: No! The add-on works with heuristic analysis when AI is disabled.
+
+**Q: Can I check updates manually?**  
+A: Yes! Restart the add-on to trigger an immediate check.
+
+**Q: Is my data private?**  
+A: Yes! With local AI (Ollama/LMStudio), nothing leaves your network.
+
+**Q: Does this automatically install updates?**  
+A: No! It only analyzes and reports. You install updates manually.
+
+## Support
+
+- **Issues**: https://github.com/ian-morgan99/Home-Assistant-Sentry/issues
+- **Documentation**: See DOCS.md for detailed information
+- **Examples**: See EXAMPLES.md for more configuration options
+
+---
+
+**You're all set!** Home Assistant Sentry is now monitoring your updates. 🎉
