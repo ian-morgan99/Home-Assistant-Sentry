@@ -701,6 +701,11 @@ class DependencyTreeWebServer:
                     return;
                 }
                 
+                if (!response.ok) {
+                    showError(`Failed to load components: HTTP ${response.status} ${response.statusText}`);
+                    return;
+                }
+                
                 const data = await response.json();
                 
                 if (data.error) {
@@ -729,6 +734,11 @@ class DependencyTreeWebServer:
                 
                 if (response.status === 503) {
                     return; // Don't show stats if service unavailable
+                }
+                
+                if (!response.ok) {
+                    console.error(`Failed to load stats: HTTP ${response.status} ${response.statusText}`);
+                    return;
                 }
                 
                 const data = await response.json();
@@ -772,6 +782,12 @@ class DependencyTreeWebServer:
         
         async function visualizeDependencies(component) {
             const response = await fetch(`/api/dependency-tree/${component}`);
+            
+            if (!response.ok) {
+                showError(`Failed to load dependency tree: HTTP ${response.status} ${response.statusText}`);
+                return;
+            }
+            
             const data = await response.json();
             
             if (data.error) {
@@ -814,6 +830,12 @@ class DependencyTreeWebServer:
         
         async function visualizeWhereUsed(component) {
             const response = await fetch(`/api/where-used/${component}`);
+            
+            if (!response.ok) {
+                showError(`Failed to load where-used information: HTTP ${response.status} ${response.statusText}`);
+                return;
+            }
+            
             const data = await response.json();
             
             if (data.error) {
@@ -862,6 +884,12 @@ class DependencyTreeWebServer:
             }
             
             const response = await fetch(`/api/change-impact?components=${encodeURIComponent(componentsInput)}`);
+            
+            if (!response.ok) {
+                showError(`Failed to load change impact: HTTP ${response.status} ${response.statusText}`);
+                return;
+            }
+            
             const data = await response.json();
             
             if (data.error) {
