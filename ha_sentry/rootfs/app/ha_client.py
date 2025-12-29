@@ -18,34 +18,40 @@ class HomeAssistantClient:
     
     async def __aenter__(self):
         """Async context manager entry"""
+        logger.debug("Initializing Home Assistant client session")
         self.session = aiohttp.ClientSession(headers=self.config.headers)
         return self
     
     async def __aexit__(self, exc_type, exc_val, exc_tb):
         """Async context manager exit"""
         if self.session:
+            logger.debug("Closing Home Assistant client session")
             await self.session.close()
     
     async def get_addon_updates(self) -> List[Dict]:
         """Get available add-on updates from Supervisor API"""
         try:
             url = f"{self.config.supervisor_url}/addons"
+            logger.debug(f"Fetching add-ons from: {url}")
             async with self.session.get(url) as response:
                 if response.status == 200:
                     data = await response.json()
                     addons = data.get('data', {}).get('addons', [])
+                    logger.debug(f"Retrieved {len(addons)} total add-ons")
                     
                     updates = []
                     for addon in addons:
                         if addon.get('update_available', False):
-                            updates.append({
+                            update_info = {
                                 'name': addon.get('name'),
                                 'slug': addon.get('slug'),
                                 'current_version': addon.get('version'),
                                 'latest_version': addon.get('version_latest'),
                                 'repository': addon.get('repository'),
                                 'description': addon.get('description', '')
-                            })
+                            }
+                            updates.append(update_info)
+                            logger.debug(f"  Update available: {update_info['name']} ({update_info['current_version']} → {update_info['latest_version']})")
                     
                     logger.info(f"Found {len(updates)} add-on updates")
                     return updates
@@ -53,13 +59,14 @@ class HomeAssistantClient:
                     logger.error(f"Failed to get add-ons: {response.status}")
                     return []
         except Exception as e:
-            logger.error(f"Error getting add-on updates: {e}")
+            logger.error(f"Error getting add-on updates: {e}", exc_info=True)
             return []
     
     async def get_addon_details(self, addon_slug: str) -> Optional[Dict]:
         """Get detailed information about an add-on"""
         try:
             url = f"{self.config.supervisor_url}/addons/{addon_slug}/info"
+            logger.debug(f"Fetching add-on details for: {addon_slug}")
             async with self.session.get(url) as response:
                 if response.status == 200:
                     data = await response.json()
@@ -68,7 +75,7 @@ class HomeAssistantClient:
                     logger.warning(f"Failed to get details for {addon_slug}: {response.status}")
                     return None
         except Exception as e:
-            logger.error(f"Error getting add-on details: {e}")
+            logger.error(f"Error getting add-on details: {e}", exc_info=True)
             return None
     
     async def get_hacs_updates(self) -> List[Dict]:
@@ -76,9 +83,11 @@ class HomeAssistantClient:
         try:
             # Check if HACS is installed by looking for HACS entities
             url = f"{self.config.ha_url}/api/states"
+            logger.debug(f"Fetching states from: {url}")
             async with self.session.get(url) as response:
                 if response.status == 200:
                     states = await response.json()
+                    logger.debug(f"Retrieved {len(states)} total states")
                     
                     # Look for HACS update sensors
                     hacs_updates = []
@@ -87,13 +96,15 @@ class HomeAssistantClient:
                         if 'hacs' in entity_id.lower() and 'update' in entity_id.lower():
                             if state.get('state') == 'on' or state.get('state', '').isdigit():
                                 attributes = state.get('attributes', {})
-                                hacs_updates.append({
+                                update_info = {
                                     'entity_id': entity_id,
                                     'name': attributes.get('friendly_name', entity_id),
                                     'current_version': attributes.get('current_version', 'unknown'),
                                     'latest_version': attributes.get('latest_version', 'unknown'),
                                     'repository': attributes.get('repository', ''),
-                                })
+                                }
+                                hacs_updates.append(update_info)
+                                logger.debug(f"  HACS update: {update_info['name']} ({update_info['current_version']} → {update_info['latest_version']})")
                     
                     logger.info(f"Found {len(hacs_updates)} HACS updates")
                     return hacs_updates
@@ -101,13 +112,14 @@ class HomeAssistantClient:
                     logger.error(f"Failed to get states: {response.status}")
                     return []
         except Exception as e:
-            logger.error(f"Error getting HACS updates: {e}")
+            logger.error(f"Error getting HACS updates: {e}", exc_info=True)
             return []
     
     async def create_persistent_notification(self, title: str, message: str, notification_id: str):
         """Create a persistent notification in Home Assistant"""
         try:
             url = f"{self.config.ha_url}/api/services/persistent_notification/create"
+            logger.debug(f"Creating persistent notification: {notification_id}")
             payload = {
                 'title': title,
                 'message': message,
@@ -121,13 +133,14 @@ class HomeAssistantClient:
                     logger.error(f"Failed to create notification: {response.status}")
                     return False
         except Exception as e:
-            logger.error(f"Error creating notification: {e}")
+            logger.error(f"Error creating notification: {e}", exc_info=True)
             return False
     
     async def set_sensor_state(self, entity_id: str, state: str, attributes: Dict):
         """Set state for a custom sensor entity"""
         try:
             url = f"{self.config.ha_url}/api/states/{entity_id}"
+            logger.debug(f"Updating sensor: {entity_id} = {state}")
             payload = {
                 'state': state,
                 'attributes': attributes
@@ -140,5 +153,5 @@ class HomeAssistantClient:
                     logger.error(f"Failed to update sensor: {response.status}")
                     return False
         except Exception as e:
-            logger.error(f"Error updating sensor: {e}")
+            logger.error(f"Error updating sensor: {e}", exc_info=True)
             return False

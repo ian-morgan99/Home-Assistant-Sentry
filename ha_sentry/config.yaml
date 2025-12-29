@@ -26,6 +26,7 @@ options:
   check_addons: true
   check_hacs: true
   safety_threshold: 0.7
+  log_level: "standard"
 schema:
   ai_enabled: bool
   ai_provider: list(openai|ollama|lmstudio|openwebui)
@@ -37,3 +38,4 @@ schema:
   check_addons: bool
   check_hacs: bool
   safety_threshold: float(0.0,1.0)
+  log_level: list(minimal|standard|maximal)

@@ -22,18 +22,28 @@ class ConfigManager:
         self.check_addons = self._get_bool_env('CHECK_ADDONS', True)
         self.check_hacs = self._get_bool_env('CHECK_HACS', True)
         self.safety_threshold = float(os.getenv('SAFETY_THRESHOLD', '0.7'))
+        self.log_level = os.getenv('LOG_LEVEL', 'standard').lower()
         self.supervisor_token = os.getenv('SUPERVISOR_TOKEN', '')
         
         # Home Assistant API configuration
         self.ha_url = 'http://supervisor/core'
         self.supervisor_url = 'http://supervisor'
         
-        logger.info(f"Configuration initialized: AI={self.ai_enabled}, Provider={self.ai_provider}")
+        logger.info(f"Configuration initialized: AI={self.ai_enabled}, Provider={self.ai_provider}, LogLevel={self.log_level}")
     
     def _get_bool_env(self, key: str, default: bool) -> bool:
         """Get boolean value from environment variable"""
         value = os.getenv(key, str(default)).lower()
         return value in ('true', '1', 'yes', 'on')
+    
+    def get_python_log_level(self) -> int:
+        """Convert log_level string to Python logging level"""
+        level_map = {
+            'minimal': logging.ERROR,
+            'standard': logging.INFO,
+            'maximal': logging.DEBUG
+        }
+        return level_map.get(self.log_level, logging.INFO)
     
     @property
     def headers(self):
