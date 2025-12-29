@@ -44,6 +44,14 @@ class HomeAssistantClient:
         if context:
             logger.error(f"Context: {context}")
     
+    def _log_dashboard_permission_error(self):
+        """Log dashboard creation permission error with helpful information"""
+        logger.warning("Dashboard creation failed due to insufficient permissions.")
+        logger.warning("This is a known limitation - Home Assistant add-ons cannot create Lovelace dashboards via the API.")
+        logger.info("SOLUTION: Disable 'auto_create_dashboard' in the add-on configuration and manually create your dashboard.")
+        logger.info("See the documentation for example dashboard configurations: https://github.com/ian-morgan99/Home-Assistant-Sentry/blob/main/DOCS.md#dashboard-integration")
+        logger.info("The add-on will continue to work normally and update sensor entities.")
+    
     async def get_addon_updates(self) -> List[Dict]:
         """Get available add-on updates from Supervisor API"""
         try:
@@ -254,11 +262,16 @@ class HomeAssistantClient:
             return False
     
     async def create_lovelace_dashboard(self, dashboard_config: Dict) -> bool:
-        """Create a Lovelace dashboard in Home Assistant"""
+        """Create a Lovelace dashboard in Home Assistant
+        
+        Note: This feature has limited support. Home Assistant add-ons may not have 
+        sufficient permissions to create Lovelace dashboards via the API.
+        Consider disabling auto_create_dashboard and manually creating dashboards instead.
+        """
         try:
             # Use the lovelace_dashboards endpoint to create a new dashboard
             url = f"{self.config.ha_url}/api/lovelace/dashboards"
-            logger.info("Creating Sentry dashboard in Lovelace")
+            logger.info("Attempting to create Sentry dashboard in Lovelace")
             
             async with self.session.post(url, json=dashboard_config) as response:
                 if response.status in (200, 201):
@@ -271,8 +284,7 @@ class HomeAssistantClient:
                     response_text = await response.text()
                     logger.error(f"Failed to create dashboard: {response.status} - {response_text}")
                     if response.status == 401:
-                        self._log_auth_error("Unable to create Lovelace dashboard")
-                        logger.info("You can disable auto-dashboard creation in the add-on configuration.")
+                        self._log_dashboard_permission_error()
                     return False
         except Exception as e:
             logger.error(f"Error creating dashboard: {e}", exc_info=True)
