@@ -6,28 +6,34 @@ This document describes the structure of the Home Assistant Sentry add-on reposi
 
 ```
 Home-Assistant-Sentry/
-├── rootfs/                      # Root filesystem for the add-on container
-│   ├── app/                     # Main application code
-│   │   ├── main.py              # Entry point for the application
-│   │   ├── config_manager.py   # Configuration management
-│   │   ├── ha_client.py         # Home Assistant API client
-│   │   ├── ai_client.py         # AI provider integration
-│   │   ├── dashboard_manager.py # Dashboard entities manager
-│   │   └── sentry_service.py    # Main service coordinator
-│   └── usr/
-│       └── bin/
-│           └── run.sh           # Add-on startup script
+├── ha_sentry/                   # Add-on directory
+│   ├── rootfs/                  # Root filesystem for the add-on container
+│   │   ├── app/                 # Main application code
+│   │   │   ├── main.py          # Entry point for the application
+│   │   │   ├── config_manager.py   # Configuration management
+│   │   │   ├── ha_client.py     # Home Assistant API client
+│   │   │   ├── ai_client.py     # AI provider integration
+│   │   │   ├── dashboard_manager.py # Dashboard entities manager
+│   │   │   ├── dependency_analyzer.py # Dependency analysis
+│   │   │   └── sentry_service.py    # Main service coordinator
+│   │   └── usr/
+│   │       └── bin/
+│   │           └── run.sh       # Add-on startup script
+│   ├── config.yaml              # Add-on configuration (Home Assistant)
+│   ├── config.json              # Add-on configuration (JSON format)
+│   ├── build.json               # Build configuration for multi-arch
+│   ├── Dockerfile               # Container image definition
+│   └── requirements.txt         # Python dependencies
 ├── tests/                       # Test files
-│   └── test_basic.py            # Basic module tests
-├── config.yaml                  # Add-on configuration (Home Assistant)
-├── config.json                  # Add-on configuration (JSON format)
-├── build.json                   # Build configuration for multi-arch
-├── Dockerfile                   # Container image definition
-├── requirements.txt             # Python dependencies
+│   ├── test_basic.py            # Basic module tests
+│   └── test_dependency_analyzer.py # Dependency analyzer tests
+├── repository.json              # Repository metadata for Supervisor
 ├── README.md                    # Main documentation
 ├── DOCS.md                      # Detailed user documentation
+├── QUICKSTART.md                # Quick start guide
 ├── EXAMPLES.md                  # Configuration examples
 ├── CHANGELOG.md                 # Version history
+├── STRUCTURE.md                 # This file
 ├── LICENSE                      # MIT License
 └── .gitignore                   # Git ignore rules
 ```
@@ -36,10 +42,11 @@ Home-Assistant-Sentry/
 
 ### Configuration Files
 
-- **config.yaml**: Home Assistant add-on metadata and options schema
-- **config.json**: Alternative JSON format for add-on configuration
-- **build.json**: Build configuration for multi-architecture support
-- **Dockerfile**: Container image build instructions
+- **config.yaml**: Home Assistant add-on metadata and options schema (in `ha_sentry/`)
+- **config.json**: Alternative JSON format for add-on configuration (in `ha_sentry/`)
+- **build.json**: Build configuration for multi-architecture support (in `ha_sentry/`)
+- **Dockerfile**: Container image build instructions (in `ha_sentry/`)
+- **repository.json**: Repository metadata for Home Assistant Supervisor
 
 ### Application Code
 
