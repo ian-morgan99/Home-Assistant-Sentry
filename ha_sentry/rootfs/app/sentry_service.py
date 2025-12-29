@@ -6,7 +6,7 @@ import logging
 from datetime import datetime, time, timedelta
 from typing import Dict, List
 
-from ha_client import HomeAssistantClient
+from ha_client import HomeAssistantClient, HA_COMPATIBILITY_VERSIONS
 from ai_client import AIClient
 from dashboard_manager import DashboardManager
 from dependency_graph_builder import DependencyGraphBuilder
@@ -289,7 +289,7 @@ If sensors don't appear, check the add-on logs for authentication errors. The ad
                     'last_check': datetime.now().isoformat(),
                     'updates_available': 0,
                     'safe_to_update': True,
-                    'ha_compatibility': '2024.11.x - 2025.1.x'
+                    'ha_compatibility': HA_COMPATIBILITY_VERSIONS
                 }
             )
             

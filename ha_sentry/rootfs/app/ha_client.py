@@ -15,6 +15,9 @@ UPDATE_TYPE_ADDON = 'addon'
 UPDATE_TYPE_HACS = 'hacs'
 UPDATE_TYPE_INTEGRATION = 'integration'
 
+# Home Assistant version compatibility
+HA_COMPATIBILITY_VERSIONS = '2024.11.x - 2025.1.x'
+
 
 class HomeAssistantClient:
     """Client for interacting with Home Assistant APIs"""
@@ -119,7 +122,7 @@ class HomeAssistantClient:
     async def get_all_updates(self) -> List[Dict]:
         """Get all available updates from update entities (Core, Supervisor, OS, Add-ons, Integrations)
         
-        Compatible with Home Assistant 2024.11.x, 2024.12.x, and 2025.1.x
+        Compatible with Home Assistant versions: {HA_COMPATIBILITY_VERSIONS}
         """
         try:
             url = f"{self.config.ha_url}/api/states"
@@ -324,7 +327,7 @@ class HomeAssistantClient:
         sufficient permissions to create Lovelace dashboards via the API.
         Consider disabling auto_create_dashboard and manually creating dashboards instead.
         
-        Compatible with Home Assistant 2024.11.x, 2024.12.x, and 2025.1.x
+        Compatible with Home Assistant versions: {HA_COMPATIBILITY_VERSIONS}
         """
         try:
             # Use the lovelace_dashboards endpoint to create a new dashboard
