@@ -9,6 +9,9 @@ arch:
   - amd64
   - i386
 init: false
+hassio_api: true
+hassio_role: manager
+homeassistant_api: true
 startup: services
 boot: auto
 auto_update: true
