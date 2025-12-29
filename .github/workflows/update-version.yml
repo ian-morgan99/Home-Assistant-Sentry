@@ -1,0 +1,59 @@
+name: Update Version on Release
+
+on:
+  release:
+    types: [published]
+
+jobs:
+  update-version:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          ref: main
+          token: ${{ secrets.GITHUB_TOKEN }}
+      
+      - name: Get release version
+        id: get_version
+        run: |
+          # Extract version from tag (e.g., v1.2.0 -> 1.2.0)
+          VERSION="${GITHUB_REF#refs/tags/}"
+          VERSION="${VERSION#v}"
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "Extracted version: $VERSION"
+      
+      - name: Update config.json
+        run: |
+          VERSION="${{ steps.get_version.outputs.version }}"
+          sed -i "s/\"version\": \"[^\"]*\"/\"version\": \"$VERSION\"/" ha_sentry/config.json
+          echo "Updated config.json to version $VERSION"
+      
+      - name: Update config.yaml
+        run: |
+          VERSION="${{ steps.get_version.outputs.version }}"
+          sed -i "s/version: \"[^\"]*\"/version: \"$VERSION\"/" ha_sentry/config.yaml
+          echo "Updated config.yaml to version $VERSION"
+      
+      - name: Verify changes
+        run: |
+          echo "=== config.json ==="
+          grep -A 1 '"name"' ha_sentry/config.json | head -3
+          echo "=== config.yaml ==="
+          grep -A 1 'name:' ha_sentry/config.yaml | head -3
+      
+      - name: Commit and push changes
+        run: |
+          git config --global user.name 'github-actions[bot]'
+          git config --global user.email 'github-actions[bot]@users.noreply.github.com'
+          git add ha_sentry/config.json ha_sentry/config.yaml
+          if git diff --staged --quiet; then
+            echo "No changes to commit"
+          else
+            git commit -m "chore: update version to ${{ steps.get_version.outputs.version }}"
+            git push origin main
+            echo "Version updated and pushed to main branch"
+          fi
