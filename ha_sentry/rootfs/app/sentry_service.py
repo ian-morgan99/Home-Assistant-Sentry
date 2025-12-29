@@ -33,6 +33,7 @@ class SentryService:
     
     # Constants
     WEB_UI_PORT = 8099  # Port for dependency visualization web interface
+    ADDON_SLUG = 'ha_sentry'  # Addon slug for ingress URLs
     
     def __init__(self, config):
         """Initialize the sentry service"""
@@ -437,6 +438,37 @@ No updates are currently available for:
         
         return counts
     
+    def _get_ingress_url(self, path: str = "") -> str:
+        """
+        Generate a URL for the web UI accessible via Home Assistant ingress
+        
+        Args:
+            path: Optional path to append to the base URL (e.g., "?mode=whereused")
+        
+        Returns:
+            str: The full ingress URL
+        """
+        base_url = f"/api/hassio_ingress/{self.ADDON_SLUG}"
+        if path:
+            return f"{base_url}/{path}"
+        return base_url
+    
+    def _extract_component_domain(self, component_name: str) -> str:
+        """
+        Extract the domain/slug from a component name for use in URLs
+        
+        Args:
+            component_name: The component name from the issue (e.g., "Home Assistant Core", "mosquitto")
+        
+        Returns:
+            str: A sanitized component domain/slug
+        """
+        # Convert to lowercase and replace spaces with underscores
+        domain = component_name.lower().replace(' ', '_').replace('-', '_')
+        # Remove special characters
+        domain = ''.join(c for c in domain if c.isalnum() or c == '_')
+        return domain
+    
     async def _report_results(self, ha_client: HomeAssistantClient, 
                             addon_updates: List[Dict], 
                             hacs_updates: List[Dict], 
@@ -491,6 +523,9 @@ No updates are currently available for:
                 notification_message += "**Recommendations:**\n"
                 for rec in analysis['recommendations'][:5]:  # Limit to 5
                     notification_message += f"- {rec}\n"
+            
+            # Initialize empty list for changed components (safe case)
+            changed_components = []
         else:
             logger.debug("Generating REVIEW REQUIRED notification")
             notification_message = f"""⚠️ **REVIEW REQUIRED before updating**
@@ -511,7 +546,8 @@ No updates are currently available for:
 **Issues Found:** {len(analysis.get('issues', []))}
 
 """
-            # Add issues
+            # Add issues with links to web UI
+            changed_components = []  # Track components for impact report link
             for issue in analysis.get('issues', [])[:5]:  # Limit to 5
                 severity_emoji = {
                     'critical': '🔴',
@@ -520,8 +556,17 @@ No updates are currently available for:
                     'low': '🟢'
                 }.get(issue.get('severity', 'medium'), '🔵')
                 
-                notification_message += f"\n{severity_emoji} **{issue.get('component', 'Unknown')}**\n"
+                component_name = issue.get('component', 'Unknown')
+                notification_message += f"\n{severity_emoji} **{component_name}**\n"
                 notification_message += f"{issue.get('description', 'No description')}\n"
+                
+                # Add "Where Used" link if web UI is enabled and we have a valid component
+                if self.config.enable_web_ui and component_name != 'Unknown':
+                    component_domain = self._extract_component_domain(component_name)
+                    where_used_url = self._get_ingress_url() + f"#whereused:{component_domain}"
+                    notification_message += f"  [🔍 View Impact]({where_used_url})\n"
+                    changed_components.append(component_domain)
+                
                 logger.debug(f"  Issue: {issue.get('component')} - {issue.get('severity')}")
             
             notification_message += f"\n**Summary:**\n{analysis['summary']}\n"
@@ -530,6 +575,20 @@ No updates are currently available for:
                 notification_message += "\n**Recommendations:**\n"
                 for rec in analysis['recommendations'][:5]:
                     notification_message += f"- {rec}\n"
+        
+        # Add web UI links section if enabled
+        if self.config.enable_web_ui:
+            notification_message += "\n---\n**📊 Detailed Analysis:**\n"
+            
+            # For review required case with changed components, add impact report link
+            if not safe and changed_components:
+                components_param = ','.join(changed_components[:10])  # Limit to avoid URL length issues
+                impact_url = self._get_ingress_url() + f"#impact:{components_param}"
+                notification_message += f"- [⚡ Change Impact Report]({impact_url}) - View {len(changed_components)} changed components and their affected dependencies\n"
+            
+            # Always add link to main dashboard
+            dashboard_url = self._get_ingress_url()
+            notification_message += f"- [🛡️ Dependency Dashboard]({dashboard_url}) - Explore all component dependencies\n"
         
         notification_message += f"\n*Analysis powered by: {'AI' if analysis.get('ai_analysis') else 'Heuristics'}*"
         notification_message += f"\n*Last check: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}*"
