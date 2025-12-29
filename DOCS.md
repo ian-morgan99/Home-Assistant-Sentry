@@ -361,7 +361,25 @@ card:
 - Note: First check runs immediately on start
 - Restart add-on if schedule seems stuck
 
-#### 5. Dashboard Creation Failed (401 Unauthorized)
+#### 5. Dashboard Creation Failed (404 Not Found)
+
+**Problem**: "Failed to create dashboard: 404 - 404: Not Found" in logs
+
+**This indicates**: The Lovelace dashboard API endpoint does not exist or is not accessible in your Home Assistant installation.
+
+**Possible Causes**:
+- Home Assistant version does not support the dashboard API endpoint
+- The API endpoint path has changed in your Home Assistant version
+- Add-on lacks necessary permissions to access the endpoint
+- Running in a restricted environment (e.g., Container vs. Supervisor mode)
+
+**Solution**:
+- Set `auto_create_dashboard: false` in the add-on configuration (this is the default)
+- Manually create your dashboard using the sensor entities
+- See the [Dashboard Examples](#dashboard-examples) section for configuration templates
+- The add-on will continue to work normally and create/update sensor entities
+
+#### 6. Dashboard Creation Failed (401 Unauthorized)
 
 **Problem**: "Failed to create dashboard: 401 - 401: Unauthorized" in logs
 
@@ -373,7 +391,7 @@ card:
 - See the [Dashboard Examples](#dashboard-examples) section for configuration templates
 - The add-on will continue to work normally and create/update sensor entities
 
-#### 6. AI Client Initialization Error
+#### 7. AI Client Initialization Error
 
 **Problem**: "Failed to initialize AI client: Client.__init__() got an unexpected keyword argument 'proxies'"
 
