@@ -78,7 +78,7 @@ class AIClient:
             logger.info("  1. Your AI provider is running and accessible at the configured endpoint")
             logger.info("  2. The endpoint URL is correct (e.g., http://localhost:1234 for LMStudio)")
             logger.info("  3. The model name is correctly configured")
-            logger.debug(f"Full error details:", exc_info=True)
+            logger.debug("Full error details:", exc_info=True)
             self.client = None
     
     async def analyze_updates(self, addon_updates: List[Dict], hacs_updates: List[Dict]) -> Dict:
