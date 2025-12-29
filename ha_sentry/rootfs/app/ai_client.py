@@ -13,6 +13,18 @@ logger = logging.getLogger(__name__)
 class AIClient:
     """Client for AI-powered conflict analysis"""
     
+    # High-risk libraries that require special attention in updates
+    HIGH_RISK_LIBRARIES = {
+        'aiohttp', 'cryptography', 'numpy', 'pyjwt', 
+        'sqlalchemy', 'protobuf', 'requests', 'urllib3'
+    }
+    
+    # Context formatting constants
+    MAX_RELEASE_SUMMARY_LENGTH = 200  # Maximum characters for release summary
+    MAX_DEPENDENCIES_SHOWN = 10  # Maximum number of dependencies to show per update
+    MAX_HIGH_RISK_DEPS_SHOWN = 5  # Maximum high-risk dependencies to show for system updates
+    MAX_KEY_DEPS_SHOWN = 5  # Maximum key dependencies to show in context
+    
     def __init__(self, config, dependency_graph=None):
         """Initialize the AI client
         
@@ -195,7 +207,7 @@ Be thorough but concise. Focus on actionable insights."""
         if update_type in ['core', 'supervisor', 'os']:
             high_risk_deps = []
             for pkg, users in dependency_map.items():
-                if pkg in ['aiohttp', 'cryptography', 'numpy', 'pyjwt', 'sqlalchemy', 'protobuf', 'requests', 'urllib3']:
+                if pkg in self.HIGH_RISK_LIBRARIES:
                     high_risk_deps.append({
                         'package': pkg,
                         'user_count': len(users),
@@ -203,7 +215,7 @@ Be thorough but concise. Focus on actionable insights."""
                     })
             return {
                 'type': 'system',
-                'high_risk_dependencies': high_risk_deps[:5],  # Top 5
+                'high_risk_dependencies': high_risk_deps[:self.MAX_HIGH_RISK_DEPS_SHOWN],
                 'impact_radius': len(integrations)
             }
         
@@ -223,7 +235,8 @@ Be thorough but concise. Focus on actionable insights."""
         
         if matching_integration:
             requirements = matching_integration.get('requirements', [])
-            high_risk = [req for req in requirements if req.get('high_risk')]
+            # Count high-risk dependencies efficiently
+            high_risk_count = sum(1 for req in requirements if req.get('high_risk'))
             
             # Calculate impact: how many other integrations use this integration's dependencies
             impacted = set()
@@ -234,8 +247,8 @@ Be thorough but concise. Focus on actionable insights."""
             
             return {
                 'type': 'integration',
-                'requirements': requirements[:10],  # Limit to 10
-                'high_risk_count': len(high_risk),
+                'requirements': requirements[:self.MAX_DEPENDENCIES_SHOWN],
+                'high_risk_count': high_risk_count,
                 'shared_dependency_impact': len(impacted)
             }
         
@@ -284,7 +297,7 @@ Be thorough but concise. Focus on actionable insights."""
                 if addon.get('release_url'):
                     context += f"  - Release Notes: {addon['release_url']}\n"
                 if addon.get('release_summary'):
-                    summary = addon['release_summary'][:200]  # Limit length
+                    summary = addon['release_summary'][:self.MAX_RELEASE_SUMMARY_LENGTH]
                     context += f"  - Summary: {summary}\n"
                 if addon.get('description'):
                     context += f"  - Description: {addon['description']}\n"
@@ -297,7 +310,7 @@ Be thorough but concise. Focus on actionable insights."""
                         if high_risk:
                             context += f"  - Impact: System-wide ({dep_info.get('impact_radius', 0)} integrations)\n"
                             context += "  - Critical Dependencies:\n"
-                            for dep in high_risk[:3]:  # Top 3
+                            for dep in high_risk[:3]:  # Show top 3 high-risk deps
                                 context += f"    • {dep['package']} (used by {dep['user_count']} integrations) ⚠️\n"
                     elif dep_info.get('type') == 'integration':
                         if dep_info.get('high_risk_count', 0) > 0:
@@ -307,7 +320,7 @@ Be thorough but concise. Focus on actionable insights."""
                         requirements = dep_info.get('requirements', [])
                         if requirements:
                             context += "  - Key Dependencies:\n"
-                            for req in requirements[:5]:  # Top 5
+                            for req in requirements[:self.MAX_KEY_DEPS_SHOWN]:
                                 risk_marker = " ⚠️" if req.get('high_risk') else ""
                                 context += f"    • {req['package']} {req['specifier']}{risk_marker}\n"
                 
@@ -324,7 +337,7 @@ Be thorough but concise. Focus on actionable insights."""
                 if hacs.get('release_url'):
                     context += f"  - Release Notes: {hacs['release_url']}\n"
                 if hacs.get('release_summary'):
-                    summary = hacs['release_summary'][:200]
+                    summary = hacs['release_summary'][:self.MAX_RELEASE_SUMMARY_LENGTH]
                     context += f"  - Summary: {summary}\n"
                 
                 # Add dependency information
@@ -335,7 +348,7 @@ Be thorough but concise. Focus on actionable insights."""
                     requirements = dep_info.get('requirements', [])
                     if requirements:
                         context += "  - Dependencies:\n"
-                        for req in requirements[:5]:
+                        for req in requirements[:self.MAX_KEY_DEPS_SHOWN]:
                             risk_marker = " ⚠️" if req.get('high_risk') else ""
                             context += f"    • {req['package']} {req['specifier']}{risk_marker}\n"
                 
