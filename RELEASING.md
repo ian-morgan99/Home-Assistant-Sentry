@@ -39,7 +39,9 @@ The workflow enforces semantic versioning and requires that each release increme
 1. **Update the CHANGELOG.md**
    - Add release notes for the new version
    - Change the version from "TBD" to the actual release date
-   - Example: `## [1.2.0] - 2024-12-30`
+   - Follow Home Assistant Add-on changelog format
+   - Example: `## 1.2.0 - 2024-12-30`
+   - Use simple bullet points for changes (no need for subsections like "Added", "Changed", though they are acceptable)
 
 2. **Create a Git Tag**
    ```bash
@@ -100,6 +102,33 @@ Before creating a release, ensure:
   - [ ] Minor increment (0.1.0) for new features
   - [ ] Major increment (1.0.0) for breaking changes
 - [ ] Breaking changes are clearly documented
+
+## Changelog Format
+
+The CHANGELOG.md follows the Home Assistant Add-on standard format:
+
+- **Version heading**: Use `## X.Y.Z - YYYY-MM-DD` (without square brackets)
+  - Example: `## 1.2.0 - 2024-12-30`
+  - Use `TBD` for unreleased versions: `## 1.2.0 - TBD`
+- **Changes**: List changes as simple bullet points with `-`
+  - Keep entries clear and concise
+  - Group related changes together
+  - You may use subsections (Added, Changed, Fixed, etc.) for clarity, but they're optional
+- **Order**: Newest version at the top
+- **Format**: Use standard Markdown formatting
+
+Example:
+```markdown
+## 1.2.0 - 2024-12-30
+- Added new feature X
+- Fixed bug in Y component
+- Improved performance of Z operation
+- Updated documentation for clarity
+
+## 1.1.0 - 2024-12-15
+- Added support for Home Assistant 2024.12
+- Fixed dashboard creation issue
+```
 
 ## Post-Release
 
