@@ -255,7 +255,7 @@ Be thorough but concise. Focus on actionable insights."""
         # Try to find matching integration by domain/name
         matching_integration = None
         for domain, integration_data in integrations.items():
-            # Use exact matching or word-boundary-aware matching to avoid false positives
+            # Use exact matching to avoid false positives
             if (domain.lower() == slug or 
                 domain.lower() == update_name or
                 integration_data.get('name', '').lower() == update_name):
