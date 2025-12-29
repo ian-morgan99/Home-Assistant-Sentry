@@ -10,6 +10,7 @@ from ha_client import HomeAssistantClient, HA_COMPATIBILITY_VERSIONS
 from ai_client import AIClient
 from dashboard_manager import DashboardManager
 from dependency_graph_builder import DependencyGraphBuilder
+from web_server import DependencyTreeWebServer
 
 logger = logging.getLogger(__name__)
 
@@ -30,11 +31,16 @@ INTEGRATION_ANALYSIS_TYPES = [UPDATE_TYPE_HACS, UPDATE_TYPE_INTEGRATION]
 class SentryService:
     """Main service for monitoring and analyzing Home Assistant updates"""
     
+    # Constants
+    WEB_UI_PORT = 8099  # Port for dependency visualization web interface
+    
     def __init__(self, config):
         """Initialize the sentry service"""
         self.config = config
         self.running = False
         self.dependency_graph = None
+        self.dependency_graph_builder = None
+        self.web_server = None
         
         # Build dependency graph on initialization if enabled
         if config.enable_dependency_graph:
@@ -52,6 +58,7 @@ class SentryService:
                 
                 graph_data = graph_builder.build_graph_from_paths(integration_paths)
                 self.dependency_graph = graph_data
+                self.dependency_graph_builder = graph_builder
                 
                 stats = graph_data.get('machine_readable', {}).get('statistics', {})
                 logger.info(f"Dependency graph built: {stats.get('total_integrations', 0)} integrations, "
@@ -73,6 +80,22 @@ class SentryService:
         """Start the service"""
         self.running = True
         logger.info(f"Starting service with schedule: {self.config.check_schedule}")
+        
+        # Start web server for dependency visualization if enabled
+        if self.config.enable_web_ui and self.dependency_graph_builder:
+            try:
+                logger.info("Starting web server for dependency visualization...")
+                self.web_server = DependencyTreeWebServer(
+                    self.dependency_graph_builder,
+                    self.config,
+                    port=self.WEB_UI_PORT
+                )
+                await self.web_server.start()
+            except Exception as e:
+                logger.error(f"Failed to start web server: {e}", exc_info=True)
+                logger.info("Continuing without web UI")
+        elif self.config.enable_web_ui and not self.dependency_graph_builder:
+            logger.warning("Web UI is enabled but dependency graph is disabled. Web UI requires dependency graph to be enabled.")
         
         # Send startup notification to help users find sensors
         await self._send_startup_notification()
@@ -99,6 +122,17 @@ class SentryService:
             async with HomeAssistantClient(self.config) as ha_client:
                 notification_title = "🚀 Home Assistant Sentry Started"
                 
+                # Check if web UI is available
+                web_ui_info = ""
+                if self.config.enable_web_ui and self.web_server:
+                    web_ui_info = """
+**📊 Dependency Tree Visualization:**
+
+View dependency trees and impact analysis via the Sentry panel in your sidebar, or visit:
+- Settings → Add-ons → Home Assistant Sentry → Open Web UI
+
+"""
+                
                 if self.config.create_dashboard_entities:
                     notification_message = f"""✅ **Home Assistant Sentry is now running!**
 
@@ -119,7 +153,7 @@ After the first check completes, you should see 6 sensor entities:
 
 Add these sensors to a dashboard card. See the [Documentation](https://github.com/ian-morgan99/Home-Assistant-Sentry/blob/main/DOCS.md#dashboard-integration) for examples.
 
-**What Happens Next:**
+{web_ui_info}**What Happens Next:**
 
 - First update check is running now
 - You'll receive a notification with analysis results

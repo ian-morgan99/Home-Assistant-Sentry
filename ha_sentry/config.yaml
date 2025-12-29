@@ -12,6 +12,10 @@ init: false
 hassio_api: true
 hassio_role: manager
 homeassistant_api: true
+ingress: true
+ingress_port: 8099
+panel_icon: mdi:family-tree
+panel_title: Sentry
 startup: services
 boot: auto
 auto_update: true
@@ -35,6 +39,7 @@ options:
   log_level: "standard"
   enable_dependency_graph: true
   save_reports: true
+  enable_web_ui: true
   custom_integration_paths: []
 schema:
   ai_enabled: bool
@@ -52,5 +57,6 @@ schema:
   log_level: list(minimal|standard|maximal)
   enable_dependency_graph: bool
   save_reports: bool
+  enable_web_ui: bool
   custom_integration_paths:
     - str?
