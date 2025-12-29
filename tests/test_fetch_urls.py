@@ -2,12 +2,8 @@
 Test that fetch URLs in web_server.py use correct relative paths
 This ensures the web UI works correctly when accessed via Home Assistant ingress
 """
-import sys
 import os
 import re
-
-# Add the app directory to Python path
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'ha_sentry', 'rootfs', 'app'))
 
 def test_fetch_urls_are_relative():
     """Test that all fetch() calls use relative URLs that work with ingress"""
@@ -41,14 +37,16 @@ def test_fetch_urls_are_relative():
     for match in matches:
         if match.startswith('api/') and not match.startswith('./api/'):
             all_issues.append(f"Found fetch() call using 'api/' instead of './api/': {match}")
-        print(f"  ✓ Static URL: {match}")
+        else:
+            print(f"  ✓ Static URL: {match}")
     
     for match in template_matches:
         # Extract the base path (before ${...})
         base_path = match.split('${')[0] if '${' in match else match
         if base_path.startswith('api/') and not base_path.startswith('./api/'):
             all_issues.append(f"Found fetch() call using 'api/' instead of './api/': {base_path}")
-        print(f"  ✓ Template URL: {match}")
+        else:
+            print(f"  ✓ Template URL: {match}")
     
     if all_issues:
         print("\n❌ Issues found:")
@@ -112,6 +110,8 @@ def test_no_absolute_api_paths():
     return True
 
 if __name__ == '__main__':
+    import sys
+    
     print("\n" + "="*50)
     print("Testing Fetch URL Patterns in Web UI")
     print("="*50 + "\n")

@@ -657,6 +657,10 @@ class DependencyTreeWebServer:
         let currentMode = 'dependency';
         let components = [];
         
+        // NOTE: All API fetch() calls use relative URLs with './' prefix (e.g., './api/components')
+        // This ensures the URLs resolve correctly both when accessed directly at the server root
+        // and when accessed through Home Assistant's ingress proxy at /api/hassio_ingress/ha_sentry/
+        
         // Initialize
         document.addEventListener('DOMContentLoaded', () => {
             loadComponents();
