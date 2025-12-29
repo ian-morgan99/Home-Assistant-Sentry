@@ -152,6 +152,7 @@ save_reports: true
 | `log_level` | Logging verbosity: `minimal` (errors only), `standard` (info), `maximal` (debug) | `standard` |
 | `enable_dependency_graph` | Build and analyze dependency graph from integration manifests | `true` |
 | `save_reports` | Save machine-readable JSON reports to `/data/reports/` | `true` |
+| `custom_integration_paths` | Custom paths to scan for integrations (see [Troubleshooting](#troubleshooting)) | `[]` |
 
 ### AI Provider Examples
 
@@ -390,6 +391,24 @@ To view add-on logs:
 - Ensure time format is `HH:MM` in 24-hour format (e.g., `02:00`, `14:30`)
 - Check add-on logs for scheduler errors
 - The first check runs immediately on add-on start
+
+### Dependency graph not building (0 integrations found)
+
+If you see warnings like "Path does not exist" or "0 integrations found":
+
+1. **Check the logs**: The add-on will suggest alternative paths if the defaults don't work
+2. **Configure custom paths**: Add the paths to your configuration:
+   ```yaml
+   custom_integration_paths:
+     - "/config/custom_components"
+     - "/usr/share/hassio/homeassistant/custom_components"
+   ```
+3. **Disable if not needed**: The add-on works fine without the dependency graph:
+   ```yaml
+   enable_dependency_graph: false
+   ```
+
+See the [full documentation](DOCS.md#dependency-graph-issues) for more details.
 
 ## Privacy & Security
 

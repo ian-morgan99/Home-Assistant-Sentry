@@ -147,6 +147,32 @@ safety_threshold: 0.7
   - Higher values = more conservative
   - Recommended: `0.7` for balanced approach
 
+#### Advanced Settings
+
+- **enable_dependency_graph**: Enable dependency graph analysis
+  - `true`: Build dependency graph from installed integrations (default)
+  - `false`: Disable dependency graph analysis
+  - The dependency graph helps identify shared dependencies and potential conflicts
+
+- **save_reports**: Save machine-readable reports to disk
+  - `true`: Save JSON reports to `/data/reports` (default)
+  - `false`: Don't save reports
+  - Useful for debugging and external analysis
+
+- **custom_integration_paths**: Custom paths to scan for integrations
+  - Default: `[]` (uses built-in paths)
+  - Example: `["/config/custom_components", "/share/integrations"]`
+  - **Use case**: If the default paths don't work in your environment
+  - The add-on will automatically suggest alternative paths in the logs if default paths are missing
+  - See [Troubleshooting - Dependency Graph Issues](#dependency-graph-issues) for more details
+
+#### Logging Settings
+
+- **log_level**: Set the verbosity of logs
+  - `"minimal"`: Only errors
+  - `"standard"`: Info and errors (default)
+  - `"maximal"`: Debug, info, and errors
+
 ## AI Provider Setup
 
 ### Setting up Ollama
@@ -401,6 +427,48 @@ card:
 - Update to the latest version of the add-on (v1.1.1 or later)
 - The issue has been fixed by updating the OpenAI library dependency
 - If you continue to see this error, try restarting the add-on
+
+#### 7. Dependency Graph Issues
+
+**Problem**: Logs show "Path does not exist" and "Zero integrations found when building dependency graph"
+
+**Root Cause**: The add-on container doesn't have access to Home Assistant's integration directories.
+
+**Symptoms**:
+- Log messages: "Path does not exist: /usr/src/homeassistant/homeassistant/components"
+- Log messages: "Path does not exist: /config/custom_components"
+- "Dependency graph built: 0 integrations, 0 dependencies"
+
+**Solutions**:
+
+1. **Check the logs for suggested paths**: The add-on will automatically scan for alternative integration paths and suggest them in the logs.
+
+2. **Configure custom paths**: Add the suggested paths to your add-on configuration:
+   ```yaml
+   custom_integration_paths:
+     - "/config/custom_components"
+     - "/usr/share/hassio/homeassistant/custom_components"
+   ```
+
+3. **Disable dependency graph** (if you don't need it):
+   ```yaml
+   enable_dependency_graph: false
+   ```
+   Note: The add-on will still work without the dependency graph, but won't be able to analyze shared dependency conflicts.
+
+4. **Manual path discovery**: If the automatic suggestion doesn't work, you can manually explore your container:
+   - Enable SSH access to your Home Assistant
+   - Run: `docker exec -it addon_SLUG sh` (replace SLUG with the add-on slug)
+   - Look for directories containing `manifest.json` files
+   - Add those paths to `custom_integration_paths`
+
+**What the dependency graph provides**:
+- Detection of shared dependencies between integrations
+- Identification of version conflicts in dependencies
+- Highlighting of high-risk dependencies (e.g., aiohttp, cryptography)
+- Enhanced analysis of update impacts
+
+**Note**: The dependency graph is an optional feature. The add-on will continue to function normally without it, using update metadata analysis instead.
 
 ### Checking Logs
 
