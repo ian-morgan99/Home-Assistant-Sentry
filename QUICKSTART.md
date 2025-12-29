@@ -4,10 +4,12 @@ Get up and running with Home Assistant Sentry in 5 minutes!
 
 > **Important Note**: This is a Home Assistant **add-on**, not a HACS integration. Follow the Supervisor add-on installation steps below. Do NOT attempt to add this to HACS.
 
+> **✅ Compatibility**: Requires Home Assistant **2024.11 or later**. Tested with versions **2024.11.x**, **2024.12.x**, and **2025.1.x**
+
 ## Prerequisites
 
 - Home Assistant OS or Supervised
-- Home Assistant Core 2023.1+
+- Home Assistant Core **2024.11+** (check Settings → System → About)
 - (Optional) Ollama, LMStudio, OpenWebUI, or OpenAI API key
 
 ## Installation Steps

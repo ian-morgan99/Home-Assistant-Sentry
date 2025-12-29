@@ -3,6 +3,8 @@
 > **🔔 This is a Home Assistant Add-on Repository**  
 > This repository provides a Home Assistant add-on, not a HACS integration. Please install it through the **Supervisor Add-on Store**, not HACS. See [Installation Instructions](#installation) below.
 
+> **✅ Compatibility**: Tested with Home Assistant versions **2024.11.x**, **2024.12.x**, and **2025.1.x**
+
 ## Product Goal
 
 **Home-Assistant-Sentry exists to explain update risk before the user updates, without modifying or interfering with Home Assistant's runtime.**
