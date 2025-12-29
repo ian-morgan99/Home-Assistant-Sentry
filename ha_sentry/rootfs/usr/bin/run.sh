@@ -19,7 +19,15 @@ export SAFETY_THRESHOLD=$(bashio::config 'safety_threshold')
 export LOG_LEVEL=$(bashio::config 'log_level')
 export ENABLE_DEPENDENCY_GRAPH=$(bashio::config 'enable_dependency_graph')
 export SAVE_REPORTS=$(bashio::config 'save_reports')
-export CUSTOM_INTEGRATION_PATHS=$(bashio::config 'custom_integration_paths' | jq -c '.' || echo "[]")
+
+# Parse custom integration paths with proper error handling
+if CUSTOM_PATHS=$(bashio::config 'custom_integration_paths' | jq -c '.' 2>/dev/null); then
+    export CUSTOM_INTEGRATION_PATHS="${CUSTOM_PATHS}"
+else
+    bashio::log.warning "Failed to parse custom_integration_paths, using empty array"
+    export CUSTOM_INTEGRATION_PATHS="[]"
+fi
+
 export SUPERVISOR_TOKEN="${SUPERVISOR_TOKEN}"
 
 bashio::log.info "Configuration loaded"

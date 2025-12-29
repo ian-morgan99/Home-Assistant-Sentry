@@ -1,8 +1,9 @@
 """
 Configuration Manager for Home Assistant Sentry
 """
-import os
+import json
 import logging
+import os
 
 logger = logging.getLogger(__name__)
 
@@ -52,7 +53,6 @@ class ConfigManager:
     
     def _parse_custom_paths(self) -> list:
         """Parse custom integration paths from environment variable"""
-        import json
         paths_json = os.getenv('CUSTOM_INTEGRATION_PATHS', '[]')
         try:
             paths = json.loads(paths_json)
