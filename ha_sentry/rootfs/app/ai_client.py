@@ -172,12 +172,91 @@ Provide your analysis in the following JSON format:
 
 Be thorough but concise. Focus on actionable insights."""
     
+    def _get_dependency_info_for_update(self, update: Dict) -> Dict:
+        """
+        Extract dependency information for an update from the dependency graph
+        
+        Args:
+            update: Update information dict
+            
+        Returns:
+            Dict with dependency information
+        """
+        if not self.dependency_graph:
+            return {}
+        
+        # Try to match update to integration in dependency graph
+        # For core/supervisor/os updates, look for system-level dependencies
+        update_type = update.get('type', 'addon')
+        integrations = self.dependency_graph.get('integrations', {})
+        dependency_map = self.dependency_graph.get('dependency_map', {})
+        
+        # For system updates (core, supervisor, os), analyze high-risk shared dependencies
+        if update_type in ['core', 'supervisor', 'os']:
+            high_risk_deps = []
+            for pkg, users in dependency_map.items():
+                if pkg in ['aiohttp', 'cryptography', 'numpy', 'pyjwt', 'sqlalchemy', 'protobuf', 'requests', 'urllib3']:
+                    high_risk_deps.append({
+                        'package': pkg,
+                        'user_count': len(users),
+                        'high_risk': True
+                    })
+            return {
+                'type': 'system',
+                'high_risk_dependencies': high_risk_deps[:5],  # Top 5
+                'impact_radius': len(integrations)
+            }
+        
+        # For add-ons and integrations, try to find matching integration
+        update_name = update.get('name', '').lower()
+        slug = update.get('slug', '').lower()
+        entity_id = update.get('entity_id', '').lower()
+        
+        # Try to find matching integration by domain/name
+        matching_integration = None
+        for domain, integration_data in integrations.items():
+            if (domain.lower() == slug or 
+                domain.lower() in update_name or
+                integration_data.get('name', '').lower() == update_name):
+                matching_integration = integration_data
+                break
+        
+        if matching_integration:
+            requirements = matching_integration.get('requirements', [])
+            high_risk = [req for req in requirements if req.get('high_risk')]
+            
+            # Calculate impact: how many other integrations use this integration's dependencies
+            impacted = set()
+            for req in requirements:
+                pkg = req.get('package')
+                if pkg and pkg in dependency_map:
+                    impacted.update([u['integration'] for u in dependency_map[pkg]])
+            
+            return {
+                'type': 'integration',
+                'requirements': requirements[:10],  # Limit to 10
+                'high_risk_count': len(high_risk),
+                'shared_dependency_impact': len(impacted)
+            }
+        
+        return {}
+    
     def _prepare_analysis_context(self, addon_updates: List[Dict], hacs_updates: List[Dict]) -> str:
-        """Prepare context for AI analysis"""
+        """Prepare context for AI analysis with dependency information"""
         context = "# Update Analysis Request\n\n"
         
+        # Add dependency graph summary if available
+        if self.dependency_graph:
+            stats = self.dependency_graph.get('machine_readable', {}).get('statistics', {})
+            if stats:
+                context += "## System Context:\n"
+                context += f"- Total Integrations: {stats.get('total_integrations', 0)}\n"
+                context += f"- Unique Dependencies: {stats.get('total_dependencies', 0)}\n"
+                context += f"- High-Risk Dependencies: {stats.get('high_risk_dependencies', 0)}\n"
+                context += "\n"
+        
         if addon_updates:
-            context += "## Add-on Updates Available:\n"
+            context += "## Add-on/System Updates Available:\n"
             for addon in addon_updates:
                 # Handle both formats: with slug (from get_addon_updates) and without slug (from get_all_updates)
                 addon_identifier = ""
@@ -186,27 +265,91 @@ Be thorough but concise. Focus on actionable insights."""
                 elif addon.get('entity_id'):
                     addon_identifier = f" ({addon['entity_id']})"
                 
-                context += f"- **{addon['name']}**{addon_identifier}\n"
-                context += f"  - Current: {addon['current_version']}\n"
-                context += f"  - Latest: {addon['latest_version']}\n"
-                context += f"  - Repository: {addon.get('repository', 'N/A')}\n"
+                # Determine update criticality
+                update_type = addon.get('type', 'addon')
+                criticality = ""
+                if update_type in ['core', 'supervisor', 'os']:
+                    criticality = " [CRITICAL SYSTEM UPDATE]"
+                
+                context += f"- **{addon['name']}**{addon_identifier}{criticality}\n"
+                context += f"  - Current: {addon['current_version']} → Latest: {addon['latest_version']}\n"
+                
+                # Add type information
+                if update_type:
+                    context += f"  - Type: {update_type}\n"
+                
+                # Add repository and release info
+                if addon.get('repository'):
+                    context += f"  - Repository: {addon['repository']}\n"
+                if addon.get('release_url'):
+                    context += f"  - Release Notes: {addon['release_url']}\n"
+                if addon.get('release_summary'):
+                    summary = addon['release_summary'][:200]  # Limit length
+                    context += f"  - Summary: {summary}\n"
                 if addon.get('description'):
                     context += f"  - Description: {addon['description']}\n"
+                
+                # Add dependency information if available
+                dep_info = self._get_dependency_info_for_update(addon)
+                if dep_info:
+                    if dep_info.get('type') == 'system':
+                        high_risk = dep_info.get('high_risk_dependencies', [])
+                        if high_risk:
+                            context += f"  - Impact: System-wide ({dep_info.get('impact_radius', 0)} integrations)\n"
+                            context += "  - Critical Dependencies:\n"
+                            for dep in high_risk[:3]:  # Top 3
+                                context += f"    • {dep['package']} (used by {dep['user_count']} integrations) ⚠️\n"
+                    elif dep_info.get('type') == 'integration':
+                        if dep_info.get('high_risk_count', 0) > 0:
+                            context += f"  - High-Risk Dependencies: {dep_info['high_risk_count']}\n"
+                        if dep_info.get('shared_dependency_impact', 0) > 0:
+                            context += f"  - Shared Dependency Impact: {dep_info['shared_dependency_impact']} integrations\n"
+                        requirements = dep_info.get('requirements', [])
+                        if requirements:
+                            context += "  - Key Dependencies:\n"
+                            for req in requirements[:5]:  # Top 5
+                                risk_marker = " ⚠️" if req.get('high_risk') else ""
+                                context += f"    • {req['package']} {req['specifier']}{risk_marker}\n"
+                
                 context += "\n"
         
         if hacs_updates:
-            context += "## HACS Integration Updates Available:\n"
+            context += "## HACS/Integration Updates Available:\n"
             for hacs in hacs_updates:
                 context += f"- **{hacs['name']}**\n"
-                context += f"  - Current: {hacs['current_version']}\n"
-                context += f"  - Latest: {hacs['latest_version']}\n"
-                context += f"  - Repository: {hacs.get('repository', 'N/A')}\n"
+                context += f"  - Current: {hacs['current_version']} → Latest: {hacs['latest_version']}\n"
+                
+                if hacs.get('repository'):
+                    context += f"  - Repository: {hacs['repository']}\n"
+                if hacs.get('release_url'):
+                    context += f"  - Release Notes: {hacs['release_url']}\n"
+                if hacs.get('release_summary'):
+                    summary = hacs['release_summary'][:200]
+                    context += f"  - Summary: {summary}\n"
+                
+                # Add dependency information
+                dep_info = self._get_dependency_info_for_update(hacs)
+                if dep_info and dep_info.get('type') == 'integration':
+                    if dep_info.get('high_risk_count', 0) > 0:
+                        context += f"  - High-Risk Dependencies: {dep_info['high_risk_count']}\n"
+                    requirements = dep_info.get('requirements', [])
+                    if requirements:
+                        context += "  - Dependencies:\n"
+                        for req in requirements[:5]:
+                            risk_marker = " ⚠️" if req.get('high_risk') else ""
+                            context += f"    • {req['package']} {req['specifier']}{risk_marker}\n"
+                
                 context += "\n"
         
         if not addon_updates and not hacs_updates:
             context += "No updates available.\n"
         
         context += "\nPlease analyze these updates for potential conflicts, compatibility issues, and provide safety recommendations."
+        context += "\nFocus on:"
+        context += "\n- Breaking changes in high-risk dependencies (⚠️)"
+        context += "\n- Compatibility between shared dependencies"
+        context += "\n- Impact radius of system-wide updates"
+        context += "\n- Recommended installation order"
         
         return context
     
