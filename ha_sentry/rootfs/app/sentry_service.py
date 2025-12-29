@@ -31,6 +31,9 @@ INTEGRATION_ANALYSIS_TYPES = [UPDATE_TYPE_HACS, UPDATE_TYPE_INTEGRATION]
 class SentryService:
     """Main service for monitoring and analyzing Home Assistant updates"""
     
+    # Constants
+    WEB_UI_PORT = 8099  # Port for dependency visualization web interface
+    
     def __init__(self, config):
         """Initialize the sentry service"""
         self.config = config
@@ -85,7 +88,7 @@ class SentryService:
                 self.web_server = DependencyTreeWebServer(
                     self.dependency_graph_builder,
                     self.config,
-                    port=8099
+                    port=self.WEB_UI_PORT
                 )
                 await self.web_server.start()
             except Exception as e:
@@ -119,17 +122,18 @@ class SentryService:
             async with HomeAssistantClient(self.config) as ha_client:
                 notification_title = "🚀 Home Assistant Sentry Started"
                 
-                if self.config.create_dashboard_entities:
-                    web_ui_info = ""
-                    if self.config.enable_web_ui and self.web_server:
-                        web_ui_info = """
+                # Check if web UI is available
+                web_ui_info = ""
+                if self.config.enable_web_ui and self.web_server:
+                    web_ui_info = """
 **📊 Dependency Tree Visualization:**
 
 View dependency trees and impact analysis via the Sentry panel in your sidebar, or visit:
 - Settings → Add-ons → Home Assistant Sentry → Open Web UI
 
 """
-                    
+                
+                if self.config.create_dashboard_entities:
                     notification_message = f"""✅ **Home Assistant Sentry is now running!**
 
 **How to View Your Sensors:**

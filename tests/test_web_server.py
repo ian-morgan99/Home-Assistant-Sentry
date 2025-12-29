@@ -324,8 +324,7 @@ async def test_api_change_impact():
 
 def run_async_test(test_func):
     """Helper to run async tests"""
-    loop = asyncio.get_event_loop()
-    return loop.run_until_complete(test_func())
+    return asyncio.run(test_func())
 
 
 if __name__ == '__main__':
