@@ -226,7 +226,7 @@ If sensors don't appear, check the add-on logs for authentication errors. The ad
                     
                     # For backward compatibility with analysis, categorize updates
                     # The AI analyzer expects two categories: addon_updates (system) and hacs_updates (integrations)
-                    # Only categorize if we haven't already set updates in fallback
+                    # Only categorize if we haven't already populated each category from fallback
                     if len(all_updates) > 0:
                         if len(addon_updates) == 0:
                             addon_updates = [u for u in all_updates if u.get('type') in ADDON_ANALYSIS_TYPES]

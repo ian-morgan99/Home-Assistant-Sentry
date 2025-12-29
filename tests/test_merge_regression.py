@@ -10,7 +10,11 @@ import os
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'ha_sentry', 'rootfs', 'app'))
 
 # Import the modules we need to test
-from ha_client import HomeAssistantClient
+from ha_client import (
+    HomeAssistantClient,
+    UPDATE_TYPE_CORE, UPDATE_TYPE_SUPERVISOR, UPDATE_TYPE_OS,
+    UPDATE_TYPE_ADDON, UPDATE_TYPE_HACS, UPDATE_TYPE_INTEGRATION
+)
 from dependency_graph_builder import DependencyGraphBuilder
 
 
@@ -19,14 +23,7 @@ def test_fallback_categorization_consistency():
     Test that fallback logic correctly categorizes updates into addon_updates and hacs_updates
     Regression test for sentry_service.py lines 227-237
     """
-    # Simulate the categorization logic from sentry_service.py
-    UPDATE_TYPE_CORE = 'core'
-    UPDATE_TYPE_SUPERVISOR = 'supervisor'
-    UPDATE_TYPE_OS = 'os'
-    UPDATE_TYPE_ADDON = 'addon'
-    UPDATE_TYPE_HACS = 'hacs'
-    UPDATE_TYPE_INTEGRATION = 'integration'
-    
+    # Categorization types from sentry_service.py
     ADDON_ANALYSIS_TYPES = [UPDATE_TYPE_CORE, UPDATE_TYPE_SUPERVISOR, UPDATE_TYPE_OS, UPDATE_TYPE_ADDON]
     INTEGRATION_ANALYSIS_TYPES = [UPDATE_TYPE_HACS, UPDATE_TYPE_INTEGRATION]
     
@@ -149,10 +146,6 @@ def test_update_categorization_consistency():
     Regression test for ha_client.py _categorize_update method
     """
     from ha_client import HomeAssistantClient
-    from ha_client import (
-        UPDATE_TYPE_CORE, UPDATE_TYPE_SUPERVISOR, UPDATE_TYPE_OS,
-        UPDATE_TYPE_ADDON, UPDATE_TYPE_HACS, UPDATE_TYPE_INTEGRATION
-    )
     
     class MockConfig:
         def __init__(self):
