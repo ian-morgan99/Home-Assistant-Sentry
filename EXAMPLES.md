@@ -1,5 +1,23 @@
 # Example Configuration for Home Assistant Sentry
 
+## Comprehensive Update Checking (Recommended)
+
+```yaml
+ai_enabled: true
+ai_provider: "ollama"
+ai_endpoint: "http://localhost:11434"
+ai_model: "llama2"
+api_key: ""
+check_schedule: "02:00"
+create_dashboard_entities: true
+auto_create_dashboard: false
+check_all_updates: true  # Check ALL updates (Core, Supervisor, OS, Add-ons, Integrations)
+check_addons: true
+check_hacs: true
+safety_threshold: 0.7
+log_level: "standard"
+```
+
 ## Minimal Configuration (No AI)
 
 ```yaml
@@ -7,6 +25,7 @@ ai_enabled: false
 check_schedule: "02:00"
 create_dashboard_entities: true
 auto_create_dashboard: false
+check_all_updates: true
 check_addons: true
 check_hacs: true
 ```

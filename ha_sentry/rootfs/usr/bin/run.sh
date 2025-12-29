@@ -11,6 +11,8 @@ export AI_MODEL=$(bashio::config 'ai_model')
 export API_KEY=$(bashio::config 'api_key')
 export CHECK_SCHEDULE=$(bashio::config 'check_schedule')
 export CREATE_DASHBOARD_ENTITIES=$(bashio::config 'create_dashboard_entities')
+export AUTO_CREATE_DASHBOARD=$(bashio::config 'auto_create_dashboard')
+export CHECK_ALL_UPDATES=$(bashio::config 'check_all_updates')
 export CHECK_ADDONS=$(bashio::config 'check_addons')
 export CHECK_HACS=$(bashio::config 'check_hacs')
 export SAFETY_THRESHOLD=$(bashio::config 'safety_threshold')
@@ -21,6 +23,7 @@ bashio::log.info "Configuration loaded"
 bashio::log.info "AI Enabled: ${AI_ENABLED}"
 bashio::log.info "AI Provider: ${AI_PROVIDER}"
 bashio::log.info "Check Schedule: ${CHECK_SCHEDULE}"
+bashio::log.info "Check All Updates: ${CHECK_ALL_UPDATES}"
 bashio::log.info "Log Level: ${LOG_LEVEL}"
 
 # Start the Python application
