@@ -181,7 +181,7 @@ Be thorough but concise. Focus on actionable insights."""
             for addon in addon_updates:
                 # Handle both formats: with slug (from get_addon_updates) and without slug (from get_all_updates)
                 addon_identifier = ""
-                if 'slug' in addon and addon['slug']:
+                if addon.get('slug'):
                     addon_identifier = f" ({addon['slug']})"
                 elif addon.get('entity_id'):
                     addon_identifier = f" ({addon['entity_id']})"
