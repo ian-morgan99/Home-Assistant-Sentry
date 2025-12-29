@@ -26,8 +26,13 @@ jobs:
           echo "version=$VERSION" >> $GITHUB_OUTPUT
           echo "Extracted version: $VERSION"
           
-          # Get current version from config.json
-          CURRENT_VERSION=$(grep -Po '(?<="version": ")[^"]*' ha_sentry/config.json)
+          # Get current version from config.json using jq
+          if ! command -v jq &> /dev/null; then
+            echo "jq not found, using grep as fallback"
+            CURRENT_VERSION=$(grep -Po '(?<="version": ")[^"]*' ha_sentry/config.json)
+          else
+            CURRENT_VERSION=$(jq -r '.version' ha_sentry/config.json)
+          fi
           echo "current_version=$CURRENT_VERSION" >> $GITHUB_OUTPUT
           echo "Current version: $CURRENT_VERSION"
       
@@ -38,14 +43,26 @@ jobs:
           
           echo "Validating version update from $CURRENT_VERSION to $NEW_VERSION"
           
+          # Validate version format (should be X.Y.Z)
+          if ! [[ "$NEW_VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "::error::Invalid version format: $NEW_VERSION"
+            echo "Version must follow semantic versioning (X.Y.Z) where X, Y, and Z are numbers"
+            exit 1
+          fi
+          
+          if ! [[ "$CURRENT_VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "::error::Invalid current version format: $CURRENT_VERSION"
+            exit 1
+          fi
+          
           # Check if versions are the same
           if [ "$NEW_VERSION" == "$CURRENT_VERSION" ]; then
-            echo "::warning::Version $NEW_VERSION is the same as current version. No update needed."
+            echo "::error::Version $NEW_VERSION is the same as current version."
             echo "Please ensure you increment the version for each release:"
             echo "  - Patch version (x.y.Z) for bug fixes and minor changes (increment by 0.0.1)"
             echo "  - Minor version (x.Y.0) for new features or larger changes (increment by 0.1.0)"
             echo "  - Major version (X.0.0) for breaking changes (increment by 1.0.0)"
-            exit 0
+            exit 1
           fi
           
           # Parse versions (simple semver check)
