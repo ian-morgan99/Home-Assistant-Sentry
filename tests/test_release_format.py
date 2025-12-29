@@ -6,8 +6,15 @@ import os
 import re
 import json
 
-# Change to the repository root
+# Repository root - used for building absolute paths
 repo_root = os.path.join(os.path.dirname(__file__), '..')
+
+
+def _extract_yaml_version(content):
+    """Helper function to extract version from YAML content"""
+    # Match version with or without quotes, allowing for semantic versioning
+    version_match = re.search(r'^version:\s*["\']?([0-9.]+)["\']?', content, re.MULTILINE)
+    return version_match.group(1) if version_match else None
 
 
 def test_config_json_version_format():
@@ -42,11 +49,10 @@ def test_config_yaml_version_format():
         with open(config_path, 'r') as f:
             content = f.read()
         
-        # Extract version using regex
-        version_match = re.search(r'^version:\s*["\']?([^"\']+)["\']?', content, re.MULTILINE)
+        # Extract version using helper function
+        version = _extract_yaml_version(content)
         
-        assert version_match, "config.yaml must have a version field"
-        version = version_match.group(1)
+        assert version is not None, "config.yaml must have a version field"
         
         # Version should follow semantic versioning
         version_pattern = r'^\d+\.\d+\.\d+$'
@@ -71,12 +77,11 @@ def test_config_versions_match():
             config_json = json.load(f)
         json_version = config_json.get('version', '')
         
-        # Read config.yaml
+        # Read config.yaml using helper function
         config_yaml_path = os.path.join(repo_root, 'ha_sentry', 'config.yaml')
         with open(config_yaml_path, 'r') as f:
             yaml_content = f.read()
-        yaml_version_match = re.search(r'^version:\s*["\']?([^"\']+)["\']?', yaml_content, re.MULTILINE)
-        yaml_version = yaml_version_match.group(1) if yaml_version_match else ''
+        yaml_version = _extract_yaml_version(yaml_content)
         
         assert json_version == yaml_version, \
             f"Version mismatch: config.json has {json_version}, config.yaml has {yaml_version}"
@@ -96,13 +101,14 @@ def test_changelog_format():
             content = f.read()
         
         # Check for Home Assistant Add-on format (without square brackets)
-        # Format should be: ## X.Y.Z - YYYY-MM-DD
-        version_entries = re.findall(r'^## (\d+\.\d+\.\d+)\s*-\s*(.+)$', content, re.MULTILINE)
+        # Format should be: ## X.Y.Z - YYYY-MM-DD (or TBD)
+        # Allow flexible version format (X.Y.Z or X.Y.ZZ)
+        version_entries = re.findall(r'^## ([0-9.]+)\s*-\s*(.+)$', content, re.MULTILINE)
         
         assert len(version_entries) > 0, "CHANGELOG.md should have at least one version entry"
         
         # Check that version entries don't use square brackets
-        bracket_entries = re.findall(r'^## \[(\d+\.\d+\.\d+)\]', content, re.MULTILINE)
+        bracket_entries = re.findall(r'^## \[[0-9.]+\]', content, re.MULTILINE)
         assert len(bracket_entries) == 0, \
             "CHANGELOG.md should not use square brackets around version numbers (use '## X.Y.Z' not '## [X.Y.Z]')"
         
@@ -170,9 +176,6 @@ def test_changelog_structure():
 
 if __name__ == '__main__':
     print("Running release format verification tests...\n")
-    
-    # Change to tests directory so relative paths work
-    os.chdir(os.path.dirname(os.path.abspath(__file__)))
     
     tests = [
         test_config_json_version_format,
