@@ -315,6 +315,9 @@ class HomeAssistantClient:
                     if test_response.status == 404:
                         self._log_dashboard_endpoint_not_found()
                         return False
+                    elif test_response.status == 401:
+                        self._log_dashboard_permission_error()
+                        return False
             except Exception as e:
                 logger.debug(f"Endpoint test failed: {e}")
             

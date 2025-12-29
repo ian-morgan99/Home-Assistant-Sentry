@@ -3,7 +3,6 @@ Test for dashboard creation 404 error handling
 """
 import sys
 import os
-from unittest.mock import AsyncMock, MagicMock, patch
 
 # Add the app directory to Python path
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'ha_sentry', 'rootfs', 'app'))
