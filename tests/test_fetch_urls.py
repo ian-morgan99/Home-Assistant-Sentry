@@ -18,7 +18,7 @@ def test_fetch_urls_are_relative():
     
     print(f"Found {len(matches)} fetch() calls")
     
-    # Expected API endpoints
+    # Expected API endpoints (static strings only, not template literals)
     expected_endpoints = [
         './api/components',
         './api/graph-data',
@@ -32,6 +32,13 @@ def test_fetch_urls_are_relative():
     print(f"Found {len(template_matches)} fetch() calls with template literals")
     
     all_issues = []
+    
+    # Verify expected static endpoints are present
+    for expected in expected_endpoints:
+        if expected not in matches:
+            all_issues.append(f"Expected endpoint not found: {expected}")
+        else:
+            print(f"  ✓ Expected endpoint found: {expected}")
     
     # Verify all fetch calls use ./api/ prefix for relative URLs
     for match in matches:
@@ -96,12 +103,25 @@ def test_no_absolute_api_paths():
         content = f.read()
     
     # Find fetch calls with absolute paths starting with /api/
-    absolute_pattern = r"fetch\(['\"][/]api/"
+    # Updated regex with capturing group to extract the full URL
+    absolute_pattern = r"fetch\(['\"]([/]api/[^'\"]*)['\"]"
     matches = re.findall(absolute_pattern, content)
     
+    # Also check template literals for absolute paths
+    absolute_template_pattern = r"fetch\(`([/]api/[^`]*)`"
+    template_matches = re.findall(absolute_template_pattern, content)
+    
+    all_absolute_paths = []
+    
     if matches:
-        print(f"❌ Found {len(matches)} fetch() calls with absolute paths:")
-        for match in matches:
+        all_absolute_paths.extend(matches)
+    
+    if template_matches:
+        all_absolute_paths.extend(template_matches)
+    
+    if all_absolute_paths:
+        print(f"❌ Found {len(all_absolute_paths)} fetch() calls with absolute paths:")
+        for match in all_absolute_paths:
             print(f"  - {match}")
         print("\nAbsolute paths like '/api/...' may not work correctly with ingress!")
         return False
