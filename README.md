@@ -299,6 +299,10 @@ To view add-on logs:
 - API keys are stored securely in Home Assistant
 - No telemetry or external reporting
 
+## Development & Contributing
+
+For information about creating releases and the automated version update process, see [RELEASING.md](RELEASING.md).
+
 ## Support
 
 For issues, feature requests, or contributions:
