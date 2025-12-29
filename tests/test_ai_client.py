@@ -198,6 +198,8 @@ def test_get_dependency_info_system_update():
                 assert 'user_count' in dep
                 assert 'high_risk' in dep
                 assert dep['high_risk'] is True
+                # All high-risk dependencies returned should be from HIGH_RISK_LIBRARIES
+                # since that's the only source for system update high-risk deps
                 assert dep['package'] in AIClient.HIGH_RISK_LIBRARIES
             
             print(f"✓ Test passed: _get_dependency_info_for_update handles {update_type} update correctly")
