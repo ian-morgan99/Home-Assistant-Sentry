@@ -33,6 +33,9 @@ class ConfigManager:
         self.save_reports = self._get_bool_env('SAVE_REPORTS', True)
         self.custom_integration_paths = self._parse_custom_paths()
         
+        # Web UI configuration for dependency visualization
+        self.enable_web_ui = self._get_bool_env('ENABLE_WEB_UI', True)
+        
         # Home Assistant API configuration
         self.ha_url = 'http://supervisor/core'
         self.supervisor_url = 'http://supervisor'
