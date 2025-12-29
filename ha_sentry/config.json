@@ -1,6 +1,6 @@
 {
   "name": "Home Assistant Sentry",
-  "version": "1.1.2",
+  "version": "1.1.3",
   "slug": "ha_sentry",
   "description": "Daily review of all system updates (Core, Supervisor, OS, Add-ons, Integrations) with AI-powered conflict detection",
   "url": "https://github.com/ian-morgan99/Home-Assistant-Sentry",
