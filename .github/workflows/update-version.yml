@@ -109,9 +109,8 @@ jobs:
           else
             NEW_VERSION="${{ steps.get_version.outputs.version }}"
             OLD_VERSION="${{ steps.get_version.outputs.current_version }}"
-            git commit -m "chore: bump version from $OLD_VERSION to $NEW_VERSION
-
-Automatically updated version in config files for release $NEW_VERSION"
+            git commit -m "chore: bump version from $OLD_VERSION to $NEW_VERSION" \
+                       -m "Automatically updated version in config files for release $NEW_VERSION"
             git push origin main || { echo "Failed to push changes"; exit 1; }
             echo "✓ Version successfully updated and pushed to main branch"
             echo "  Previous version: $OLD_VERSION"
