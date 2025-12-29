@@ -110,9 +110,11 @@ safety_threshold: 0.7
   - Set to `false` if you only want notifications
 
 - **auto_create_dashboard**: Automatically create Sentry dashboard
-  - Set to `true` to automatically create a Lovelace dashboard with Sentry widgets
-  - Set to `false` if you want to manually add Sentry cards to your own dashboards
-  - The dashboard will be created at startup if enabled
+  - **IMPORTANT**: This feature has limited support and may not work due to API permission restrictions
+  - Recommended: Set to `false` (default) and manually create your dashboard
+  - If enabled, the add-on will attempt to create a Lovelace dashboard at startup
+  - If dashboard creation fails (401 error), the add-on will continue to work normally
+  - See [Dashboard Integration](#dashboard-integration) for manual setup instructions
 
 #### AI Settings
 
@@ -358,6 +360,29 @@ card:
 - Check add-on logs for scheduler errors
 - Note: First check runs immediately on start
 - Restart add-on if schedule seems stuck
+
+#### 5. Dashboard Creation Failed (401 Unauthorized)
+
+**Problem**: "Failed to create dashboard: 401 - 401: Unauthorized" in logs
+
+**This is a known limitation**: Home Assistant add-ons do not have permission to create Lovelace dashboards via the API. This is by design for security reasons.
+
+**Solution**:
+- Set `auto_create_dashboard: false` in the add-on configuration (this is the default)
+- Manually create your dashboard using the sensor entities
+- See the [Dashboard Examples](#dashboard-examples) section for configuration templates
+- The add-on will continue to work normally and create/update sensor entities
+
+#### 6. AI Client Initialization Error
+
+**Problem**: "Failed to initialize AI client: Client.__init__() got an unexpected keyword argument 'proxies'"
+
+**This was a compatibility issue** with older versions of the OpenAI library.
+
+**Solution**:
+- Update to the latest version of the add-on (v1.1.1 or later)
+- The issue has been fixed by updating the OpenAI library dependency
+- If you continue to see this error, try restarting the add-on
 
 ### Checking Logs
 
