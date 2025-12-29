@@ -308,6 +308,8 @@ class HomeAssistantClient:
             logger.debug(f"Dashboard config: {dashboard_config.get('url_path')}, title: {dashboard_config.get('title')}")
             
             # First, test if the endpoint exists by attempting a GET request
+            # Note: Some endpoints may only accept POST and return 405 for GET,
+            # in which case we proceed with the POST attempt anyway.
             logger.debug("Testing Lovelace dashboards endpoint accessibility...")
             try:
                 async with self.session.get(url) as test_response:
@@ -318,8 +320,10 @@ class HomeAssistantClient:
                     elif test_response.status == 401:
                         self._log_dashboard_permission_error()
                         return False
+                    # Note: 405 Method Not Allowed is acceptable here - endpoint exists but doesn't accept GET
             except Exception as e:
                 logger.debug(f"Endpoint test failed: {e}")
+                # Continue to POST attempt even if GET test fails due to network issues
             
             # Attempt to create the dashboard
             async with self.session.post(url, json=dashboard_config) as response:
