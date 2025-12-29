@@ -1,5 +1,8 @@
 # Home Assistant Sentry
 
+> **🔔 This is a Home Assistant Add-on Repository**  
+> This repository provides a Home Assistant add-on, not a HACS integration. Please install it through the **Supervisor Add-on Store**, not HACS. See [Installation Instructions](#installation) below.
+
 A Home Assistant add-on that performs daily reviews of all available updates to installed add-ons and HACS integrations, identifies potential conflicts and dependency issues, and advises whether updates are safe to install.
 
 ## Features
@@ -14,10 +17,33 @@ A Home Assistant add-on that performs daily reviews of all available updates to 
 
 ## Installation
 
-1. Add this repository to your Home Assistant add-on store
-2. Install the "Home Assistant Sentry" add-on
-3. Configure the add-on (see Configuration section)
-4. Start the add-on
+> **Important**: This is a Home Assistant **add-on** repository, not a HACS integration. Add-ons must be installed through the Home Assistant Supervisor, not through HACS.
+
+### Step-by-Step Installation
+
+1. **Add the repository to Home Assistant Supervisor**:
+   - Go to **Settings** → **Add-ons** → **Add-on Store**
+   - Click the **three dots menu** (⋮) in the top right corner
+   - Select **Repositories**
+   - Add this URL: `https://github.com/ian-morgan99/Home-Assistant-Sentry`
+   - Click **Add**
+
+2. **Install the add-on**:
+   - The "Home Assistant Sentry" add-on should now appear in your add-on store
+   - Click on it and select **Install**
+
+3. **Configure the add-on**:
+   - Go to the **Configuration** tab
+   - Adjust settings as needed (see Configuration section below)
+
+4. **Start the add-on**:
+   - Go to the **Info** tab
+   - Click **Start**
+   - Optionally enable **Start on boot** and **Watchdog**
+
+### Note about HACS
+
+This is NOT a HACS integration. If you try to add this repository to HACS, you will receive an error. HACS is for custom integrations, plugins, and themes, while this is a Home Assistant add-on that runs as a separate Docker container managed by the Supervisor.
 
 ## Configuration
 

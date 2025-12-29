@@ -1,5 +1,7 @@
 # Home Assistant Sentry - Documentation
 
+> **Important**: This is a Home Assistant **add-on**, not a HACS integration. It must be installed through the Supervisor Add-on Store, not through HACS.
+
 ## Table of Contents
 
 1. [Introduction](#introduction)
