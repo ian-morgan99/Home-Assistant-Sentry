@@ -62,6 +62,7 @@ class DependencyGraphBuilder:
                 existing_paths.append(path)
                 self._scan_integration_path(path)
             else:
+                missing_paths.append(path)
                 logger.debug(f"Path does not exist: {path}")
                 # Suggest alternatives
                 parent = os.path.dirname(path)
@@ -72,8 +73,6 @@ class DependencyGraphBuilder:
                         logger.debug(f"  Parent contains: {contents}")
                     except Exception as e:
                         logger.debug(f"  Cannot list parent: {e}")
-                missing_paths.append(path)
-                logger.warning(f"Path does not exist: {path}")
         
         # Log summary of path scanning
         if missing_paths:
