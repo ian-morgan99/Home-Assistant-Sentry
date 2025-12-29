@@ -142,23 +142,24 @@ if __name__ == '__main__':
     print()
     
     tests = [
-        ('sync', test_web_server_503_with_no_dependency_graph),
-        ('async', test_api_returns_detailed_503_error),
-        ('sync', test_config_validation_detects_mismatch),
+        test_web_server_503_with_no_dependency_graph,
+        test_api_returns_detailed_503_error,
+        test_config_validation_detects_mismatch,
     ]
     
     passed = 0
     failed = 0
     
-    for test_type, test in tests:
+    for test in tests:
         try:
-            if test_type == 'sync':
-                if test():
+            # Check if test is async by checking if it's a coroutine function
+            if asyncio.iscoroutinefunction(test):
+                if run_async_test(test):
                     passed += 1
                 else:
                     failed += 1
             else:
-                if run_async_test(test):
+                if test():
                     passed += 1
                 else:
                     failed += 1

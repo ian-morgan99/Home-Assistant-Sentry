@@ -720,11 +720,12 @@ class DependencyTreeWebServer:
         async function loadStats() {
             try {
                 const response = await fetch('/api/graph-data');
-                const data = await response.json();
                 
                 if (response.status === 503) {
                     return; // Don't show stats if service unavailable
                 }
+                
+                const data = await response.json();
                 
                 if (data.error) {
                     return;
