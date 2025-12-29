@@ -36,6 +36,9 @@ class ConfigManager:
         # Web UI configuration for dependency visualization
         self.enable_web_ui = self._get_bool_env('ENABLE_WEB_UI', True)
         
+        # Validate configuration consistency
+        self._validate_config()
+        
         # Home Assistant API configuration
         self.ha_url = 'http://supervisor/core'
         self.supervisor_url = 'http://supervisor'
@@ -48,6 +51,33 @@ class ConfigManager:
             logger.debug(f"SUPERVISOR_TOKEN is set (length: {len(self.supervisor_token)})")
         
         logger.info(f"Configuration initialized: AI={self.ai_enabled}, Provider={self.ai_provider}, LogLevel={self.log_level}")
+    
+    def _validate_config(self):
+        """Validate configuration for common issues and mismatches"""
+        issues = []
+        
+        # Check for web UI without dependency graph
+        if self.enable_web_ui and not self.enable_dependency_graph:
+            issues.append({
+                'severity': 'ERROR',
+                'message': 'Web UI is enabled but dependency graph is disabled',
+                'details': 'The web UI requires the dependency graph to function. You will get 503 errors when accessing the web UI.',
+                'fix': 'Either enable "enable_dependency_graph: true" or disable "enable_web_ui: false"'
+            })
+        
+        # Log any configuration issues
+        if issues:
+            logger.warning("=" * 60)
+            logger.warning("CONFIGURATION VALIDATION WARNINGS")
+            logger.warning("=" * 60)
+            for issue in issues:
+                logger.warning(f"{issue['severity']}: {issue['message']}")
+                logger.warning(f"  Details: {issue['details']}")
+                logger.warning(f"  Fix: {issue['fix']}")
+                logger.warning("")
+            logger.warning("=" * 60)
+        else:
+            logger.debug("Configuration validation passed")
     
     def _get_bool_env(self, key: str, default: bool) -> bool:
         """Get boolean value from environment variable"""
