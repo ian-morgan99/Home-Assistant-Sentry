@@ -1,15 +1,37 @@
-# Update Report Enhancement - Component Impact Links
+# Update Report Enhancement - Component Impact Links & Type Display
 
 ## Overview
 
-This feature enhances the Home Assistant Sentry Update Report by adding useful links to provide more detailed information about component updates and their impacts.
+This feature enhances the Home Assistant Sentry Update Report by adding useful links to provide more detailed information about component updates and their impacts, as well as clearly displaying component types to avoid confusion.
 
 ## What's New
 
-### 1. Component Naming
-Components that have been updated are now clearly named in the notification, making it easy to identify which specific component is affected.
+### 1. Component Type Display
+Components now display their type alongside their name to clearly distinguish between:
+- **Add-ons** - Home Assistant add-ons (e.g., mosquitto, Node-RED, MariaDB)
+- **HACS Integrations** - Custom integrations installed via HACS
+- **Core** - Home Assistant Core updates
+- **Supervisor** - Supervisor updates
+- **OS** - Operating System updates
+- **Integrations** - Built-in Home Assistant integrations
 
-### 2. "View Impact" Links for Each Component
+This resolves confusion when a component name appears in both add-on and integration contexts (e.g., "mosquitto" could be the MQTT add-on or a HACS integration).
+
+**Example:**
+```
+🟠 **mosquitto (Add-on)**
+MQTT broker update: 2.0.15 → 2.0.18
+  [🔍 View Impact](/api/hassio_ingress/ha_sentry#whereused:mosquitto)
+
+🟡 **Custom Card (HACS Integration)**
+Major HACS update: 1.0.0 → 2.0.0
+  [🔍 View Impact](/api/hassio_ingress/ha_sentry#whereused:custom_card)
+```
+
+### 2. Component Naming
+Components that have been updated are now clearly named in the notification with their type label, making it easy to identify which specific component is affected and what kind of component it is.
+
+### 3. "View Impact" Links for Each Component
 Each component in the update report now includes a **"View Impact"** link that takes you directly to the web UI's "Where Used" view for that specific component. This shows:
 - Which other integrations depend on this component
 - What packages are shared with other components
@@ -79,26 +101,31 @@ Here's an example of a complete update notification with the new features:
 - Add-ons: 2
 - HACS/Integrations: 2
 
-**Issues Found:** 2
+**Issues Found:** 3
 
-🟠 **Home Assistant Core**
+🟠 **Home Assistant Core (Core)**
 Major version update: 2024.1 → 2024.2
   [🔍 View Impact](/api/hassio_ingress/ha_sentry#whereused:home_assistant_core)
 
-🟡 **mosquitto**
+🟠 **mosquitto (Add-on)**
 MQTT broker update: 2.0.15 → 2.0.18
   [🔍 View Impact](/api/hassio_ingress/ha_sentry#whereused:mosquitto)
 
+🟡 **Custom Integration (HACS Integration)**
+Major HACS update: 1.0.0 → 2.0.0
+  [🔍 View Impact](/api/hassio_ingress/ha_sentry#whereused:custom_integration)
+
 **Summary:**
-Deep analysis: 5 updates available. Review required: 0 critical, 2 high-priority issues detected.
+Deep analysis: 5 updates available. Review required: 0 critical, 3 high-priority issues detected.
 
 **Recommendations:**
 - Backup before updating Home Assistant Core
 - Review Home Assistant Core changelog for breaking changes
+- Review Custom Integration release notes before updating
 
 ---
 **📊 Detailed Analysis:**
-- [⚡ Change Impact Report](/api/hassio_ingress/ha_sentry#impact:home_assistant_core,mosquitto) - View 2 changed components and their affected dependencies
+- [⚡ Change Impact Report](/api/hassio_ingress/ha_sentry#impact:home_assistant_core,mosquitto,custom_integration) - View 3 changed components and their affected dependencies
 - [🛡️ Dependency Dashboard](/api/hassio_ingress/ha_sentry) - Explore all component dependencies
 
 *Analysis powered by: Heuristics*
@@ -108,22 +135,41 @@ Deep analysis: 5 updates available. Review required: 0 critical, 2 high-priority
 ## Technical Implementation
 
 ### Changed Files
-1. **sentry_service.py**:
+1. **dependency_analyzer.py**:
+   - Added `component_type` field to all generated issues
+   - Addon issues include type from update object (defaults to 'addon')
+   - HACS issues include type from update object (defaults to 'hacs')
+   - Breaking change issues preserve type from source update
+   - Shared dependency issues use 'integration' type
+
+2. **sentry_service.py**:
    - Added `ADDON_SLUG` constant
    - Added `_get_ingress_url()` method for generating ingress URLs
    - Added `_extract_component_domain()` method for sanitizing component names
-   - Modified notification generation to include links
+   - Added `_get_component_type_label()` method for formatting component type labels
+   - Modified notification generation to include component types and links
+   - Component display format: "Component Name (Type Label)"
 
-2. **web_server.py**:
+3. **web_server.py**:
    - Added `handleUrlFragment()` JavaScript function
    - Implemented automatic mode switching based on URL fragments
    - Added component pre-selection from URL parameters
 
 ### Test Coverage
-New test file `test_notification_links.py` validates:
-- Ingress URL generation patterns
-- Component domain extraction and sanitization
-- URL fragment handling in the web UI
+Test files validate the functionality:
+
+1. **test_notification_links.py**:
+   - Ingress URL generation patterns
+   - Component domain extraction and sanitization
+   - URL fragment handling in the web UI
+   - Notification structure requirements
+
+2. **test_component_type_display.py** (NEW):
+   - Addon issues include component_type field
+   - HACS issues include component_type field
+   - Component type label formatting (Add-on, HACS Integration, etc.)
+   - Mixed addon/HACS updates preserve correct types
+   - All core system type variants handled correctly
 - Notification structure requirements
 
 ## Benefits
