@@ -58,6 +58,15 @@ class DependencyGraphBuilder:
                 self._scan_integration_path(path)
             else:
                 logger.debug(f"Path does not exist: {path}")
+                # Suggest alternatives
+                parent = os.path.dirname(path)
+                if os.path.exists(parent):
+                    logger.debug(f"  Parent directory exists: {parent}")
+                    try:
+                        contents = os.listdir(parent)[:10]
+                        logger.debug(f"  Parent contains: {contents}")
+                    except Exception as e:
+                        logger.debug(f"  Cannot list parent: {e}")
         
         # Build the dependency map
         self._build_dependency_map()
