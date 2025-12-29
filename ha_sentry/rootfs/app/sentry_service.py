@@ -41,7 +41,16 @@ class SentryService:
             logger.info("Building dependency graph from installed integrations...")
             try:
                 graph_builder = DependencyGraphBuilder()
-                graph_data = graph_builder.build_graph_from_paths()
+                
+                # Use custom paths if provided, otherwise use defaults
+                integration_paths = None
+                if hasattr(config, 'custom_integration_paths') and config.custom_integration_paths:
+                    logger.info(f"Using custom integration paths: {config.custom_integration_paths}")
+                    integration_paths = config.custom_integration_paths
+                else:
+                    logger.info("Using default integration paths")
+                
+                graph_data = graph_builder.build_graph_from_paths(integration_paths)
                 self.dependency_graph = graph_data
                 
                 stats = graph_data.get('machine_readable', {}).get('statistics', {})

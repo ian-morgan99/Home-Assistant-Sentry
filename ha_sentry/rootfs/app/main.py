@@ -41,6 +41,13 @@ async def main():
             logger.info(f"Log Level set to: {config.log_level} (Python level: {logging.getLevelName(log_level)})")
         
         if log_level == logging.DEBUG:
+            logger.debug("=" * 60)
+            logger.debug("SYSTEM INFORMATION")
+            logger.debug("=" * 60)
+            logger.debug(f"  Python: {sys.version}")
+            logger.debug(f"  Home Assistant URL: {config.ha_url}")
+            logger.debug(f"  Has Supervisor Token: {bool(config.supervisor_token)}")
+            logger.debug("=" * 60)
             logger.debug(f"Full configuration:")
             logger.debug(f"  AI Enabled: {config.ai_enabled}")
             logger.debug(f"  AI Provider: {config.ai_provider}")

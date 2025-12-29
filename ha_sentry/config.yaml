@@ -35,6 +35,7 @@ options:
   log_level: "standard"
   enable_dependency_graph: true
   save_reports: true
+  custom_integration_paths: []
 schema:
   ai_enabled: bool
   ai_provider: list(openai|ollama|lmstudio|openwebui)
@@ -51,3 +52,5 @@ schema:
   log_level: list(minimal|standard|maximal)
   enable_dependency_graph: bool
   save_reports: bool
+  custom_integration_paths:
+    - str?
