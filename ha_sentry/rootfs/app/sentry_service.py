@@ -68,9 +68,11 @@ class SentryService:
                 notification_title = "🚀 Home Assistant Sentry Started"
                 
                 if self.config.create_dashboard_entities:
-                    notification_message = """✅ **Home Assistant Sentry is now running!**
+                    notification_message = f"""✅ **Home Assistant Sentry is now running!**
 
 **How to View Your Sensors:**
+
+After the first check completes, you should see 6 sensor entities:
 
 1. Go to **Developer Tools** → **States**
 2. Search for `sensor.ha_sentry` to see all Sentry sensors:
@@ -90,6 +92,10 @@ Add these sensors to a dashboard card. See the [Documentation](https://github.co
 - First update check is running now
 - You'll receive a notification with analysis results
 - Daily checks run at {self.config.check_schedule}
+
+**Troubleshooting:**
+
+If sensors don't appear, check the add-on logs for authentication errors. The add-on requires proper Home Assistant API permissions to create sensors.
 
 *This notification will not be shown again.*
 """

@@ -95,10 +95,23 @@ create_dashboard_entities: true
 
 ### Not seeing sensors?
 
-1. Check `create_dashboard_entities: true` in configuration
-2. Go to Developer Tools → States → Search for `sensor.ha_sentry`
-3. Wait for the first check cycle to complete (runs immediately on start)
-4. Check the add-on logs for errors
+**Check the logs first!** Go to the add-on **Log** tab and look for errors.
+
+**Common Issue: 401 Authentication Error**
+
+If you see `Failed to update sensor: 401` in the logs:
+
+1. The add-on cannot authenticate with Home Assistant
+2. This prevents sensor creation and updates
+3. **Solution**: Restart the add-on. If that doesn't work, restart Home Assistant.
+4. The add-on requires `homeassistant_api: true` in config.json (already set by default)
+
+**Other checks:**
+
+1. Verify `create_dashboard_entities: true` in configuration
+2. Wait for the first check cycle to complete (runs immediately on start)
+3. Go to Developer Tools → States → Search for `sensor.ha_sentry`
+4. Check the add-on logs for any other errors
 
 ### Not seeing dashboard?
 
