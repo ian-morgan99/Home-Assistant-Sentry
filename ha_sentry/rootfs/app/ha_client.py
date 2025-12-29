@@ -177,9 +177,11 @@ class HomeAssistantClient:
                     return all_updates
                 elif response.status == 404:
                     logger.error(f"API endpoint not found: {url}")
-                    logger.error("This may indicate a Home Assistant version compatibility issue")
-                    logger.error("Expected: Home Assistant 2024.11.x or later")
-                    logger.error("The /api/states endpoint should be available in all supported versions")
+                    logger.error("This is unexpected - the /api/states endpoint should exist in all HA installations")
+                    logger.error("Please verify:")
+                    logger.error("  - Home Assistant is running and accessible")
+                    logger.error("  - The HA URL is correct in add-on configuration")
+                    logger.error("  - Your HA version (this add-on is tested with 2024.11+)")
                     return []
                 else:
                     logger.error(f"Failed to get states: {response.status}")
