@@ -85,27 +85,45 @@ class SentryService:
         
         try:
             async with HomeAssistantClient(self.config) as ha_client:
-                # Gather updates
+                # Gather updates - use comprehensive update checking by default
+                all_updates = []
                 addon_updates = []
                 hacs_updates = []
                 
-                if self.config.check_addons:
-                    logger.info("Checking for add-on updates...")
-                    logger.debug("Querying Supervisor API for add-on information")
-                    addon_updates = await ha_client.get_addon_updates()
-                    logger.info(f"Found {len(addon_updates)} add-on updates")
+                if self.config.check_all_updates:
+                    # New comprehensive method: get all update entities
+                    logger.info("Checking for all available updates (Core, Supervisor, OS, Add-ons, Integrations)...")
+                    logger.debug("Querying Home Assistant API for all update.* entities")
+                    all_updates = await ha_client.get_all_updates()
+                    logger.info(f"Found {len(all_updates)} total updates")
+                    
+                    # For backward compatibility with analysis, categorize updates
+                    addon_updates = [u for u in all_updates if u.get('type') in ['addon', 'core', 'supervisor', 'os']]
+                    hacs_updates = [u for u in all_updates if u.get('type') in ['hacs', 'integration']]
+                    
+                    logger.debug(f"  System/Add-on updates: {len(addon_updates)}")
+                    logger.debug(f"  Integration/HACS updates: {len(hacs_updates)}")
                 else:
-                    logger.debug("Add-on checking is disabled in configuration")
+                    # Legacy method: check individually based on flags
+                    if self.config.check_addons:
+                        logger.info("Checking for add-on updates...")
+                        logger.debug("Querying Supervisor API for add-on information")
+                        addon_updates = await ha_client.get_addon_updates()
+                        logger.info(f"Found {len(addon_updates)} add-on updates")
+                    else:
+                        logger.debug("Add-on checking is disabled in configuration")
+                    
+                    if self.config.check_hacs:
+                        logger.info("Checking for HACS updates...")
+                        logger.debug("Querying Home Assistant API for HACS update entities")
+                        hacs_updates = await ha_client.get_hacs_updates()
+                        logger.info(f"Found {len(hacs_updates)} HACS updates")
+                    else:
+                        logger.debug("HACS checking is disabled in configuration")
+                    
+                    all_updates = addon_updates + hacs_updates
                 
-                if self.config.check_hacs:
-                    logger.info("Checking for HACS updates...")
-                    logger.debug("Querying Home Assistant API for HACS update entities")
-                    hacs_updates = await ha_client.get_hacs_updates()
-                    logger.info(f"Found {len(hacs_updates)} HACS updates")
-                else:
-                    logger.debug("HACS checking is disabled in configuration")
-                
-                total_updates = len(addon_updates) + len(hacs_updates)
+                total_updates = len(all_updates)
                 
                 if total_updates == 0:
                     logger.info("No updates available")
@@ -124,7 +142,7 @@ class SentryService:
                 
                 # Report results
                 logger.debug("Reporting analysis results to Home Assistant")
-                await self._report_results(ha_client, addon_updates, hacs_updates, analysis)
+                await self._report_results(ha_client, addon_updates, hacs_updates, analysis, all_updates)
                 
         except Exception as e:
             logger.error(f"Error during update check: {e}", exc_info=True)
@@ -147,12 +165,36 @@ class SentryService:
         else:
             logger.debug("Dashboard entities disabled, skipping sensor update")
     
+    def _categorize_updates(self, all_updates: List[Dict]) -> Dict[str, int]:
+        """Categorize updates by type and count them"""
+        counts = {
+            'core': 0,  # Core, Supervisor, OS
+            'addon': 0,  # Add-ons
+            'hacs': 0   # HACS and integrations
+        }
+        
+        for update in all_updates:
+            update_type = update.get('type', 'addon')
+            if update_type in ['core', 'supervisor', 'os']:
+                counts['core'] += 1
+            elif update_type == 'addon':
+                counts['addon'] += 1
+            else:  # hacs, integration
+                counts['hacs'] += 1
+        
+        return counts
+    
     async def _report_results(self, ha_client: HomeAssistantClient, 
                             addon_updates: List[Dict], 
                             hacs_updates: List[Dict], 
-                            analysis: Dict):
+                            analysis: Dict,
+                            all_updates: List[Dict] = None):
         """Report analysis results to Home Assistant"""
-        total_updates = len(addon_updates) + len(hacs_updates)
+        # Use all_updates if provided, otherwise combine addon and hacs
+        if all_updates is None:
+            all_updates = addon_updates + hacs_updates
+        
+        total_updates = len(all_updates)
         safe = analysis['safe']
         
         logger.debug(f"Preparing to report results: {total_updates} updates, safe={safe}")
@@ -165,6 +207,9 @@ class SentryService:
         else:
             logger.debug("Dashboard entities disabled, skipping sensor updates")
         
+        # Categorize updates by type for better reporting
+        update_counts = self._categorize_updates(all_updates)
+        
         # Create notification with results
         notification_title = "🔔 Home Assistant Sentry Update Report"
         
@@ -175,9 +220,16 @@ class SentryService:
 **Confidence:** {analysis['confidence']:.0%}
 
 **Updates Available:** {total_updates}
-- Add-ons: {len(addon_updates)}
-- HACS Integrations: {len(hacs_updates)}
-
+"""
+            # Add breakdown by type
+            if update_counts['core'] > 0:
+                notification_message += f"- Core/System: {update_counts['core']}\n"
+            if update_counts['addon'] > 0:
+                notification_message += f"- Add-ons: {update_counts['addon']}\n"
+            if update_counts['hacs'] > 0:
+                notification_message += f"- HACS/Integrations: {update_counts['hacs']}\n"
+            
+            notification_message += f"""
 **Summary:**
 {analysis['summary']}
 
@@ -193,9 +245,16 @@ class SentryService:
 **Confidence:** {analysis['confidence']:.0%}
 
 **Updates Available:** {total_updates}
-- Add-ons: {len(addon_updates)}
-- HACS Integrations: {len(hacs_updates)}
-
+"""
+            # Add breakdown by type
+            if update_counts['core'] > 0:
+                notification_message += f"- Core/System: {update_counts['core']}\n"
+            if update_counts['addon'] > 0:
+                notification_message += f"- Add-ons: {update_counts['addon']}\n"
+            if update_counts['hacs'] > 0:
+                notification_message += f"- HACS/Integrations: {update_counts['hacs']}\n"
+            
+            notification_message += f"""
 **Issues Found:** {len(analysis.get('issues', []))}
 
 """

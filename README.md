@@ -3,11 +3,16 @@
 > **🔔 This is a Home Assistant Add-on Repository**  
 > This repository provides a Home Assistant add-on, not a HACS integration. Please install it through the **Supervisor Add-on Store**, not HACS. See [Installation Instructions](#installation) below.
 
-A Home Assistant add-on that performs daily reviews of all available updates to installed add-ons and HACS integrations, identifies potential conflicts and dependency issues, and advises whether updates are safe to install.
+A Home Assistant add-on that performs daily reviews of **all available updates** (Core, Supervisor, OS, add-ons, and integrations), identifies potential conflicts and dependency issues, and advises whether updates are safe to install.
 
 ## Features
 
-- 🔍 **Automated Update Monitoring**: Daily checks for add-on and HACS integration updates
+- 🔍 **Comprehensive Update Monitoring**: Daily checks for **all** system updates including:
+  - Home Assistant Core
+  - Supervisor
+  - Operating System
+  - Add-ons
+  - Integrations (including HACS)
 - 🤖 **AI-Powered Analysis**: Uses configurable AI endpoints to analyze update conflicts and dependencies
 - 🔬 **Deep Dependency Analysis**: Advanced heuristic analysis without AI, checking version changes, pre-releases, and known conflicts
 - 🛡️ **Safety Assessment**: Provides confidence scores and safety recommendations
@@ -59,6 +64,7 @@ ai_model: "llama2"
 check_schedule: "02:00"
 create_dashboard_entities: true
 auto_create_dashboard: false
+check_all_updates: true
 check_addons: true
 check_hacs: true
 safety_threshold: 0.7
@@ -77,8 +83,9 @@ log_level: "standard"
 | `check_schedule` | Daily check time in HH:MM format (24h) | `02:00` |
 | `create_dashboard_entities` | Create sensor entities for dashboard | `true` |
 | `auto_create_dashboard` | Automatically create a Sentry dashboard in Lovelace | `false` |
-| `check_addons` | Check add-on updates | `true` |
-| `check_hacs` | Check HACS updates | `true` |
+| `check_all_updates` | Check all update entities (Core, Supervisor, OS, Add-ons, Integrations) | `true` |
+| `check_addons` | Check add-on updates (legacy, use `check_all_updates` instead) | `true` |
+| `check_hacs` | Check HACS updates (legacy, use `check_all_updates` instead) | `true` |
 | `safety_threshold` | Confidence threshold for safety (0.0-1.0) | `0.7` |
 | `log_level` | Logging verbosity: `minimal` (errors only), `standard` (info), `maximal` (debug) | `standard` |
 
@@ -197,7 +204,7 @@ cards:
 ## How It Works
 
 1. **Scheduled Check**: At the configured time each day, the add-on checks for available updates
-2. **Data Collection**: Gathers information about add-on and HACS updates via Home Assistant APIs
+2. **Data Collection**: Gathers information about **all system updates** (Core, Supervisor, OS, Add-ons, and Integrations) via Home Assistant APIs
 3. **AI Analysis**: Sends update information to the configured AI endpoint for conflict analysis
 4. **Safety Assessment**: AI analyzes dependencies, breaking changes, and potential conflicts
 5. **Results Reporting**: Creates/updates dashboard sensors and sends a detailed notification
@@ -209,6 +216,7 @@ The AI analysis checks for:
 
 - **Dependency Conflicts**: Incompatible version requirements between components
 - **Breaking Changes**: Updates that may break existing functionality
+- **System Update Safety**: Critical updates to Core, Supervisor, and OS
 - **Integration Compatibility**: Conflicts between HACS integrations and add-ons
 - **Security Concerns**: Known vulnerabilities or security issues
 - **Installation Order**: Recommended sequence for applying updates

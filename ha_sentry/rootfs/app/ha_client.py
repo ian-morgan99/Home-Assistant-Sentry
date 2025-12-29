@@ -78,8 +78,75 @@ class HomeAssistantClient:
             logger.error(f"Error getting add-on details: {e}", exc_info=True)
             return None
     
+    async def get_all_updates(self) -> List[Dict]:
+        """Get all available updates from update entities (Core, Supervisor, OS, Add-ons, Integrations)"""
+        try:
+            url = f"{self.config.ha_url}/api/states"
+            logger.debug(f"Fetching all update entities from: {url}")
+            async with self.session.get(url) as response:
+                if response.status == 200:
+                    states = await response.json()
+                    logger.debug(f"Retrieved {len(states)} total states")
+                    
+                    # Look for all update.* entities with state 'on' (update available)
+                    all_updates = []
+                    for state in states:
+                        entity_id = state.get('entity_id', '')
+                        # Filter for update domain entities
+                        if entity_id.startswith('update.'):
+                            # Check if update is available
+                            entity_state = state.get('state', '')
+                            if entity_state == 'on':
+                                attributes = state.get('attributes', {})
+                                
+                                # Determine update type based on entity_id
+                                update_type = self._categorize_update(entity_id, attributes)
+                                
+                                update_info = {
+                                    'entity_id': entity_id,
+                                    'name': attributes.get('friendly_name', attributes.get('title', entity_id)),
+                                    'type': update_type,
+                                    'current_version': attributes.get('installed_version', 'unknown'),
+                                    'latest_version': attributes.get('latest_version', 'unknown'),
+                                    'release_summary': attributes.get('release_summary', ''),
+                                    'release_url': attributes.get('release_url', ''),
+                                    'entity_picture': attributes.get('entity_picture', ''),
+                                }
+                                all_updates.append(update_info)
+                                logger.debug(f"  Update: {update_info['name']} ({update_info['type']}) {update_info['current_version']} → {update_info['latest_version']}")
+                    
+                    logger.info(f"Found {len(all_updates)} total updates")
+                    return all_updates
+                else:
+                    logger.error(f"Failed to get states: {response.status}")
+                    return []
+        except Exception as e:
+            logger.error(f"Error getting all updates: {e}", exc_info=True)
+            return []
+    
+    def _categorize_update(self, entity_id: str, attributes: Dict) -> str:
+        """Categorize update entity by type"""
+        entity_lower = entity_id.lower()
+        
+        # Core system components
+        if 'home_assistant_core' in entity_lower:
+            return 'core'
+        elif 'home_assistant_supervisor' in entity_lower or 'supervisor' in entity_lower:
+            return 'supervisor'
+        elif 'home_assistant_os' in entity_lower or 'operating_system' in entity_lower:
+            return 'os'
+        # Add-ons typically have specific naming patterns
+        elif 'addon' in entity_lower or entity_id.startswith('update.'):
+            # Check if it's a HACS integration
+            if 'hacs' in entity_lower or attributes.get('repository', '').startswith('http'):
+                return 'hacs'
+            # Default to addon if from supervisor
+            return 'addon'
+        else:
+            return 'integration'
+    
     async def get_hacs_updates(self) -> List[Dict]:
-        """Get available HACS integration updates"""
+        """Get available HACS integration updates (legacy method, prefer get_all_updates)"""
         try:
             # Check if HACS is installed by looking for HACS entities
             url = f"{self.config.ha_url}/api/states"

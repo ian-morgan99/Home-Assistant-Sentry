@@ -5,7 +5,7 @@ import sys
 import os
 
 # Add the app directory to Python path
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'rootfs', 'app'))
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'ha_sentry', 'rootfs', 'app'))
 
 def test_dependency_analyzer():
     """Test DependencyAnalyzer basic functionality"""
