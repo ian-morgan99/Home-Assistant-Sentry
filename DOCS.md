@@ -52,7 +52,7 @@ Home Assistant Sentry is an add-on that helps you safely manage updates to your 
 
 ### Basic Setup (No AI)
 
-For a simple setup without AI analysis:
+For a setup without AI, using deep dependency analysis:
 
 ```yaml
 ai_enabled: false
@@ -62,7 +62,14 @@ check_addons: true
 check_hacs: true
 ```
 
-This will use heuristic analysis based on common patterns and best practices.
+This will use advanced heuristic analysis that examines:
+- Major version changes and breaking updates
+- Pre-release versions (alpha, beta, RC)
+- Known critical service conflicts
+- Update volume and simultaneous critical updates
+- Version jump patterns that may skip migration steps
+
+The analysis is more sophisticated than basic pattern matching, providing detailed issue detection and recommendations without requiring AI.
 
 ### AI-Enabled Setup
 

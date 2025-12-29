@@ -6,6 +6,7 @@ A Home Assistant add-on that performs daily reviews of all available updates to 
 
 - 🔍 **Automated Update Monitoring**: Daily checks for add-on and HACS integration updates
 - 🤖 **AI-Powered Analysis**: Uses configurable AI endpoints to analyze update conflicts and dependencies
+- 🔬 **Deep Dependency Analysis**: Advanced heuristic analysis without AI, checking version changes, pre-releases, and known conflicts
 - 🛡️ **Safety Assessment**: Provides confidence scores and safety recommendations
 - 📊 **Dashboard Integration**: Creates Home Assistant sensors for easy monitoring
 - 🔔 **Notification System**: Sends persistent notifications with analysis results
@@ -91,7 +92,15 @@ ai_model: "gpt-3.5-turbo"
 api_key: "sk-your-api-key-here"
 ```
 
-#### Without AI (Heuristic Analysis)
+#### Without AI (Deep Dependency Analysis)
+
+When AI is disabled, the add-on uses advanced heuristic analysis that checks:
+- **Version changes**: Detects major version updates that may break compatibility
+- **Pre-release versions**: Identifies beta/RC releases and warns about instability
+- **Critical service updates**: Flags database/broker updates requiring special care
+- **Simultaneous updates**: Detects multiple critical services updating at once
+- **Update volume**: Warns when too many updates are available at once
+- **Version jumps**: Identifies large version jumps that may skip migration steps
 
 ```yaml
 ai_enabled: false
@@ -100,6 +109,8 @@ create_dashboard_entities: true
 check_addons: true
 check_hacs: true
 ```
+
+This mode provides deeper analysis than basic pattern matching, though not as comprehensive as AI-powered analysis.
 
 ## Dashboard Sensors
 

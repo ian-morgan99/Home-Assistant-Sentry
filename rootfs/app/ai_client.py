@@ -5,6 +5,7 @@ Supports OpenAI-compatible endpoints (OpenAI, LMStudio, OpenWebUI, Ollama)
 import logging
 import json
 from typing import Dict, List, Optional
+from dependency_analyzer import DependencyAnalyzer
 
 logger = logging.getLogger(__name__)
 
@@ -16,6 +17,7 @@ class AIClient:
         """Initialize the AI client"""
         self.config = config
         self.client = None
+        self.dependency_analyzer = DependencyAnalyzer()
         
         if config.ai_enabled:
             self._initialize_client()
@@ -216,44 +218,9 @@ Be thorough but concise. Focus on actionable insights."""
             return self._fallback_analysis(addon_updates, hacs_updates)
     
     def _fallback_analysis(self, addon_updates: List[Dict], hacs_updates: List[Dict]) -> Dict:
-        """Fallback analysis when AI is not available"""
-        total_updates = len(addon_updates) + len(hacs_updates)
-        
-        issues = []
-        recommendations = []
-        
-        # Basic heuristic checks
-        if total_updates > 10:
-            issues.append({
-                'severity': 'medium',
-                'component': 'update_volume',
-                'description': f'Large number of updates ({total_updates}) available',
-                'impact': 'Installing many updates at once may complicate troubleshooting if issues arise'
-            })
-            recommendations.append('Consider installing updates in smaller batches')
-        
-        # Check for core integrations
-        critical_addons = ['mosquitto', 'mariadb', 'influxdb', 'postgresql']
-        for addon in addon_updates:
-            if any(critical in addon['slug'].lower() for critical in critical_addons):
-                issues.append({
-                    'severity': 'high',
-                    'component': addon['name'],
-                    'description': f"Core service {addon['name']} has an update",
-                    'impact': 'Updates to database/broker services may require dependent service restarts'
-                })
-                recommendations.append(f"Backup before updating {addon['name']}")
-                recommendations.append(f"Plan for potential downtime when updating {addon['name']}")
-        
-        # Determine safety
-        critical_issues = [i for i in issues if i['severity'] in ('critical', 'high')]
-        safe = len(critical_issues) == 0
-        
-        return {
-            'safe': safe,
-            'confidence': 0.6,
-            'issues': issues,
-            'recommendations': recommendations if recommendations else ['No specific recommendations. Updates appear safe to install.'],
-            'summary': f'Basic analysis: {total_updates} updates available. {"Safe to proceed" if safe else "Review critical issues before updating"}.',
-            'ai_analysis': False
-        }
+        """
+        Fallback analysis when AI is not available
+        Uses deep dependency analysis without AI
+        """
+        logger.info("Using deep dependency analysis (non-AI)")
+        return self.dependency_analyzer.analyze_updates(addon_updates, hacs_updates)
