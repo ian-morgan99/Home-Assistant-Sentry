@@ -30,6 +30,8 @@ options:
   check_hacs: true
   safety_threshold: 0.7
   log_level: "standard"
+  enable_dependency_graph: true
+  save_reports: true
 schema:
   ai_enabled: bool
   ai_provider: list(openai|ollama|lmstudio|openwebui)
@@ -44,3 +46,5 @@ schema:
   check_hacs: bool
   safety_threshold: float(0.0,1.0)
   log_level: list(minimal|standard|maximal)
+  enable_dependency_graph: bool
+  save_reports: bool

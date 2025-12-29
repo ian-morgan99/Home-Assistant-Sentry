@@ -13,11 +13,17 @@ logger = logging.getLogger(__name__)
 class AIClient:
     """Client for AI-powered conflict analysis"""
     
-    def __init__(self, config):
-        """Initialize the AI client"""
+    def __init__(self, config, dependency_graph=None):
+        """Initialize the AI client
+        
+        Args:
+            config: Configuration object
+            dependency_graph: Optional dependency graph data from DependencyGraphBuilder
+        """
         self.config = config
         self.client = None
-        self.dependency_analyzer = DependencyAnalyzer()
+        self.dependency_graph = dependency_graph
+        self.dependency_analyzer = DependencyAnalyzer(dependency_graph=dependency_graph)
         
         if config.ai_enabled:
             self._initialize_client()

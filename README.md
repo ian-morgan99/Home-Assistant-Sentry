@@ -19,12 +19,28 @@ A Home Assistant add-on that performs daily reviews of **all available updates**
 
 ## Features
 
+### Core Features
+
 - 🔍 **Comprehensive Update Monitoring**: Daily checks for **all** system updates including:
   - Home Assistant Core
   - Supervisor
   - Operating System
   - Add-ons
   - Integrations (including HACS)
+  
+- 📊 **Dependency Graph Builder** (NEW): 
+  - Parses integration manifests (manifest.json) to build a complete dependency graph
+  - Identifies all Python package dependencies across integrations
+  - Detects shared dependencies and version conflicts
+  - Highlights high-risk libraries (aiohttp, cryptography, numpy, pyjwt, sqlalchemy, protobuf)
+  - Machine-readable (JSON) and human-readable output
+  
+- 🔗 **Shared Dependency Risk Detection** (NEW):
+  - Identifies when multiple integrations depend on the same package
+  - Detects version constraint conflicts between integrations
+  - Calculates risk scores based on dependency usage
+  - Flags high-risk shared dependencies for special attention
+  
 - 🤖 **AI-Powered Analysis**: Uses configurable AI endpoints to analyze update conflicts and dependencies
 - 🔬 **Deep Dependency Analysis**: Advanced heuristic analysis without AI, checking version changes, pre-releases, and known conflicts
 - 🛡️ **Safety Assessment**: Provides confidence scores and safety recommendations
@@ -81,6 +97,8 @@ check_addons: true
 check_hacs: true
 safety_threshold: 0.7
 log_level: "standard"
+enable_dependency_graph: true
+save_reports: true
 ```
 
 ### Configuration Options
@@ -100,6 +118,8 @@ log_level: "standard"
 | `check_hacs` | Check HACS updates (legacy, use `check_all_updates` instead) | `true` |
 | `safety_threshold` | Confidence threshold for safety (0.0-1.0) | `0.7` |
 | `log_level` | Logging verbosity: `minimal` (errors only), `standard` (info), `maximal` (debug) | `standard` |
+| `enable_dependency_graph` | Build and analyze dependency graph from integration manifests | `true` |
+| `save_reports` | Save machine-readable JSON reports to `/data/reports/` | `true` |
 
 ### AI Provider Examples
 
@@ -224,8 +244,15 @@ cards:
 
 ## Analysis Features
 
-The AI analysis checks for:
+The analysis system checks for:
 
+### Dependency-Based Analysis
+- **Shared Dependency Detection**: Identifies Python packages used by multiple integrations
+- **Version Conflict Detection**: Finds incompatible version constraints between integrations
+- **High-Risk Library Tracking**: Special attention to critical libraries (aiohttp, cryptography, numpy, pyjwt, sqlalchemy, protobuf)
+- **Dependency Graph**: Complete map of all integration dependencies and relationships
+
+### Update Risk Analysis
 - **Dependency Conflicts**: Incompatible version requirements between components
 - **Breaking Changes**: Updates that may break existing functionality
 - **System Update Safety**: Critical updates to Core, Supervisor, and OS
@@ -233,6 +260,26 @@ The AI analysis checks for:
 - **Security Concerns**: Known vulnerabilities or security issues
 - **Installation Order**: Recommended sequence for applying updates
 - **System Impact**: Potential system stability issues
+
+## Machine-Readable Reports
+
+When `save_reports` is enabled (default), the add-on saves comprehensive JSON reports to `/data/reports/`:
+
+- **`latest_report.json`**: Always contains the most recent analysis
+- **`report_YYYYMMDD_HHMMSS.json`**: Timestamped historical reports
+
+Each report includes:
+- Complete update details categorized by type
+- Analysis results with confidence scores
+- All identified issues with severity levels
+- Actionable recommendations
+- Dependency graph statistics
+- High-risk dependency summary
+
+Access these reports via:
+- File editor add-ons
+- SSH/Terminal add-ons
+- Home Assistant File Browser integrations
 
 ## Notifications
 
