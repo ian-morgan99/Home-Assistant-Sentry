@@ -6,6 +6,7 @@
 ai_enabled: false
 check_schedule: "02:00"
 create_dashboard_entities: true
+auto_create_dashboard: false
 check_addons: true
 check_hacs: true
 ```
@@ -20,6 +21,7 @@ ai_model: "llama2"
 api_key: ""
 check_schedule: "02:00"
 create_dashboard_entities: true
+auto_create_dashboard: false
 check_addons: true
 check_hacs: true
 safety_threshold: 0.7
@@ -35,6 +37,7 @@ ai_model: "local-model"
 api_key: ""
 check_schedule: "02:00"
 create_dashboard_entities: true
+auto_create_dashboard: false
 check_addons: true
 check_hacs: true
 safety_threshold: 0.7
@@ -50,6 +53,7 @@ ai_model: "gpt-3.5-turbo"
 api_key: "sk-your-openai-api-key-here"
 check_schedule: "02:00"
 create_dashboard_entities: true
+auto_create_dashboard: false
 check_addons: true
 check_hacs: true
 safety_threshold: 0.7
@@ -65,6 +69,7 @@ ai_model: "gpt-3.5-turbo"
 api_key: "your-api-key"
 check_schedule: "02:00"
 create_dashboard_entities: true
+auto_create_dashboard: false
 check_addons: true
 check_hacs: true
 safety_threshold: 0.7
@@ -82,6 +87,7 @@ ai_model: "llama2"
 api_key: ""
 check_schedule: "02:00"
 create_dashboard_entities: true
+auto_create_dashboard: false
 check_addons: true
 check_hacs: false  # Disable HACS checking
 safety_threshold: 0.7
@@ -97,6 +103,7 @@ ai_model: "llama2"
 api_key: ""
 check_schedule: "02:00"
 create_dashboard_entities: true
+auto_create_dashboard: false
 check_addons: false  # Disable add-on checking
 check_hacs: true
 safety_threshold: 0.7
@@ -127,6 +134,7 @@ ai_model: "llama2"
 api_key: ""
 check_schedule: "02:00"
 create_dashboard_entities: true
+auto_create_dashboard: false
 check_addons: true
 check_hacs: true
 safety_threshold: 0.85  # Higher threshold = more conservative
@@ -142,10 +150,31 @@ ai_model: "llama2"
 api_key: ""
 check_schedule: "02:00"
 create_dashboard_entities: false  # Only notifications, no sensors
+auto_create_dashboard: false
 check_addons: true
 check_hacs: true
 safety_threshold: 0.7
 ```
+
+### With Auto-Created Dashboard
+
+If you want Sentry to automatically create a dashboard for you:
+
+```yaml
+ai_enabled: true
+ai_provider: "ollama"
+ai_endpoint: "http://localhost:11434"
+ai_model: "llama2"
+api_key: ""
+check_schedule: "02:00"
+create_dashboard_entities: true
+auto_create_dashboard: true  # Automatically creates a Lovelace dashboard
+check_addons: true
+check_hacs: true
+safety_threshold: 0.7
+```
+
+When `auto_create_dashboard` is enabled, the add-on will automatically create a new dashboard called "Home Assistant Sentry" in your Lovelace interface with all the Sentry widgets pre-configured.
 
 ## Configuration Tips
 

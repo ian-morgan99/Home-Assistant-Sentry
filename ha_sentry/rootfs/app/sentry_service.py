@@ -29,6 +29,16 @@ class SentryService:
         self.running = True
         logger.info(f"Starting service with schedule: {self.config.check_schedule}")
         
+        # Create dashboard if auto_create_dashboard is enabled
+        if self.config.auto_create_dashboard:
+            logger.info("Auto-create dashboard is enabled, creating Sentry dashboard")
+            try:
+                async with HomeAssistantClient(self.config) as ha_client:
+                    dashboard_mgr = DashboardManager(ha_client)
+                    await dashboard_mgr.create_sentry_dashboard()
+            except Exception as e:
+                logger.error(f"Error creating dashboard: {e}", exc_info=True)
+        
         # Run initial check
         await self.run_update_check()
         
