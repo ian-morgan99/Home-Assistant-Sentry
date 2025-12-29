@@ -24,6 +24,7 @@ class AIClient:
     MAX_DEPENDENCIES_SHOWN = 10  # Maximum number of dependencies to show per update
     MAX_HIGH_RISK_DEPS_SHOWN = 5  # Maximum high-risk dependencies to show for system updates
     MAX_KEY_DEPS_SHOWN = 5  # Maximum key dependencies to show in context
+    MAX_CRITICAL_DEPS_PREVIEW = 3  # Maximum critical dependencies to preview in system updates
     
     def __init__(self, config, dependency_graph=None):
         """Initialize the AI client
@@ -286,10 +287,7 @@ Be thorough but concise. Focus on actionable insights."""
                 
                 context += f"- **{addon['name']}**{addon_identifier}{criticality}\n"
                 context += f"  - Current: {addon['current_version']} → Latest: {addon['latest_version']}\n"
-                
-                # Add type information
-                if update_type:
-                    context += f"  - Type: {update_type}\n"
+                context += f"  - Type: {update_type}\n"
                 
                 # Add repository and release info
                 if addon.get('repository'):
@@ -310,7 +308,7 @@ Be thorough but concise. Focus on actionable insights."""
                         if high_risk:
                             context += f"  - Impact: System-wide ({dep_info.get('impact_radius', 0)} integrations)\n"
                             context += "  - Critical Dependencies:\n"
-                            for dep in high_risk[:3]:  # Show top 3 high-risk deps
+                            for dep in high_risk[:self.MAX_CRITICAL_DEPS_PREVIEW]:
                                 context += f"    • {dep['package']} (used by {dep['user_count']} integrations) ⚠️\n"
                     elif dep_info.get('type') == 'integration':
                         if dep_info.get('high_risk_count', 0) > 0:
