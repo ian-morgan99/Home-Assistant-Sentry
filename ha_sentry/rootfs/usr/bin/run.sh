@@ -1,4 +1,4 @@
-#!/usr/bin/env bashio
+#!/usr/bin/with-contenv bashio
 
 bashio::log.info "Starting Home Assistant Sentry..."
 
@@ -14,12 +14,14 @@ export CREATE_DASHBOARD_ENTITIES=$(bashio::config 'create_dashboard_entities')
 export CHECK_ADDONS=$(bashio::config 'check_addons')
 export CHECK_HACS=$(bashio::config 'check_hacs')
 export SAFETY_THRESHOLD=$(bashio::config 'safety_threshold')
+export LOG_LEVEL=$(bashio::config 'log_level')
 export SUPERVISOR_TOKEN="${SUPERVISOR_TOKEN}"
 
 bashio::log.info "Configuration loaded"
 bashio::log.info "AI Enabled: ${AI_ENABLED}"
 bashio::log.info "AI Provider: ${AI_PROVIDER}"
 bashio::log.info "Check Schedule: ${CHECK_SCHEDULE}"
+bashio::log.info "Log Level: ${LOG_LEVEL}"
 
 # Start the Python application
 cd /app

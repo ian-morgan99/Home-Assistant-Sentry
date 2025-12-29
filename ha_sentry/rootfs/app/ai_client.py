@@ -25,11 +25,7 @@ class AIClient:
     def _initialize_client(self):
         """Initialize OpenAI-compatible client"""
         try:
-            # Import OpenAI only when AI is enabled
-            from openai import OpenAI
-            
-            # Configure based on provider
-            # Import OpenAI only when AI is enabled
+            logger.debug(f"Initializing AI client for provider: {self.config.ai_provider}")
             from openai import OpenAI
             
             # Configure based on provider
@@ -38,6 +34,7 @@ class AIClient:
                 base_url = self.config.ai_endpoint
                 if not base_url.endswith('/v1'):
                     base_url = f"{base_url}/v1"
+                logger.debug(f"Configuring Ollama client with base_url: {base_url}")
                 self.client = OpenAI(
                     base_url=base_url,
                     api_key="ollama"  # Ollama doesn't require a real key
@@ -47,6 +44,7 @@ class AIClient:
                 base_url = self.config.ai_endpoint
                 if not base_url.endswith('/v1'):
                     base_url = f"{base_url}/v1"
+                logger.debug(f"Configuring LMStudio client with base_url: {base_url}")
                 self.client = OpenAI(
                     base_url=base_url,
                     api_key="lm-studio"  # LMStudio doesn't require a real key
@@ -56,12 +54,14 @@ class AIClient:
                 base_url = self.config.ai_endpoint
                 if not base_url.endswith('/v1'):
                     base_url = f"{base_url}/v1"
+                logger.debug(f"Configuring OpenWebUI client with base_url: {base_url}")
                 self.client = OpenAI(
                     base_url=base_url,
                     api_key=self.config.api_key or "not-needed"
                 )
             else:  # openai or default
                 # Standard OpenAI API
+                logger.debug(f"Configuring OpenAI client with endpoint: {self.config.ai_endpoint}")
                 self.client = OpenAI(
                     api_key=self.config.api_key,
                     base_url=self.config.ai_endpoint if self.config.ai_endpoint != 'http://localhost:11434' else None
@@ -69,7 +69,7 @@ class AIClient:
             
             logger.info(f"AI client initialized: {self.config.ai_provider}")
         except Exception as e:
-            logger.error(f"Failed to initialize AI client: {e}")
+            logger.error(f"Failed to initialize AI client: {e}", exc_info=True)
             self.client = None
     
     async def analyze_updates(self, addon_updates: List[Dict], hacs_updates: List[Dict]) -> Dict:
@@ -85,13 +85,17 @@ class AIClient:
                 - summary: str - Overall summary
         """
         if not self.config.ai_enabled or not self.client:
+            logger.debug("AI not enabled or client not available, using fallback analysis")
             return self._fallback_analysis(addon_updates, hacs_updates)
         
         try:
             # Prepare the context for AI analysis
+            logger.debug("Preparing context for AI analysis")
             context = self._prepare_analysis_context(addon_updates, hacs_updates)
+            logger.debug(f"Context prepared, size: {len(context)} characters")
             
             # Call AI for analysis
+            logger.info(f"Sending analysis request to AI ({self.config.ai_provider} - {self.config.ai_model})")
             response = self.client.chat.completions.create(
                 model=self.config.ai_model,
                 messages=[
@@ -111,12 +115,14 @@ class AIClient:
             # Parse AI response
             ai_response = response.choices[0].message.content
             logger.info(f"AI analysis completed: {len(ai_response)} chars")
+            logger.debug(f"AI response: {ai_response[:200]}...")
             
             # Parse the structured response
             return self._parse_ai_response(ai_response, addon_updates, hacs_updates)
             
         except Exception as e:
-            logger.error(f"AI analysis failed: {e}")
+            logger.error(f"AI analysis failed: {e}", exc_info=True)
+            logger.info("Falling back to dependency analysis")
             return self._fallback_analysis(addon_updates, hacs_updates)
     
     def _get_system_prompt(self) -> str:
@@ -185,6 +191,7 @@ Be thorough but concise. Focus on actionable insights."""
     def _parse_ai_response(self, ai_response: str, addon_updates: List[Dict], hacs_updates: List[Dict]) -> Dict:
         """Parse AI response into structured format"""
         try:
+            logger.debug("Parsing AI response")
             # Try to extract JSON from the response
             # The AI might wrap JSON in code blocks
             json_start = ai_response.find('{')
@@ -193,6 +200,8 @@ Be thorough but concise. Focus on actionable insights."""
             if json_start >= 0 and json_end > json_start:
                 json_str = ai_response[json_start:json_end]
                 result = json.loads(json_str)
+                
+                logger.debug(f"Successfully parsed JSON response: safe={result.get('safe')}, confidence={result.get('confidence')}")
                 
                 # Validate and normalize the response
                 return {
@@ -205,6 +214,7 @@ Be thorough but concise. Focus on actionable insights."""
                 }
             else:
                 # If no JSON found, create a structured response from the text
+                logger.warning("No JSON found in AI response, parsing as text")
                 return {
                     'safe': 'safe' in ai_response.lower() and 'not safe' not in ai_response.lower(),
                     'confidence': 0.6,
@@ -214,7 +224,7 @@ Be thorough but concise. Focus on actionable insights."""
                     'ai_analysis': True
                 }
         except Exception as e:
-            logger.error(f"Failed to parse AI response: {e}")
+            logger.error(f"Failed to parse AI response: {e}", exc_info=True)
             return self._fallback_analysis(addon_updates, hacs_updates)
     
     def _fallback_analysis(self, addon_updates: List[Dict], hacs_updates: List[Dict]) -> Dict:

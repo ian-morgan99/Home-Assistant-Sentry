@@ -5,7 +5,7 @@ import sys
 import os
 
 # Add the app directory to Python path
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'rootfs', 'app'))
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'ha_sentry', 'rootfs', 'app'))
 
 def test_imports():
     """Test that all modules can be imported"""
@@ -32,6 +32,7 @@ def test_config_manager():
         os.environ['AI_ENDPOINT'] = 'http://localhost:11434'
         os.environ['AI_MODEL'] = 'llama2'
         os.environ['CHECK_SCHEDULE'] = '02:00'
+        os.environ['LOG_LEVEL'] = 'standard'
         os.environ['SUPERVISOR_TOKEN'] = 'test_token'
         
         config = ConfigManager()
@@ -41,12 +42,29 @@ def test_config_manager():
         assert config.ai_endpoint == 'http://localhost:11434'
         assert config.ai_model == 'llama2'
         assert config.check_schedule == '02:00'
+        assert config.log_level == 'standard'
         assert config.supervisor_token == 'test_token'
+        
+        # Test log level conversion
+        import logging
+        assert config.get_python_log_level() == logging.INFO
+        
+        # Test minimal log level
+        os.environ['LOG_LEVEL'] = 'minimal'
+        config2 = ConfigManager()
+        assert config2.get_python_log_level() == logging.ERROR
+        
+        # Test maximal log level
+        os.environ['LOG_LEVEL'] = 'maximal'
+        config3 = ConfigManager()
+        assert config3.get_python_log_level() == logging.DEBUG
         
         print("✓ ConfigManager test passed")
         return True
     except Exception as e:
         print(f"✗ ConfigManager test failed: {e}")
+        import traceback
+        traceback.print_exc()
         return False
 
 def test_ai_client_init():

@@ -27,7 +27,8 @@
     "create_dashboard_entities": true,
     "check_addons": true,
     "check_hacs": true,
-    "safety_threshold": 0.7
+    "safety_threshold": 0.7,
+    "log_level": "standard"
   },
   "schema": {
     "ai_enabled": "bool",
@@ -39,7 +40,8 @@
     "create_dashboard_entities": "bool",
     "check_addons": "bool",
     "check_hacs": "bool",
-    "safety_threshold": "float(0.0,1.0)"
+    "safety_threshold": "float(0.0,1.0)",
+    "log_level": "list(minimal|standard|maximal)"
   },
   "image": "ghcr.io/ian-morgan99/home-assistant-sentry-{arch}"
 }
