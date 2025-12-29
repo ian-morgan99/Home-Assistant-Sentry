@@ -689,13 +689,19 @@ class DependencyTreeWebServer:
         async function loadComponents() {
             try {
                 const response = await fetch('/api/components');
-                const data = await response.json();
                 
                 if (response.status === 503) {
                     // Service unavailable - show detailed configuration error
-                    showConfigError(data);
+                    try {
+                        const data = await response.json();
+                        showConfigError(data);
+                    } catch (e) {
+                        showConfigError({ error: 'Service unavailable', message: 'The dependency graph service is not available.' });
+                    }
                     return;
                 }
+                
+                const data = await response.json();
                 
                 if (data.error) {
                     showError(data.error);

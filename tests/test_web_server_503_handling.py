@@ -129,11 +129,6 @@ def test_config_validation_detects_mismatch():
         return False
 
 
-def run_async_test(test_func):
-    """Helper to run async tests"""
-    return asyncio.run(test_func())
-
-
 if __name__ == '__main__':
     print("Running Web Server 503 Error Handling Tests...\n")
     print("=" * 60)
@@ -154,15 +149,14 @@ if __name__ == '__main__':
         try:
             # Check if test is async by checking if it's a coroutine function
             if asyncio.iscoroutinefunction(test):
-                if run_async_test(test):
-                    passed += 1
-                else:
-                    failed += 1
+                result = asyncio.run(test())
             else:
-                if test():
-                    passed += 1
-                else:
-                    failed += 1
+                result = test()
+            
+            if result:
+                passed += 1
+            else:
+                failed += 1
         except Exception as e:
             print(f"✗ Test {test.__name__} raised exception: {e}")
             import traceback
