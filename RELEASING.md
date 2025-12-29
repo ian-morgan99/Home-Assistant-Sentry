@@ -4,7 +4,7 @@ This document describes the process for creating a new release of Home Assistant
 
 ## Automated Version Updates
 
-Starting from version 1.1.0, version numbers in configuration files are automatically updated when a new release is created.
+Starting from version 1.1.0, version numbers in configuration files are automatically updated and validated when a new release is created.
 
 ### How It Works
 
@@ -12,10 +12,27 @@ When you create a new release on GitHub:
 
 1. A GitHub Actions workflow (`.github/workflows/update-version.yml`) automatically triggers
 2. The workflow extracts the version number from the release tag
-3. It updates the version in both configuration files:
+3. **It validates that the version is properly incremented** (following semantic versioning)
+4. It updates the version in both configuration files:
    - `ha_sentry/config.json`
    - `ha_sentry/config.yaml`
-4. The changes are committed and pushed to the `main` branch
+5. The changes are committed and pushed to the `main` branch
+
+### Version Increment Rules
+
+The workflow enforces semantic versioning and requires that each release increments the version:
+
+- **Patch version (x.y.Z)**: Increment by `0.0.1` for bug fixes and minor changes
+  - Example: `1.1.0` → `1.1.1`
+- **Minor version (x.Y.0)**: Increment by `0.1.0` for new features or larger changes
+  - Example: `1.1.0` → `1.2.0`
+- **Major version (X.0.0)**: Increment by `1.0.0` for breaking changes
+  - Example: `1.1.0` → `2.0.0`
+
+**Important**: The workflow will fail if you try to:
+- Create a release with the same version number as the current version
+- Create a release with a version that is lower than the current version
+- Create a release with an invalid version increment
 
 ### Creating a New Release
 
@@ -38,10 +55,11 @@ When you create a new release on GitHub:
    - Copy release notes from CHANGELOG.md
    - Click "Publish release"
 
-4. **Automatic Version Update**
+4. **Automatic Version Update and Validation**
    - The workflow will automatically run after the release is published
+   - It will validate that the version is properly incremented
    - It will update the version numbers in the config files
-   - Changes will be committed to the main branch with the message: `chore: update version to X.Y.Z`
+   - Changes will be committed to the main branch with a message showing the version change
 
 ### Version Number Format
 
@@ -77,7 +95,10 @@ Before creating a release, ensure:
 - [ ] All changes are documented in CHANGELOG.md
 - [ ] All tests pass
 - [ ] Documentation is up to date
-- [ ] Version number follows semantic versioning
+- [ ] Version number follows semantic versioning and is properly incremented
+  - [ ] Patch increment (0.0.1) for bug fixes
+  - [ ] Minor increment (0.1.0) for new features
+  - [ ] Major increment (1.0.0) for breaking changes
 - [ ] Breaking changes are clearly documented
 
 ## Post-Release
@@ -90,9 +111,23 @@ After the release workflow completes:
 
 ## Troubleshooting
 
+### Version Validation Fails
+
+If the workflow fails with a version validation error:
+
+1. Check the workflow run in the "Actions" tab on GitHub for the specific error message
+2. Common causes:
+   - **Same version**: You're trying to release version X.Y.Z but the config files already have that version
+   - **Version decrement**: The new version is lower than the current version (e.g., 1.2.0 → 1.1.0)
+   - **Invalid increment**: The version jump doesn't follow semver rules
+3. To fix:
+   - Create a new tag with the correct incremented version
+   - Delete the incorrect tag if needed: `git tag -d vX.Y.Z && git push --delete origin vX.Y.Z`
+   - Create a new release with the correct version
+
 ### Workflow Fails to Update Version
 
-If the automated workflow fails:
+If the automated workflow fails for other reasons:
 
 1. Check the workflow run in the "Actions" tab on GitHub
 2. Review the error messages
