@@ -26,7 +26,6 @@ class AIClient:
         """Initialize OpenAI-compatible client"""
         try:
             logger.debug(f"Initializing AI client for provider: {self.config.ai_provider}")
-            # Import OpenAI only when AI is enabled
             from openai import OpenAI
             
             # Configure based on provider
