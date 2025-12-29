@@ -523,6 +523,9 @@ No updates are currently available for:
                 notification_message += "**Recommendations:**\n"
                 for rec in analysis['recommendations'][:5]:  # Limit to 5
                     notification_message += f"- {rec}\n"
+            
+            # Initialize empty list for changed components (safe case)
+            changed_components = []
         else:
             logger.debug("Generating REVIEW REQUIRED notification")
             notification_message = f"""⚠️ **REVIEW REQUIRED before updating**
@@ -578,10 +581,9 @@ No updates are currently available for:
             notification_message += "\n---\n**📊 Detailed Analysis:**\n"
             
             # For review required case with changed components, add impact report link
-            if not safe and 'changed_components' in locals() and changed_components:
+            if not safe and changed_components:
                 components_param = ','.join(changed_components[:10])  # Limit to avoid URL length issues
                 impact_url = self._get_ingress_url() + f"#impact:{components_param}"
-                affected_count = len(analysis.get('issues', []))
                 notification_message += f"- [⚡ Change Impact Report]({impact_url}) - View {len(changed_components)} changed components and their affected dependencies\n"
             
             # Always add link to main dashboard
