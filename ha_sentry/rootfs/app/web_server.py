@@ -657,6 +657,10 @@ class DependencyTreeWebServer:
         let currentMode = 'dependency';
         let components = [];
         
+        // NOTE: All API fetch() calls use relative URLs with './' prefix (e.g., './api/components')
+        // This ensures the URLs resolve correctly both when accessed directly at the server root
+        // and when accessed through Home Assistant's ingress proxy at /api/hassio_ingress/ha_sentry/
+        
         // Initialize
         document.addEventListener('DOMContentLoaded', () => {
             loadComponents();
@@ -733,7 +737,7 @@ class DependencyTreeWebServer:
         
         async function loadComponents() {
             try {
-                const response = await fetch('api/components', {
+                const response = await fetch('./api/components', {
                     credentials: 'same-origin'
                 });
                 
@@ -777,7 +781,7 @@ class DependencyTreeWebServer:
         
         async function loadStats() {
             try {
-                const response = await fetch('api/graph-data', {
+                const response = await fetch('./api/graph-data', {
                     credentials: 'same-origin'
                 });
                 
@@ -830,7 +834,7 @@ class DependencyTreeWebServer:
         }
         
         async function visualizeDependencies(component) {
-            const response = await fetch(`api/dependency-tree/${component}`, {
+            const response = await fetch(`./api/dependency-tree/${component}`, {
                 credentials: 'same-origin'
             });
             
@@ -880,7 +884,7 @@ class DependencyTreeWebServer:
         }
         
         async function visualizeWhereUsed(component) {
-            const response = await fetch(`api/where-used/${component}`, {
+            const response = await fetch(`./api/where-used/${component}`, {
                 credentials: 'same-origin'
             });
             
@@ -936,7 +940,7 @@ class DependencyTreeWebServer:
                 return;
             }
             
-            const response = await fetch(`api/change-impact?components=${encodeURIComponent(componentsInput)}`, {
+            const response = await fetch(`./api/change-impact?components=${encodeURIComponent(componentsInput)}`, {
                 credentials: 'same-origin'
             });
             
