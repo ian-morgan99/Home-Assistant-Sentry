@@ -10,6 +10,23 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'ha_sentry', 'r
 
 from dependency_analyzer import DependencyAnalyzer
 
+
+def get_component_type_label(component_type: str) -> str:
+    """
+    Get a user-friendly label for component type
+    Helper function used across multiple tests
+    """
+    type_labels = {
+        'core': 'Core',
+        'supervisor': 'Supervisor',
+        'os': 'OS',
+        'addon': 'Add-on',
+        'hacs': 'HACS Integration',
+        'integration': 'Integration'
+    }
+    return type_labels.get(component_type, component_type.capitalize())
+
+
 def test_addon_issues_include_type():
     """Test that addon issues include component_type"""
     analyzer = DependencyAnalyzer()
@@ -35,8 +52,7 @@ def test_addon_issues_include_type():
             assert 'component_type' in issue, f"Issue missing component_type: {issue}"
             assert issue['component_type'] == 'addon', f"Expected type 'addon', got '{issue['component_type']}'"
             print(f"✓ Addon issue includes type: {issue['component']} ({issue['component_type']})")
-    
-    return True
+
 
 def test_hacs_issues_include_type():
     """Test that HACS issues include component_type"""
@@ -62,26 +78,10 @@ def test_hacs_issues_include_type():
             assert 'component_type' in issue, f"Issue missing component_type: {issue}"
             assert issue['component_type'] == 'hacs', f"Expected type 'hacs', got '{issue['component_type']}'"
             print(f"✓ HACS issue includes type: {issue['component']} ({issue['component_type']})")
-    
-    return True
+
 
 def test_component_type_label_formatting():
     """Test that component type labels are formatted correctly"""
-    # Test the label formatting logic directly without importing sentry_service
-    # to avoid aiohttp dependency issues in test environment
-    
-    def get_component_type_label(component_type: str) -> str:
-        """Get a user-friendly label for component type"""
-        type_labels = {
-            'core': 'Core',
-            'supervisor': 'Supervisor',
-            'os': 'OS',
-            'addon': 'Add-on',
-            'hacs': 'HACS Integration',
-            'integration': 'Integration'
-        }
-        return type_labels.get(component_type, component_type.capitalize())
-    
     test_cases = [
         ('addon', 'Add-on'),
         ('hacs', 'HACS Integration'),
@@ -95,8 +95,7 @@ def test_component_type_label_formatting():
         label = get_component_type_label(component_type)
         assert label == expected_label, f"Expected '{expected_label}' for type '{component_type}', got '{label}'"
         print(f"✓ Type label correct: {component_type} → {label}")
-    
-    return True
+
 
 def test_mixed_updates_preserve_types():
     """Test that mixed addon and HACS updates preserve their types"""
@@ -144,33 +143,17 @@ def test_mixed_updates_preserve_types():
         assert hacs_issue.get('component_type') == 'hacs', \
             f"Node-RED Companion should be type 'hacs', got '{hacs_issue.get('component_type')}'"
         print(f"✓ HACS type preserved: Node-RED Companion ({hacs_issue['component_type']})")
-    
-    return True
+
 
 def test_core_type_variants():
     """Test that different core types (core, supervisor, os) are handled correctly"""
-    # Test the label formatting logic directly without importing sentry_service
-    # to avoid aiohttp dependency issues in test environment
-    
-    def get_component_type_label(component_type: str) -> str:
-        """Get a user-friendly label for component type"""
-        type_labels = {
-            'core': 'Core',
-            'supervisor': 'Supervisor',
-            'os': 'OS',
-            'addon': 'Add-on',
-            'hacs': 'HACS Integration',
-            'integration': 'Integration'
-        }
-        return type_labels.get(component_type, component_type.capitalize())
-    
     # Test core system types
     assert get_component_type_label('core') == 'Core'
     assert get_component_type_label('supervisor') == 'Supervisor'
     assert get_component_type_label('os') == 'OS'
     
     print("✓ All core system type labels are correct")
-    return True
+
 
 if __name__ == '__main__':
     print("\n" + "="*50)
@@ -192,12 +175,9 @@ if __name__ == '__main__':
         print(f"\nRunning: {test_name}")
         print("-" * 50)
         try:
-            if test_func():
-                passed += 1
-                print(f"✓ {test_name} PASSED\n")
-            else:
-                failed += 1
-                print(f"✗ {test_name} FAILED\n")
+            test_func()
+            passed += 1
+            print(f"✓ {test_name} PASSED\n")
         except Exception as e:
             failed += 1
             print(f"✗ {test_name} FAILED with error: {e}\n")
