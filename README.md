@@ -59,6 +59,7 @@ create_dashboard_entities: true
 check_addons: true
 check_hacs: true
 safety_threshold: 0.7
+log_level: "standard"
 ```
 
 ### Configuration Options
@@ -75,6 +76,7 @@ safety_threshold: 0.7
 | `check_addons` | Check add-on updates | `true` |
 | `check_hacs` | Check HACS updates | `true` |
 | `safety_threshold` | Confidence threshold for safety (0.0-1.0) | `0.7` |
+| `log_level` | Logging verbosity: `minimal` (errors only), `standard` (info), `maximal` (debug) | `standard` |
 
 ### AI Provider Examples
 
@@ -219,7 +221,46 @@ The add-on creates persistent notifications with:
 - 💡 Actionable recommendations
 - 🕐 Timestamp of analysis
 
+## Logging
+
+The add-on provides configurable logging levels to help with troubleshooting and monitoring:
+
+### Log Levels
+
+- **`minimal`**: Only logs errors and critical issues. Use this for production environments where you only want to be notified of problems.
+- **`standard`** (default): Logs informational messages including:
+  - Service startup and configuration
+  - Update check cycles and results
+  - API interactions with Home Assistant
+  - Analysis summaries
+- **`maximal`**: Enables debug logging with detailed information including:
+  - All API requests and responses
+  - Detailed configuration values
+  - AI model interactions and responses
+  - Sensor update operations
+  - Scheduler operations
+
+### Configuration Example
+
+```yaml
+log_level: "maximal"  # Enable debug logging for troubleshooting
+```
+
+### Viewing Logs
+
+To view add-on logs:
+1. Go to **Settings** → **Add-ons** → **Home Assistant Sentry**
+2. Click on the **Log** tab
+3. Or use the command line: `ha addons logs ha_sentry`
+
 ## Troubleshooting
+
+### Add-on won't start
+
+- Check the add-on logs for specific error messages
+- Verify that your configuration is valid YAML
+- Ensure required parameters (like `api_key` for OpenAI) are set correctly
+- Try setting `log_level: "maximal"` to get more detailed error information
 
 ### No updates detected
 
