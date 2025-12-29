@@ -37,6 +37,15 @@ A Home Assistant add-on that performs daily reviews of **all available updates**
   - Highlights high-risk libraries (aiohttp, cryptography, numpy, pyjwt, sqlalchemy, protobuf)
   - Machine-readable (JSON) and human-readable output
   
+- 🌳 **Interactive Dependency Tree Visualization** (NEW):
+  - Web-based interface accessible via Home Assistant ingress sidebar panel
+  - Three visualization modes:
+    - **Dependencies View**: See what packages a component depends on
+    - **Where Used View**: See which components use a specific package
+    - **Change Impact View**: Analyze which components are affected by updates
+  - Real-time statistics and high-risk dependency highlighting
+  - Visual tree representation with risk indicators
+  
 - 🔗 **Shared Dependency Risk Detection** (NEW):
   - Identifies when multiple integrations depend on the same package
   - Detects version constraint conflicts between integrations
@@ -82,6 +91,12 @@ A Home Assistant add-on that performs daily reviews of **all available updates**
    - Check the **notification bell** 🔔 for the startup guide and analysis results
    - Go to **Developer Tools** → **States** → Search for `sensor.ha_sentry` to see all sensors
    - Add sensors to your dashboard (see [Dashboard Sensors](#dashboard-sensors) below)
+   - Access the **Dependency Tree Visualization** via the "Sentry" panel in your sidebar
+
+6. **Access Dependency Visualization** (Optional):
+   - Look for the "Sentry" panel in your Home Assistant sidebar
+   - Or go to **Settings** → **Add-ons** → **Home Assistant Sentry** → **Open Web UI**
+   - Use the web interface to explore component dependencies and analyze update impacts
 
 ### Note about HACS
 
@@ -133,6 +148,7 @@ safety_threshold: 0.7
 log_level: "standard"
 enable_dependency_graph: true
 save_reports: true
+enable_web_ui: true
 ```
 
 ### Configuration Options
@@ -154,6 +170,7 @@ save_reports: true
 | `log_level` | Logging verbosity: `minimal` (errors only), `standard` (info), `maximal` (debug) | `standard` |
 | `enable_dependency_graph` | Build and analyze dependency graph from integration manifests | `true` |
 | `save_reports` | Save machine-readable JSON reports to `/data/reports/` | `true` |
+| `enable_web_ui` | Enable web-based dependency tree visualization interface | `true` |
 | `custom_integration_paths` | Custom paths to scan for integrations (see [Troubleshooting](#troubleshooting)) | `[]` |
 
 ### AI Provider Examples
@@ -267,6 +284,61 @@ cards:
       - entity: sensor.ha_sentry_hacs_updates
         name: HACS Updates
 ```
+
+## Dependency Tree Visualization
+
+The add-on includes an interactive web interface for visualizing component dependencies and analyzing update impact. This feature is automatically available via the Home Assistant ingress panel.
+
+### Accessing the Interface
+
+1. **Via Sidebar Panel** (Recommended):
+   - After installing and starting the add-on, look for the **"Sentry"** panel in your Home Assistant sidebar
+   - Click it to open the dependency visualization interface
+
+2. **Via Add-on Page**:
+   - Go to **Settings** → **Add-ons** → **Home Assistant Sentry**
+   - Click **Open Web UI** button
+
+### Features
+
+#### 1. Dependencies View
+Shows what packages a specific component depends on:
+- Visual tree representation of all dependencies
+- Risk indicators for high-risk packages (aiohttp, cryptography, etc.)
+- Shared dependency badges showing how many other components use the same package
+- Version constraints for each dependency
+
+#### 2. Where Used View
+Shows which components depend on a specific package or component:
+- List of all integrations using a particular package
+- Version requirements for each user
+- High-risk package indicators
+- User count statistics
+
+#### 3. Change Impact View
+Analyzes the impact of updating one or more components:
+- Enter comma-separated component names to analyze
+- See all packages affected by the changes
+- Identify which other integrations might be impacted
+- Highlight high-risk changes that affect many components
+- Blast radius analysis for updates
+
+### Statistics Dashboard
+
+The interface displays real-time statistics:
+- Total number of integrations analyzed
+- Total unique dependencies found
+- Count of high-risk packages in use
+
+### Configuration
+
+The web UI is enabled by default. To disable it:
+
+```yaml
+enable_web_ui: false
+```
+
+**Note**: The web UI requires `enable_dependency_graph: true` to function. If the dependency graph is disabled, the web UI will not start.
 
 ## How It Works
 
