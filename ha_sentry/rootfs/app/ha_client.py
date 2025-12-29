@@ -36,6 +36,14 @@ class HomeAssistantClient:
             logger.debug("Closing Home Assistant client session")
             await self.session.close()
     
+    def _log_auth_error(self, context: str = ""):
+        """Log authentication error with helpful information"""
+        logger.error("Authentication failed: The SUPERVISOR_TOKEN is missing or invalid.")
+        logger.error("This add-on requires the SUPERVISOR_TOKEN to communicate with Home Assistant.")
+        logger.error("Please ensure the add-on has proper authentication configured.")
+        if context:
+            logger.error(f"Context: {context}")
+    
     async def get_addon_updates(self) -> List[Dict]:
         """Get available add-on updates from Supervisor API"""
         try:
@@ -65,6 +73,8 @@ class HomeAssistantClient:
                     return updates
                 else:
                     logger.error(f"Failed to get add-ons: {response.status}")
+                    if response.status == 401:
+                        self._log_auth_error("Unable to fetch add-ons from Supervisor API")
                     return []
         except Exception as e:
             logger.error(f"Error getting add-on updates: {e}", exc_info=True)
@@ -127,6 +137,8 @@ class HomeAssistantClient:
                     return all_updates
                 else:
                     logger.error(f"Failed to get states: {response.status}")
+                    if response.status == 401:
+                        self._log_auth_error("Unable to fetch update entities from Home Assistant API")
                     return []
         except Exception as e:
             logger.error(f"Error getting all updates: {e}", exc_info=True)
@@ -189,6 +201,8 @@ class HomeAssistantClient:
                     return hacs_updates
                 else:
                     logger.error(f"Failed to get states: {response.status}")
+                    if response.status == 401:
+                        self._log_auth_error("Unable to fetch HACS updates from Home Assistant API")
                     return []
         except Exception as e:
             logger.error(f"Error getting HACS updates: {e}", exc_info=True)
@@ -210,6 +224,8 @@ class HomeAssistantClient:
                     return True
                 else:
                     logger.error(f"Failed to create notification: {response.status}")
+                    if response.status == 401:
+                        self._log_auth_error("Unable to create notification")
                     return False
         except Exception as e:
             logger.error(f"Error creating notification: {e}", exc_info=True)
@@ -230,6 +246,8 @@ class HomeAssistantClient:
                     return True
                 else:
                     logger.error(f"Failed to update sensor: {response.status}")
+                    if response.status == 401:
+                        self._log_auth_error("Unable to update sensor state")
                     return False
         except Exception as e:
             logger.error(f"Error updating sensor: {e}", exc_info=True)
@@ -252,6 +270,9 @@ class HomeAssistantClient:
                 else:
                     response_text = await response.text()
                     logger.error(f"Failed to create dashboard: {response.status} - {response_text}")
+                    if response.status == 401:
+                        self._log_auth_error("Unable to create Lovelace dashboard")
+                        logger.info("You can disable auto-dashboard creation in the add-on configuration.")
                     return False
         except Exception as e:
             logger.error(f"Error creating dashboard: {e}", exc_info=True)

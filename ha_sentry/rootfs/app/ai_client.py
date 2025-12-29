@@ -69,7 +69,16 @@ class AIClient:
             
             logger.info(f"AI client initialized: {self.config.ai_provider}")
         except Exception as e:
-            logger.error(f"Failed to initialize AI client: {e}", exc_info=True)
+            logger.error(f"Failed to initialize AI client: {e}")
+            logger.error(f"AI Provider: {self.config.ai_provider}")
+            logger.error(f"AI Endpoint: {self.config.ai_endpoint}")
+            logger.error(f"AI Model: {self.config.ai_model}")
+            logger.info("AI analysis will be disabled. The add-on will continue using fallback dependency analysis.")
+            logger.info("To resolve this issue, please check:")
+            logger.info("  1. Your AI provider is running and accessible at the configured endpoint")
+            logger.info("  2. The endpoint URL is correct (e.g., http://localhost:1234 for LMStudio)")
+            logger.info("  3. The model name is correctly configured")
+            logger.debug("Full error details:", exc_info=True)
             self.client = None
     
     async def analyze_updates(self, addon_updates: List[Dict], hacs_updates: List[Dict]) -> Dict:
