@@ -121,7 +121,8 @@ class DashboardManager:
             }
         )
         
-        logger.info("Dashboard sensors updated")
+        logger.info("✅ Dashboard sensors updated successfully!")
+        logger.info("📊 View your sensors at: Developer Tools > States > Search 'sensor.ha_sentry'")
     
     async def create_sentry_dashboard(self):
         """Create the default Sentry dashboard in Lovelace"""

@@ -48,9 +48,41 @@ A Home Assistant add-on that performs daily reviews of **all available updates**
    - Click **Start**
    - Optionally enable **Start on boot** and **Watchdog**
 
+5. **View Your Results**:
+   - Check the **notification bell** 🔔 for the startup guide and analysis results
+   - Go to **Developer Tools** → **States** → Search for `sensor.ha_sentry` to see all sensors
+   - Add sensors to your dashboard (see [Dashboard Sensors](#dashboard-sensors) below)
+
 ### Note about HACS
 
 This is NOT a HACS integration. If you try to add this repository to HACS, you will receive an error. HACS is for custom integrations, plugins, and themes, while this is a Home Assistant add-on that runs as a separate Docker container managed by the Supervisor.
+
+## How to View Results
+
+After starting the add-on, it creates **6 sensor entities** and sends **notifications** to communicate results.
+
+### Finding Your Sensors
+
+The easiest way to verify the sensors are created:
+
+1. Go to **Developer Tools** → **States** in Home Assistant
+2. In the "Filter by entity" box, type: `sensor.ha_sentry`
+3. You should see 6 sensors:
+   - `sensor.ha_sentry_update_status` - Overall safety status
+   - `sensor.ha_sentry_updates_available` - Total number of updates
+   - `sensor.ha_sentry_addon_updates` - Add-on update details
+   - `sensor.ha_sentry_hacs_updates` - HACS/Integration update details
+   - `sensor.ha_sentry_issues` - Detected issues
+   - `sensor.ha_sentry_confidence` - Analysis confidence
+
+### Notifications
+
+The add-on sends two types of notifications:
+
+1. **Startup Notification** (shown once): Explains how to access sensors and create dashboards
+2. **Analysis Notifications** (daily): Shows update analysis results with safety recommendations
+
+Look for the notification bell icon 🔔 in Home Assistant to view these.
 
 ## Configuration
 

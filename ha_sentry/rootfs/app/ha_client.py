@@ -38,11 +38,23 @@ class HomeAssistantClient:
     
     def _log_auth_error(self, context: str = ""):
         """Log authentication error with helpful information"""
-        logger.error("Authentication failed: The SUPERVISOR_TOKEN is missing or invalid.")
+        logger.error("=" * 60)
+        logger.error("AUTHENTICATION FAILED (401 Unauthorized)")
+        logger.error("=" * 60)
+        logger.error("The SUPERVISOR_TOKEN is missing or invalid.")
+        logger.error("")
         logger.error("This add-on requires the SUPERVISOR_TOKEN to communicate with Home Assistant.")
-        logger.error("Please ensure the add-on has proper authentication configured.")
+        logger.error("This token should be automatically provided by the Home Assistant Supervisor.")
+        logger.error("")
+        logger.error("TROUBLESHOOTING STEPS:")
+        logger.error("1. Verify 'homeassistant_api: true' is set in config.json (should be by default)")
+        logger.error("2. Restart the add-on")
+        logger.error("3. If the issue persists, restart Home Assistant")
+        logger.error("4. Check if other add-ons can access Home Assistant API")
+        logger.error("")
         if context:
             logger.error(f"Context: {context}")
+        logger.error("=" * 60)
     
     def _log_dashboard_permission_error(self):
         """Log dashboard creation permission error with helpful information"""

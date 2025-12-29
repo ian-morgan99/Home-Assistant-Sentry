@@ -65,28 +65,39 @@ safety_threshold: 0.7
 3. (Optional) Enable **Start on boot**
 4. (Optional) Enable **Watchdog**
 
-### 5. Check the Logs
+### 5. Check Notifications (Important!)
 
-1. Click on the **Log** tab
-2. Look for:
-   - "Starting Home Assistant Sentry..."
-   - "Configuration loaded"
-   - "Starting update check cycle"
-   - "Analysis complete"
+1. Click the **notification bell icon** 🔔 in Home Assistant
+2. Look for the **"🚀 Home Assistant Sentry Started"** notification
+3. This notification explains:
+   - How to view your sensors
+   - How to create dashboards
+   - When the next check will run
 
-### 6. View Your Dashboard
+### 6. Verify Sensors Are Created
 
 1. Go to **Developer Tools** → **States**
-2. Search for `sensor.ha_sentry`
-3. You should see sensors like:
-   - `sensor.ha_sentry_update_status`
-   - `sensor.ha_sentry_updates_available`
-   - `sensor.ha_sentry_confidence`
+2. In the filter box, type: `sensor.ha_sentry`
+3. You should see **6 sensors**:
+   - `sensor.ha_sentry_update_status` - Overall status
+   - `sensor.ha_sentry_updates_available` - Update count
+   - `sensor.ha_sentry_addon_updates` - Add-on updates
+   - `sensor.ha_sentry_hacs_updates` - HACS updates
+   - `sensor.ha_sentry_issues` - Issues detected
+   - `sensor.ha_sentry_confidence` - Analysis confidence
 
-### 7. Check Notifications
+**Can't find them?** Check the add-on logs and ensure `create_dashboard_entities: true` in configuration.
 
-1. Click the notification bell icon in Home Assistant
-2. Look for the "🔔 Home Assistant Sentry Update Report" notification
+### 7. Check the Analysis Results
+
+After the first check completes (happens immediately on startup):
+
+1. Look for a **new notification** 🔔: "🔔 Home Assistant Sentry Update Report"
+2. This shows:
+   - How many updates are available
+   - Whether they're safe to install
+   - Any detected issues
+   - Recommendations
 
 ## Creating a Dashboard Card
 

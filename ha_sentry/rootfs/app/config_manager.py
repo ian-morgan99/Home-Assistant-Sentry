@@ -31,6 +31,13 @@ class ConfigManager:
         self.ha_url = 'http://supervisor/core'
         self.supervisor_url = 'http://supervisor'
         
+        # Validate critical configuration
+        if not self.supervisor_token:
+            logger.warning("SUPERVISOR_TOKEN is not set! This will cause authentication failures.")
+            logger.warning("The add-on requires 'homeassistant_api: true' in config.json to receive the token.")
+        else:
+            logger.debug(f"SUPERVISOR_TOKEN is set (length: {len(self.supervisor_token)})")
+        
         logger.info(f"Configuration initialized: AI={self.ai_enabled}, Provider={self.ai_provider}, LogLevel={self.log_level}")
     
     def _get_bool_env(self, key: str, default: bool) -> bool:

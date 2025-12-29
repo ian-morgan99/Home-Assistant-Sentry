@@ -42,6 +42,9 @@ class SentryService:
         self.running = True
         logger.info(f"Starting service with schedule: {self.config.check_schedule}")
         
+        # Send startup notification to help users find sensors
+        await self._send_startup_notification()
+        
         # Create dashboard if auto_create_dashboard is enabled
         if self.config.auto_create_dashboard:
             logger.info("Auto-create dashboard is enabled, creating Sentry dashboard")
@@ -57,6 +60,67 @@ class SentryService:
         
         # Start scheduled checks
         await self._schedule_checks()
+    
+    async def _send_startup_notification(self):
+        """Send a startup notification to guide users on accessing sensors"""
+        try:
+            async with HomeAssistantClient(self.config) as ha_client:
+                notification_title = "🚀 Home Assistant Sentry Started"
+                
+                if self.config.create_dashboard_entities:
+                    notification_message = f"""✅ **Home Assistant Sentry is now running!**
+
+**How to View Your Sensors:**
+
+After the first check completes, you should see 6 sensor entities:
+
+1. Go to **Developer Tools** → **States**
+2. Search for `sensor.ha_sentry` to see all Sentry sensors:
+   - `sensor.ha_sentry_update_status` - Overall status
+   - `sensor.ha_sentry_updates_available` - Update count
+   - `sensor.ha_sentry_addon_updates` - Add-on updates
+   - `sensor.ha_sentry_hacs_updates` - HACS updates
+   - `sensor.ha_sentry_issues` - Issues detected
+   - `sensor.ha_sentry_confidence` - Analysis confidence
+
+**Create Your Dashboard:**
+
+Add these sensors to a dashboard card. See the [Documentation](https://github.com/ian-morgan99/Home-Assistant-Sentry/blob/main/DOCS.md#dashboard-integration) for examples.
+
+**What Happens Next:**
+
+- First update check is running now
+- You'll receive a notification with analysis results
+- Daily checks run at {self.config.check_schedule}
+
+**Troubleshooting:**
+
+If sensors don't appear, check the add-on logs for authentication errors. The add-on requires proper Home Assistant API permissions to create sensors.
+
+*This notification will not be shown again.*
+"""
+                else:
+                    notification_message = f"""✅ **Home Assistant Sentry is now running!**
+
+**What Happens Next:**
+
+- First update check is running now
+- You'll receive a notification with analysis results
+- Daily checks run at {self.config.check_schedule}
+
+**Note:** Dashboard entities are currently disabled in your configuration. Enable `create_dashboard_entities: true` to see sensor entities.
+
+*This notification will not be shown again.*
+"""
+                
+                await ha_client.create_persistent_notification(
+                    notification_title,
+                    notification_message,
+                    'ha_sentry_startup'
+                )
+                logger.info("Sent startup notification to guide users")
+        except Exception as e:
+            logger.error(f"Error sending startup notification: {e}", exc_info=True)
     
     async def _schedule_checks(self):
         """Schedule periodic update checks"""
