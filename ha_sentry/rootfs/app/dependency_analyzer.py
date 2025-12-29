@@ -161,6 +161,8 @@ class DependencyAnalyzer:
             addon_slug = addon.get('slug', '').lower()
             current_ver = addon.get('current_version', '')
             latest_ver = addon.get('latest_version', '')
+            # Get the type from the addon update if available, default to 'addon'
+            component_type = addon.get('type', 'addon')
             
             # Check if this is a known critical addon
             for pattern_key, pattern_info in self.CONFLICT_PATTERNS.items():
@@ -173,6 +175,7 @@ class DependencyAnalyzer:
                             issues.append({
                                 'severity': 'high',
                                 'component': addon['name'],
+                                'component_type': component_type,
                                 'description': f"Major version update: {current_ver} → {latest_ver}",
                                 'impact': pattern_info['warning']
                             })
@@ -191,6 +194,7 @@ class DependencyAnalyzer:
                             issues.append({
                                 'severity': 'medium',
                                 'component': addon['name'],
+                                'component_type': component_type,
                                 'description': f"Core service update: {current_ver} → {latest_ver}",
                                 'impact': 'May require dependent service restarts'
                             })
@@ -234,6 +238,7 @@ class DependencyAnalyzer:
             issues.append({
                 'severity': 'medium',
                 'component': 'hacs_updates',
+                'component_type': 'hacs',
                 'description': f'{len(hacs_updates)} HACS integrations have updates',
                 'impact': 'Multiple custom integrations updating may have dependency conflicts'
             })
@@ -244,11 +249,14 @@ class DependencyAnalyzer:
         for hacs in hacs_updates:
             current_ver = hacs.get('current_version', '')
             latest_ver = hacs.get('latest_version', '')
+            # Get the type from the hacs update if available, default to 'hacs'
+            component_type = hacs.get('type', 'hacs')
             
             if self._is_major_version_change(current_ver, latest_ver):
                 issues.append({
                     'severity': 'medium',
                     'component': hacs['name'],
+                    'component_type': component_type,
                     'description': f"Major HACS update: {current_ver} → {latest_ver}",
                     'impact': 'Breaking changes may affect automations or dashboards'
                 })
@@ -262,21 +270,23 @@ class DependencyAnalyzer:
         recommendations = []
         
         all_updates = [
-            {'type': 'addon', **addon} for addon in addon_updates
+            {'type': addon.get('type', 'addon'), **addon} for addon in addon_updates
         ] + [
-            {'type': 'hacs', **hacs} for hacs in hacs_updates
+            {'type': hacs.get('type', 'hacs'), **hacs} for hacs in hacs_updates
         ]
         
         breaking_count = 0
         for update in all_updates:
             current = update.get('current_version', '')
             latest = update.get('latest_version', '')
+            component_type = update.get('type', 'addon')
             
             # Check for pre-release versions (alpha, beta, rc)
             if self._is_prerelease(latest):
                 issues.append({
                     'severity': 'high',
                     'component': update['name'],
+                    'component_type': component_type,
                     'description': f"Pre-release version: {latest}",
                     'impact': 'Beta/RC versions may be unstable'
                 })
@@ -289,6 +299,7 @@ class DependencyAnalyzer:
                 issues.append({
                     'severity': 'medium',
                     'component': update['name'],
+                    'component_type': component_type,
                     'description': f"Large version jump: {current} → {latest}",
                     'impact': 'Skipping versions may miss important migration steps'
                 })
@@ -353,6 +364,7 @@ class DependencyAnalyzer:
                 issues.append({
                     'severity': severity,
                     'component': f'shared_dependency_{package}',
+                    'component_type': 'integration',
                     'description': f"Version conflict for {package}: used by {user_count} integrations with different requirements",
                     'impact': impact,
                     'affected_integrations': [u['integration'] for u in users]
@@ -366,6 +378,7 @@ class DependencyAnalyzer:
                 issues.append({
                     'severity': severity,
                     'component': f'shared_dependency_{package}',
+                    'component_type': 'integration',
                     'description': f"High-risk shared dependency: {package} (used by {user_count} integrations)",
                     'impact': impact,
                     'affected_integrations': [u['integration'] for u in users]

@@ -469,6 +469,26 @@ No updates are currently available for:
         domain = ''.join(c for c in domain if c.isalnum() or c == '_')
         return domain
     
+    def _get_component_type_label(self, component_type: str) -> str:
+        """
+        Get a user-friendly label for component type
+        
+        Args:
+            component_type: The component type (e.g., 'addon', 'hacs', 'core', 'integration')
+        
+        Returns:
+            str: A formatted label for display
+        """
+        type_labels = {
+            'core': 'Core',
+            'supervisor': 'Supervisor',
+            'os': 'OS',
+            'addon': 'Add-on',
+            'hacs': 'HACS Integration',
+            'integration': 'Integration'
+        }
+        return type_labels.get(component_type, component_type.capitalize())
+    
     async def _report_results(self, ha_client: HomeAssistantClient, 
                             addon_updates: List[Dict], 
                             hacs_updates: List[Dict], 
@@ -557,17 +577,28 @@ No updates are currently available for:
                 }.get(issue.get('severity', 'medium'), '🔵')
                 
                 component_name = issue.get('component', 'Unknown')
-                notification_message += f"\n{severity_emoji} **{component_name}**\n"
+                component_type = issue.get('component_type', '')
+                
+                # Format the component display with type label
+                if component_type:
+                    type_label = self._get_component_type_label(component_type)
+                    component_display = f"{component_name} ({type_label})"
+                else:
+                    component_display = component_name
+                
+                notification_message += f"\n{severity_emoji} **{component_display}**\n"
                 notification_message += f"{issue.get('description', 'No description')}\n"
                 
                 # Add "Where Used" link if web UI is enabled and we have a valid component
+                # Only show link for integrations/HACS that might be in dependency graph
                 if self.config.enable_web_ui and component_name != 'Unknown':
+                    # Show link for all types, but it's most useful for integrations
                     component_domain = self._extract_component_domain(component_name)
                     where_used_url = self._get_ingress_url() + f"#whereused:{component_domain}"
                     notification_message += f"  [🔍 View Impact]({where_used_url})\n"
                     changed_components.append(component_domain)
                 
-                logger.debug(f"  Issue: {issue.get('component')} - {issue.get('severity')}")
+                logger.debug(f"  Issue: {issue.get('component')} ({component_type}) - {issue.get('severity')}")
             
             notification_message += f"\n**Summary:**\n{analysis['summary']}\n"
             
