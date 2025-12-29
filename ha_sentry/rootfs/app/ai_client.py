@@ -179,7 +179,9 @@ Be thorough but concise. Focus on actionable insights."""
         if addon_updates:
             context += "## Add-on Updates Available:\n"
             for addon in addon_updates:
-                context += f"- **{addon['name']}** ({addon['slug']})\n"
+                # Handle both formats: with slug (from get_addon_updates) and without slug (from get_all_updates)
+                addon_identifier = f" ({addon['slug']})" if 'slug' in addon else f" ({addon.get('entity_id', '')})" if addon.get('entity_id') else ""
+                context += f"- **{addon['name']}**{addon_identifier}\n"
                 context += f"  - Current: {addon['current_version']}\n"
                 context += f"  - Latest: {addon['latest_version']}\n"
                 context += f"  - Repository: {addon.get('repository', 'N/A')}\n"
