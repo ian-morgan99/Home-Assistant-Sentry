@@ -2,6 +2,18 @@
 
 All notable changes to Home Assistant Sentry will be documented in this file.
 
+## [1.1.0] - TBD
+
+### Added
+- Auto-update support: Add-on now supports Home Assistant's auto-update feature via `auto_update` configuration flag
+- Auto-create dashboard feature: New `auto_create_dashboard` option to automatically create a Lovelace dashboard with Sentry widgets
+- Dashboard will be created on add-on startup when `auto_create_dashboard` is enabled
+- Pre-configured Sentry dashboard includes all monitoring widgets and conditional alerts
+
+### Changed
+- Enhanced documentation with new configuration options
+- Updated all example configurations to include new options
+
 ## [1.0.0] - 2024-12-26
 
 ### Added

@@ -60,6 +60,7 @@ For a setup without AI, using deep dependency analysis:
 ai_enabled: false
 check_schedule: "02:00"
 create_dashboard_entities: true
+auto_create_dashboard: false
 check_addons: true
 check_hacs: true
 ```
@@ -84,6 +85,7 @@ ai_endpoint: "http://homeassistant.local:11434"
 ai_model: "llama2"
 check_schedule: "02:00"
 create_dashboard_entities: true
+auto_create_dashboard: false
 check_addons: true
 check_hacs: true
 safety_threshold: 0.7
@@ -106,6 +108,11 @@ safety_threshold: 0.7
 - **create_dashboard_entities**: Create sensor entities
   - Set to `true` to enable dashboard integration
   - Set to `false` if you only want notifications
+
+- **auto_create_dashboard**: Automatically create Sentry dashboard
+  - Set to `true` to automatically create a Lovelace dashboard with Sentry widgets
+  - Set to `false` if you want to manually add Sentry cards to your own dashboards
+  - The dashboard will be created at startup if enabled
 
 #### AI Settings
 

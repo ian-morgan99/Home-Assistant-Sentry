@@ -19,6 +19,7 @@ class ConfigManager:
         self.api_key = os.getenv('API_KEY', '')
         self.check_schedule = os.getenv('CHECK_SCHEDULE', '02:00')
         self.create_dashboard_entities = self._get_bool_env('CREATE_DASHBOARD_ENTITIES', True)
+        self.auto_create_dashboard = self._get_bool_env('AUTO_CREATE_DASHBOARD', False)
         self.check_addons = self._get_bool_env('CHECK_ADDONS', True)
         self.check_hacs = self._get_bool_env('CHECK_HACS', True)
         self.safety_threshold = float(os.getenv('SAFETY_THRESHOLD', '0.7'))

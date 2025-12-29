@@ -11,6 +11,7 @@ arch:
 init: false
 startup: services
 boot: auto
+auto_update: true
 ports:
   8099/tcp: 8099
 ports_description:
@@ -23,6 +24,7 @@ options:
   api_key: ""
   check_schedule: "02:00"
   create_dashboard_entities: true
+  auto_create_dashboard: false
   check_addons: true
   check_hacs: true
   safety_threshold: 0.7
@@ -35,6 +37,7 @@ schema:
   api_key: password?
   check_schedule: str
   create_dashboard_entities: bool
+  auto_create_dashboard: bool
   check_addons: bool
   check_hacs: bool
   safety_threshold: float(0.0,1.0)

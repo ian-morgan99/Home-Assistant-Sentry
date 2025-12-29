@@ -155,3 +155,25 @@ class HomeAssistantClient:
         except Exception as e:
             logger.error(f"Error updating sensor: {e}", exc_info=True)
             return False
+    
+    async def create_lovelace_dashboard(self, dashboard_config: Dict) -> bool:
+        """Create a Lovelace dashboard in Home Assistant"""
+        try:
+            # Use the lovelace_dashboards endpoint to create a new dashboard
+            url = f"{self.config.ha_url}/api/lovelace/dashboards"
+            logger.info("Creating Sentry dashboard in Lovelace")
+            
+            async with self.session.post(url, json=dashboard_config) as response:
+                if response.status in (200, 201):
+                    logger.info("Successfully created Sentry dashboard")
+                    return True
+                elif response.status == 409:
+                    logger.info("Dashboard already exists, skipping creation")
+                    return True
+                else:
+                    response_text = await response.text()
+                    logger.error(f"Failed to create dashboard: {response.status} - {response_text}")
+                    return False
+        except Exception as e:
+            logger.error(f"Error creating dashboard: {e}", exc_info=True)
+            return False

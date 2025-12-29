@@ -122,3 +122,83 @@ class DashboardManager:
         )
         
         logger.info("Dashboard sensors updated")
+    
+    async def create_sentry_dashboard(self):
+        """Create the default Sentry dashboard in Lovelace"""
+        dashboard_config = {
+            "url_path": "ha-sentry",
+            "title": "Home Assistant Sentry",
+            "icon": "mdi:shield-check",
+            "show_in_sidebar": True,
+            "require_admin": False
+        }
+        
+        # The dashboard view configuration from the documentation
+        dashboard_view = {
+            "title": "Sentry",
+            "path": "sentry",
+            "icon": "mdi:shield-check",
+            "cards": [
+                {
+                    "type": "vertical-stack",
+                    "cards": [
+                        {
+                            "type": "entities",
+                            "title": "Home Assistant Sentry",
+                            "entities": [
+                                {
+                                    "entity": "sensor.ha_sentry_update_status",
+                                    "name": "Status"
+                                },
+                                {
+                                    "entity": "sensor.ha_sentry_updates_available",
+                                    "name": "Updates Available"
+                                },
+                                {
+                                    "entity": "sensor.ha_sentry_confidence",
+                                    "name": "Confidence"
+                                },
+                                {
+                                    "entity": "sensor.ha_sentry_issues",
+                                    "name": "Issues Detected"
+                                }
+                            ]
+                        },
+                        {
+                            "type": "conditional",
+                            "conditions": [
+                                {
+                                    "entity": "sensor.ha_sentry_issues",
+                                    "state_not": "0"
+                                }
+                            ],
+                            "card": {
+                                "type": "markdown",
+                                "content": "## ⚠️ Issues Detected\n\nReview the persistent notification for details."
+                            }
+                        },
+                        {
+                            "type": "entities",
+                            "title": "Update Details",
+                            "entities": [
+                                {
+                                    "entity": "sensor.ha_sentry_addon_updates",
+                                    "name": "Add-on Updates"
+                                },
+                                {
+                                    "entity": "sensor.ha_sentry_hacs_updates",
+                                    "name": "HACS Updates"
+                                }
+                            ]
+                        }
+                    ]
+                }
+            ]
+        }
+        
+        # Store the view configuration in the dashboard config
+        dashboard_config["config"] = {
+            "views": [dashboard_view]
+        }
+        
+        return await self.ha_client.create_lovelace_dashboard(dashboard_config)
