@@ -35,8 +35,20 @@ class DependencyTreeWebServer:
         if not self.config.enable_web_ui:
             logger.info("Web UI disabled in configuration")
             return
+        
+        # Validate dependency graph is available
+        if not self.dependency_graph_builder:
+            logger.error("Cannot start web server: Dependency graph builder is not available")
+            logger.error("This usually means:")
+            logger.error("  1. 'enable_dependency_graph' is disabled in configuration")
+            logger.error("  2. Dependency graph building failed during initialization")
+            logger.error("To fix: Set 'enable_dependency_graph: true' in add-on configuration")
+            logger.error("Note: Web UI requires dependency graph to be enabled")
+            return
             
         logger.info(f"Starting dependency tree web server on port {self.port}")
+        logger.info(f"  Binding to: 0.0.0.0:{self.port}")
+        logger.info(f"  Web UI configuration: enable_web_ui={self.config.enable_web_ui}")
         
         self.app = web.Application()
         self._setup_routes()
@@ -46,8 +58,10 @@ class DependencyTreeWebServer:
         self.site = web.TCPSite(self.runner, '0.0.0.0', self.port)
         await self.site.start()
         
-        logger.info(f"✅ Dependency tree visualization available at http://localhost:{self.port}")
-        logger.info(f"   Or via Home Assistant ingress panel")
+        logger.info(f"✅ Dependency tree visualization started successfully")
+        logger.info(f"   Available at http://localhost:{self.port}")
+        logger.info(f"   Or via Home Assistant ingress panel (Sentry in sidebar)")
+        logger.info(f"   Total integrations: {len(self.dependency_graph_builder.integrations)}")
         
     async def stop(self):
         """Stop the web server"""
@@ -75,7 +89,14 @@ class DependencyTreeWebServer:
         """Get list of all components"""
         try:
             if not self.dependency_graph_builder:
-                return web.json_response({'error': 'Dependency graph not available'}, status=503)
+                logger.error("API request failed: Dependency graph not available")
+                logger.error("The dependency graph is required for web UI functionality")
+                logger.error("Please enable 'enable_dependency_graph: true' in add-on configuration")
+                return web.json_response({
+                    'error': 'Dependency graph not available',
+                    'message': 'The dependency graph is required for web UI functionality. Please enable "enable_dependency_graph: true" in your add-on configuration and restart.',
+                    'fix': 'Go to Settings → Add-ons → Home Assistant Sentry → Configuration tab, enable "enable_dependency_graph", and restart the add-on.'
+                }, status=503)
                 
             components = []
             for domain, integration in self.dependency_graph_builder.integrations.items():
@@ -104,7 +125,11 @@ class DependencyTreeWebServer:
             component = request.match_info['component']
             
             if not self.dependency_graph_builder:
-                return web.json_response({'error': 'Dependency graph not available'}, status=503)
+                logger.warning(f"API request for dependency tree of '{component}' failed: Dependency graph not available")
+                return web.json_response({
+                    'error': 'Dependency graph not available',
+                    'message': 'The dependency graph is required for web UI functionality. Please enable "enable_dependency_graph: true" in your add-on configuration and restart.'
+                }, status=503)
                 
             integrations = self.dependency_graph_builder.integrations
             
@@ -150,7 +175,11 @@ class DependencyTreeWebServer:
             item = request.match_info['component']
             
             if not self.dependency_graph_builder:
-                return web.json_response({'error': 'Dependency graph not available'}, status=503)
+                logger.warning(f"API request for where-used of '{item}' failed: Dependency graph not available")
+                return web.json_response({
+                    'error': 'Dependency graph not available',
+                    'message': 'The dependency graph is required for web UI functionality. Please enable "enable_dependency_graph: true" in your add-on configuration and restart.'
+                }, status=503)
             
             dependency_map = self.dependency_graph_builder.dependency_map
             integrations = self.dependency_graph_builder.integrations
@@ -197,7 +226,11 @@ class DependencyTreeWebServer:
             components = [c.strip() for c in components_param.split(',')]
             
             if not self.dependency_graph_builder:
-                return web.json_response({'error': 'Dependency graph not available'}, status=503)
+                logger.warning(f"API request for change impact failed: Dependency graph not available")
+                return web.json_response({
+                    'error': 'Dependency graph not available',
+                    'message': 'The dependency graph is required for web UI functionality. Please enable "enable_dependency_graph: true" in your add-on configuration and restart.'
+                }, status=503)
             
             integrations = self.dependency_graph_builder.integrations
             dependency_map = self.dependency_graph_builder.dependency_map
@@ -262,7 +295,11 @@ class DependencyTreeWebServer:
         """Get complete graph data for visualization"""
         try:
             if not self.dependency_graph_builder:
-                return web.json_response({'error': 'Dependency graph not available'}, status=503)
+                logger.warning("API request for graph data failed: Dependency graph not available")
+                return web.json_response({
+                    'error': 'Dependency graph not available',
+                    'message': 'The dependency graph is required for web UI functionality. Please enable "enable_dependency_graph: true" in your add-on configuration and restart.'
+                }, status=503)
             
             # Return the machine-readable format
             graph_data = {
@@ -652,6 +689,18 @@ class DependencyTreeWebServer:
         async function loadComponents() {
             try {
                 const response = await fetch('/api/components');
+                
+                if (response.status === 503) {
+                    // Service unavailable - show detailed configuration error
+                    try {
+                        const data = await response.json();
+                        showConfigError(data);
+                    } catch (e) {
+                        showConfigError({ error: 'Service unavailable', message: 'The dependency graph service is not available.' });
+                    }
+                    return;
+                }
+                
                 const data = await response.json();
                 
                 if (data.error) {
@@ -677,6 +726,11 @@ class DependencyTreeWebServer:
         async function loadStats() {
             try {
                 const response = await fetch('/api/graph-data');
+                
+                if (response.status === 503) {
+                    return; // Don't show stats if service unavailable
+                }
+                
                 const data = await response.json();
                 
                 if (data.error) {
@@ -869,6 +923,38 @@ class DependencyTreeWebServer:
         function showError(message) {
             const viz = document.getElementById('visualization');
             viz.innerHTML = `<div class="error">❌ Error: ${message}</div>`;
+        }
+        
+        function showConfigError(data) {
+            const viz = document.getElementById('visualization');
+            const message = data.message || 'Service unavailable';
+            const fix = data.fix || 'Please check add-on configuration';
+            
+            viz.innerHTML = `
+                <div class="error">
+                    <h3 style="margin-bottom: 15px;">⚙️ Configuration Required</h3>
+                    <p style="margin-bottom: 10px;"><strong>Issue:</strong> ${message}</p>
+                    <p style="margin-bottom: 15px;"><strong>How to fix:</strong></p>
+                    <ol style="margin-left: 20px; margin-bottom: 15px;">
+                        <li style="margin-bottom: 8px;">Go to <strong>Settings → Add-ons → Home Assistant Sentry</strong></li>
+                        <li style="margin-bottom: 8px;">Click on the <strong>Configuration</strong> tab</li>
+                        <li style="margin-bottom: 8px;">Enable <code>enable_dependency_graph: true</code></li>
+                        <li style="margin-bottom: 8px;">Click <strong>Save</strong> and restart the add-on</li>
+                    </ol>
+                    <p style="font-size: 0.9em; color: #ffb3b3;">
+                        💡 <strong>Note:</strong> The Web UI requires the dependency graph feature to be enabled. 
+                        Check the add-on logs for more detailed information.
+                    </p>
+                </div>`;
+            
+            // Also update stats to show error state
+            document.getElementById('stat-integrations').textContent = 'N/A';
+            document.getElementById('stat-dependencies').textContent = 'N/A';
+            document.getElementById('stat-highrisk').textContent = 'N/A';
+            
+            // Disable controls
+            document.getElementById('component-select').disabled = true;
+            document.getElementById('visualize-btn').disabled = true;
         }
     </script>
 </body>

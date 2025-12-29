@@ -44,6 +44,9 @@ class SentryService:
         
         # Build dependency graph on initialization if enabled
         if config.enable_dependency_graph:
+            logger.info("=" * 60)
+            logger.info("DEPENDENCY GRAPH INITIALIZATION")
+            logger.info("=" * 60)
             logger.info("Building dependency graph from installed integrations...")
             try:
                 graph_builder = DependencyGraphBuilder()
@@ -61,15 +64,39 @@ class SentryService:
                 self.dependency_graph_builder = graph_builder
                 
                 stats = graph_data.get('machine_readable', {}).get('statistics', {})
-                logger.info(f"Dependency graph built: {stats.get('total_integrations', 0)} integrations, "
-                           f"{stats.get('total_dependencies', 0)} dependencies")
+                logger.info(f"✅ Dependency graph built successfully")
+                logger.info(f"   Total integrations: {stats.get('total_integrations', 0)}")
+                logger.info(f"   Total dependencies: {stats.get('total_dependencies', 0)}")
                 if stats.get('high_risk_dependencies', 0) > 0:
-                    logger.info(f"Found {stats.get('high_risk_dependencies', 0)} high-risk dependencies")
+                    logger.info(f"   High-risk dependencies: {stats.get('high_risk_dependencies', 0)}")
+                logger.info("=" * 60)
             except Exception as e:
-                logger.warning(f"Failed to build dependency graph: {e}")
+                logger.error("=" * 60)
+                logger.error("DEPENDENCY GRAPH BUILD FAILED")
+                logger.error("=" * 60)
+                logger.error(f"Failed to build dependency graph: {e}", exc_info=True)
+                logger.error("")
+                logger.error("This means:")
+                logger.error("  - The web UI will not be available (503 errors)")
+                logger.error("  - Dependency analysis features will be limited")
+                logger.error("")
+                logger.error("Common causes:")
+                logger.error("  1. Integration manifest files are corrupted or missing")
+                logger.error("  2. File system permissions issues")
+                logger.error("  3. Invalid custom integration paths in configuration")
+                logger.error("")
+                logger.error("To resolve:")
+                logger.error("  1. Check add-on logs for detailed error information")
+                logger.error("  2. Verify Home Assistant integrations are properly installed")
+                logger.error("  3. Try disabling custom_integration_paths if configured")
+                logger.error("  4. If issue persists, disable dependency graph:")
+                logger.error("     Set 'enable_dependency_graph: false' in configuration")
+                logger.error("=" * 60)
                 logger.info("Continuing without dependency graph analysis")
         else:
             logger.info("Dependency graph building is disabled in configuration")
+            logger.info("  enable_dependency_graph: false")
+            logger.info("  Note: Web UI will not be available without dependency graph")
         
         # Initialize AI client with dependency graph
         self.ai_client = AIClient(config, dependency_graph=self.dependency_graph)
@@ -85,6 +112,9 @@ class SentryService:
         if self.config.enable_web_ui and self.dependency_graph_builder:
             try:
                 logger.info("Starting web server for dependency visualization...")
+                logger.info(f"  Web UI port: {self.WEB_UI_PORT}")
+                logger.info(f"  Dependency graph available: Yes")
+                logger.info(f"  Total integrations loaded: {len(self.dependency_graph_builder.integrations)}")
                 self.web_server = DependencyTreeWebServer(
                     self.dependency_graph_builder,
                     self.config,
@@ -93,9 +123,29 @@ class SentryService:
                 await self.web_server.start()
             except Exception as e:
                 logger.error(f"Failed to start web server: {e}", exc_info=True)
+                logger.error("Web UI will not be available")
+                logger.info("To troubleshoot:")
+                logger.info(f"  1. Check if port {self.WEB_UI_PORT} is already in use")
+                logger.info("  2. Verify 'enable_dependency_graph' is true in configuration")
+                logger.info("  3. Check add-on logs for dependency graph building errors")
                 logger.info("Continuing without web UI")
         elif self.config.enable_web_ui and not self.dependency_graph_builder:
-            logger.warning("Web UI is enabled but dependency graph is disabled. Web UI requires dependency graph to be enabled.")
+            logger.error("Web UI is enabled but dependency graph is not available")
+            logger.error("Web UI requires the dependency graph to function")
+            logger.error("Configuration mismatch detected:")
+            logger.error(f"  enable_web_ui: {self.config.enable_web_ui}")
+            logger.error(f"  enable_dependency_graph: {self.config.enable_dependency_graph}")
+            logger.error(f"  dependency_graph_builder: {self.dependency_graph_builder is not None}")
+            logger.error("")
+            logger.error("To fix this issue:")
+            logger.error("  1. Go to Settings → Add-ons → Home Assistant Sentry → Configuration")
+            logger.error("  2. Enable 'enable_dependency_graph: true'")
+            logger.error("  3. Restart the add-on")
+            logger.error("")
+            logger.error("If you don't need the web UI, you can disable it:")
+            logger.error("  Set 'enable_web_ui: false' in configuration")
+        elif not self.config.enable_web_ui:
+            logger.info("Web UI disabled in configuration (enable_web_ui: false)")
         
         # Send startup notification to help users find sensors
         await self._send_startup_notification()
