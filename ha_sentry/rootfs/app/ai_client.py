@@ -195,7 +195,7 @@ Be thorough but concise. Focus on actionable insights."""
         Returns:
             Dict with dependency information. The structure depends on the update type:
             
-            - For system updates (``type`` in ``["core", "supervisor", "os"]``):
+            - For system updates (`type` in `["core", "supervisor", "os"]`):
               
               {
                   "type": "system",
@@ -214,10 +214,10 @@ Be thorough but concise. Focus on actionable insights."""
               
               {
                   "type": "integration",
-                  "requirements": List[Dict],     # Integration requirements as provided by the dependency graph,
-                                                   # truncated to MAX_DEPENDENCIES_SHOWN
+                  "requirements": List[Dict],     # Integration requirements from dependency graph,
+                                                  # truncated to MAX_DEPENDENCIES_SHOWN
                   "high_risk_count": int,         # Number of requirements marked as high risk
-                  "shared_dependency_impact": int # Number of other integrations sharing these dependencies
+                  "shared_dependency_impact": int # Number of other integrations sharing dependencies
               }
             
             If no dependency graph is available or the update cannot be matched to an
