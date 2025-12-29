@@ -3,6 +3,18 @@
 > **🔔 This is a Home Assistant Add-on Repository**  
 > This repository provides a Home Assistant add-on, not a HACS integration. Please install it through the **Supervisor Add-on Store**, not HACS. See [Installation Instructions](#installation) below.
 
+## Product Goal
+
+**Home-Assistant-Sentry exists to explain update risk before the user updates, without modifying or interfering with Home Assistant's runtime.**
+
+### Key Principles
+- **Advisory, not intrusive**: We provide information, never taking action
+- **Predictive, not reactive**: Analyze before updates, not after
+- **Read-only by default**: Observe and analyze, never modify
+- **Zero-risk to HA stability**: Never cause Home Assistant to fail
+
+---
+
 A Home Assistant add-on that performs daily reviews of **all available updates** (Core, Supervisor, OS, add-ons, and integrations), identifies potential conflicts and dependency issues, and advises whether updates are safe to install.
 
 ## Features
@@ -310,6 +322,8 @@ To view add-on logs:
 ## Development & Contributing
 
 For information about creating releases and the automated version update process, see [RELEASING.md](RELEASING.md).
+
+**For contributors:** Please read [CONTRIBUTING.md](CONTRIBUTING.md) before submitting changes. It contains critical information about our principles, rules, and guidelines that all contributors must follow.
 
 ## Support
 
