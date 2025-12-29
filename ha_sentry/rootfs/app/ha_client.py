@@ -143,12 +143,16 @@ class HomeAssistantClient:
             return UPDATE_TYPE_SUPERVISOR
         elif 'home_assistant_os' in entity_lower or 'operating_system' in entity_lower:
             return UPDATE_TYPE_OS
-        # Check if it's a HACS integration (contains hacs in name or has repository attribute)
-        elif 'hacs' in entity_lower or attributes.get('repository', '').startswith('http'):
+        # Check if it's a HACS integration
+        # HACS entities typically have 'hacs' in the entity_id or specific attributes
+        elif 'hacs' in entity_lower:
             return UPDATE_TYPE_HACS
         # Check for add-on specific patterns
         elif 'addon' in entity_lower:
             return UPDATE_TYPE_ADDON
+        # Check if it has a repository URL (likely a custom integration, treat as HACS)
+        elif attributes.get('repository', '').startswith(('https://github.com/', 'http://github.com/')):
+            return UPDATE_TYPE_HACS
         # Default to integration for other update entities
         else:
             return UPDATE_TYPE_INTEGRATION

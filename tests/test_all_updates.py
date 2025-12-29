@@ -22,12 +22,15 @@ def test_categorize_update_logic():
             return 'supervisor'
         elif 'home_assistant_os' in entity_lower or 'operating_system' in entity_lower:
             return 'os'
-        # Check if it's a HACS integration (contains hacs in name or has repository attribute)
-        elif 'hacs' in entity_lower or attributes.get('repository', '').startswith('http'):
+        # Check if it's a HACS integration
+        elif 'hacs' in entity_lower:
             return 'hacs'
         # Check for add-on specific patterns
         elif 'addon' in entity_lower:
             return 'addon'
+        # Check if it has a repository URL (likely a custom integration, treat as HACS)
+        elif attributes.get('repository', '').startswith(('https://github.com/', 'http://github.com/')):
+            return 'hacs'
         # Default to integration for other update entities
         else:
             return 'integration'
@@ -40,6 +43,7 @@ def test_categorize_update_logic():
     # Test HACS categorization
     assert categorize_update('update.hacs_something', {}) == 'hacs'
     assert categorize_update('update.some_integration', {'repository': 'https://github.com/test'}) == 'hacs'
+    assert categorize_update('update.some_integration', {'repository': 'http://github.com/test'}) == 'hacs'
     
     # Test addon categorization
     assert categorize_update('update.addon_mosquitto', {}) == 'addon'
@@ -98,23 +102,41 @@ def test_config_all_updates():
     """Test configuration option for check_all_updates"""
     from config_manager import ConfigManager
     
-    # Test default (should be True)
-    os.environ['SUPERVISOR_TOKEN'] = 'test_token'
-    config = ConfigManager()
-    assert config.check_all_updates is True
+    # Save original environment state
+    original_check_all = os.environ.get('CHECK_ALL_UPDATES')
+    original_supervisor_token = os.environ.get('SUPERVISOR_TOKEN')
     
-    # Test explicit false
-    os.environ['CHECK_ALL_UPDATES'] = 'false'
-    config2 = ConfigManager()
-    assert config2.check_all_updates is False
-    
-    # Test explicit true
-    os.environ['CHECK_ALL_UPDATES'] = 'true'
-    config3 = ConfigManager()
-    assert config3.check_all_updates is True
-    
-    print("✓ Config check_all_updates test passed")
-    return True
+    try:
+        # Test default (should be True)
+        os.environ['SUPERVISOR_TOKEN'] = 'test_token'
+        if 'CHECK_ALL_UPDATES' in os.environ:
+            del os.environ['CHECK_ALL_UPDATES']
+        config = ConfigManager()
+        assert config.check_all_updates is True
+        
+        # Test explicit false
+        os.environ['CHECK_ALL_UPDATES'] = 'false'
+        config2 = ConfigManager()
+        assert config2.check_all_updates is False
+        
+        # Test explicit true
+        os.environ['CHECK_ALL_UPDATES'] = 'true'
+        config3 = ConfigManager()
+        assert config3.check_all_updates is True
+        
+        print("✓ Config check_all_updates test passed")
+        return True
+    finally:
+        # Restore original environment state
+        if original_check_all is not None:
+            os.environ['CHECK_ALL_UPDATES'] = original_check_all
+        elif 'CHECK_ALL_UPDATES' in os.environ:
+            del os.environ['CHECK_ALL_UPDATES']
+        
+        if original_supervisor_token is not None:
+            os.environ['SUPERVISOR_TOKEN'] = original_supervisor_token
+        elif 'SUPERVISOR_TOKEN' in os.environ:
+            del os.environ['SUPERVISOR_TOKEN']
 
 
 if __name__ == '__main__':

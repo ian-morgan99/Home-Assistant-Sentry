@@ -20,9 +20,10 @@ UPDATE_TYPE_ADDON = 'addon'
 UPDATE_TYPE_HACS = 'hacs'
 UPDATE_TYPE_INTEGRATION = 'integration'
 
-# Grouping for display and analysis
-SYSTEM_UPDATE_TYPES = [UPDATE_TYPE_CORE, UPDATE_TYPE_SUPERVISOR, UPDATE_TYPE_OS, UPDATE_TYPE_ADDON]
-INTEGRATION_UPDATE_TYPES = [UPDATE_TYPE_HACS, UPDATE_TYPE_INTEGRATION]
+# Grouping for analysis (for backward compatibility with existing AI analysis)
+# These map to the two categories the AI analyzer expects: addon_updates and hacs_updates
+ADDON_ANALYSIS_TYPES = [UPDATE_TYPE_CORE, UPDATE_TYPE_SUPERVISOR, UPDATE_TYPE_OS, UPDATE_TYPE_ADDON]
+INTEGRATION_ANALYSIS_TYPES = [UPDATE_TYPE_HACS, UPDATE_TYPE_INTEGRATION]
 
 
 class SentryService:
@@ -110,8 +111,9 @@ class SentryService:
                     logger.info(f"Found {len(all_updates)} total updates")
                     
                     # For backward compatibility with analysis, categorize updates
-                    addon_updates = [u for u in all_updates if u.get('type') in SYSTEM_UPDATE_TYPES]
-                    hacs_updates = [u for u in all_updates if u.get('type') in INTEGRATION_UPDATE_TYPES]
+                    # The AI analyzer expects two categories: addon_updates (system) and hacs_updates (integrations)
+                    addon_updates = [u for u in all_updates if u.get('type') in ADDON_ANALYSIS_TYPES]
+                    hacs_updates = [u for u in all_updates if u.get('type') in INTEGRATION_ANALYSIS_TYPES]
                     
                     logger.debug(f"  System/Add-on updates: {len(addon_updates)}")
                     logger.debug(f"  Integration/HACS updates: {len(hacs_updates)}")
