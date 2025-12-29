@@ -1,8 +1,9 @@
 """
 Configuration Manager for Home Assistant Sentry
 """
-import os
+import json
 import logging
+import os
 
 logger = logging.getLogger(__name__)
 
@@ -30,6 +31,7 @@ class ConfigManager:
         # New configuration options for dependency graph and reporting
         self.enable_dependency_graph = self._get_bool_env('ENABLE_DEPENDENCY_GRAPH', True)
         self.save_reports = self._get_bool_env('SAVE_REPORTS', True)
+        self.custom_integration_paths = self._parse_custom_paths()
         
         # Home Assistant API configuration
         self.ha_url = 'http://supervisor/core'
@@ -48,6 +50,19 @@ class ConfigManager:
         """Get boolean value from environment variable"""
         value = os.getenv(key, str(default)).lower()
         return value in ('true', '1', 'yes', 'on')
+    
+    def _parse_custom_paths(self) -> list:
+        """Parse custom integration paths from environment variable"""
+        paths_json = os.getenv('CUSTOM_INTEGRATION_PATHS', '[]')
+        try:
+            paths = json.loads(paths_json)
+            if isinstance(paths, list):
+                # Filter out empty strings and validate paths
+                return [p for p in paths if p and isinstance(p, str)]
+            return []
+        except json.JSONDecodeError:
+            logger.warning(f"Failed to parse CUSTOM_INTEGRATION_PATHS: {paths_json}")
+            return []
     
     def get_python_log_level(self) -> int:
         """Convert log_level string to Python logging level"""

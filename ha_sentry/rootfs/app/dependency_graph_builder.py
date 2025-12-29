@@ -52,9 +52,14 @@ class DependencyGraphBuilder:
         logger.info("Building dependency graph from integration manifests")
         logger.debug(f"Scanning paths: {paths}")
         
+        # Track which paths exist and which don't
+        existing_paths = []
+        missing_paths = []
+        
         # Scan all paths for integrations
         for path in paths:
             if os.path.exists(path):
+                existing_paths.append(path)
                 self._scan_integration_path(path)
             else:
                 logger.debug(f"Path does not exist: {path}")
@@ -67,6 +72,22 @@ class DependencyGraphBuilder:
                         logger.debug(f"  Parent contains: {contents}")
                     except Exception as e:
                         logger.debug(f"  Cannot list parent: {e}")
+                missing_paths.append(path)
+                logger.warning(f"Path does not exist: {path}")
+        
+        # Log summary of path scanning
+        if missing_paths:
+            logger.warning(f"Missing {len(missing_paths)} path(s): {', '.join(missing_paths)}")
+            logger.info("Tip: You can specify custom paths using 'custom_integration_paths' in add-on configuration")
+            
+            # Try to find alternative paths and suggest them
+            self._suggest_alternative_paths(missing_paths)
+        
+        if not existing_paths:
+            logger.error("No valid integration paths found! Dependency graph will be empty.")
+            logger.error("Please configure 'custom_integration_paths' in the add-on settings.")
+        else:
+            logger.info(f"Successfully scanned {len(existing_paths)} path(s)")
         
         # Build the dependency map
         self._build_dependency_map()
@@ -102,6 +123,75 @@ class DependencyGraphBuilder:
                     
         except Exception as e:
             logger.warning(f"Error scanning path {base_path}: {e}")
+    
+    def _suggest_alternative_paths(self, missing_paths: List[str]):
+        """
+        Suggest alternative paths when default paths are missing
+        
+        Args:
+            missing_paths: List of paths that don't exist
+        """
+        # Common alternative locations to check
+        alternative_checks = [
+            '/config',
+            '/homeassistant',
+            '/usr/share/hassio/homeassistant',
+            '/data',
+        ]
+        
+        logger.info("Searching for alternative integration paths...")
+        found_alternatives = []
+        
+        for base_path in alternative_checks:
+            if os.path.exists(base_path):
+                try:
+                    # List subdirectories to help identify integration paths
+                    subdirs = [d for d in os.listdir(base_path) 
+                              if os.path.isdir(os.path.join(base_path, d))]
+                    
+                    # Look for directories that might contain integrations
+                    for subdir in subdirs:
+                        full_path = os.path.join(base_path, subdir)
+                        
+                        # Check if it looks like an integration directory
+                        if subdir in ['custom_components', 'components', 'homeassistant']:
+                            manifest_count = self._count_manifests(full_path)
+                            if manifest_count > 0:
+                                found_alternatives.append(f"{full_path} ({manifest_count} integrations)")
+                                
+                except (PermissionError, OSError) as e:
+                    logger.debug(f"Cannot access {base_path}: {e}")
+                    
+        if found_alternatives:
+            logger.info("Found potential integration paths:")
+            for alt_path in found_alternatives:
+                logger.info(f"  - {alt_path}")
+            logger.info("Add these to 'custom_integration_paths' in your add-on configuration")
+        else:
+            logger.info("No alternative integration paths found in common locations")
+    
+    def _count_manifests(self, path: str) -> int:
+        """
+        Count manifest.json files in subdirectories of a path
+        
+        Args:
+            path: Path to check
+            
+        Returns:
+            Number of manifest.json files found
+        """
+        try:
+            count = 0
+            path_obj = Path(path)
+            if path_obj.exists():
+                for item in path_obj.iterdir():
+                    if item.is_dir():
+                        manifest = item / 'manifest.json'
+                        if manifest.exists():
+                            count += 1
+            return count
+        except Exception:
+            return 0
     
     def _parse_manifest(self, manifest_path: Path, integration_name: str):
         """

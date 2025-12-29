@@ -65,6 +65,27 @@ class HomeAssistantClient:
         logger.info("See the documentation for example dashboard configurations: https://github.com/ian-morgan99/Home-Assistant-Sentry/blob/main/DOCS.md#dashboard-integration")
         logger.info("The add-on will continue to work normally and update sensor entities.")
     
+    def _log_dashboard_endpoint_not_found(self):
+        """Log dashboard endpoint not found error with helpful information"""
+        logger.error("=" * 60)
+        logger.error("DASHBOARD ENDPOINT NOT FOUND (404)")
+        logger.error("=" * 60)
+        logger.error("The Lovelace dashboard API endpoint does not exist or is not accessible.")
+        logger.error("")
+        logger.error("POSSIBLE CAUSES:")
+        logger.error("1. Home Assistant version does not support the dashboard API endpoint")
+        logger.error("2. The API endpoint path has changed in your Home Assistant version")
+        logger.error("3. Add-on lacks necessary permissions to access the endpoint")
+        logger.error("4. Running in a restricted environment (e.g., Container vs. Supervisor)")
+        logger.error("")
+        logger.error("SOLUTION:")
+        logger.error("Set 'auto_create_dashboard: false' in the add-on configuration")
+        logger.error("and manually create your dashboard using the sensor entities.")
+        logger.error("")
+        logger.error("See documentation: https://github.com/ian-morgan99/Home-Assistant-Sentry/blob/main/DOCS.md#dashboard-integration")
+        logger.error("The add-on will continue to work normally and update sensor entities.")
+        logger.error("=" * 60)
+    
     async def get_addon_updates(self) -> List[Dict]:
         """Get available add-on updates from Supervisor API"""
         try:
@@ -299,12 +320,32 @@ class HomeAssistantClient:
         Consider disabling auto_create_dashboard and manually creating dashboards instead.
         """
         try:
-            # Use the lovelace_dashboards endpoint to create a new dashboard
             url = f"{self.config.ha_url}/api/lovelace/dashboards"
             logger.info("Attempting to create Sentry dashboard in Lovelace")
             logger.debug(f"POST {url}")
             logger.debug(f"Payload: {json.dumps(dashboard_config, indent=2)[:500]}")
+            logger.debug(f"Dashboard creation URL: {url}")
+            logger.debug(f"Dashboard config: {dashboard_config.get('url_path')}, title: {dashboard_config.get('title')}")
             
+            # First, test if the endpoint exists by attempting a GET request
+            # Note: Some endpoints may only accept POST and return 405 for GET,
+            # in which case we proceed with the POST attempt anyway.
+            logger.debug("Testing Lovelace dashboards endpoint accessibility...")
+            try:
+                async with self.session.get(url) as test_response:
+                    logger.debug(f"GET endpoint test status: {test_response.status}")
+                    if test_response.status == 404:
+                        self._log_dashboard_endpoint_not_found()
+                        return False
+                    elif test_response.status == 401:
+                        self._log_dashboard_permission_error()
+                        return False
+                    # Note: 405 Method Not Allowed is acceptable here - endpoint exists but doesn't accept GET
+            except Exception as e:
+                logger.debug(f"Endpoint test failed: {e}")
+                # Continue to POST attempt even if GET test fails due to network issues
+            
+            # Attempt to create the dashboard
             async with self.session.post(url, json=dashboard_config) as response:
                 if response.status in (200, 201):
                     logger.info("Successfully created Sentry dashboard")
@@ -312,11 +353,19 @@ class HomeAssistantClient:
                 elif response.status == 409:
                     logger.info("Dashboard already exists, skipping creation")
                     return True
+                elif response.status == 404:
+                    response_text = await response.text()
+                    logger.error(f"Failed to create dashboard: {response.status} - {response_text}")
+                    self._log_dashboard_endpoint_not_found()
+                    return False
+                elif response.status == 401:
+                    response_text = await response.text()
+                    logger.error(f"Failed to create dashboard: {response.status} - {response_text}")
+                    self._log_dashboard_permission_error()
+                    return False
                 else:
                     response_text = await response.text()
                     logger.error(f"Failed to create dashboard: {response.status} - {response_text}")
-                    if response.status == 401:
-                        self._log_dashboard_permission_error()
                     return False
         except Exception as e:
             logger.error(f"Error creating dashboard: {e}", exc_info=True)
