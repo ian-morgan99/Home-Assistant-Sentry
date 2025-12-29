@@ -1,0 +1,369 @@
+"""
+Dependency Graph Builder - Feature 1
+Builds a dependency graph from Home Assistant integrations without executing code
+Uses static inspection only (manifest.json parsing)
+"""
+import json
+import logging
+import os
+import re
+from pathlib import Path
+from typing import Dict, List, Optional, Set, Tuple
+from packaging.requirements import Requirement, InvalidRequirement
+from packaging.specifiers import SpecifierSet
+
+logger = logging.getLogger(__name__)
+
+
+class DependencyGraphBuilder:
+    """Builds dependency graphs from integration manifests"""
+    
+    # Known high-risk libraries to highlight
+    HIGH_RISK_LIBRARIES = {
+        'aiohttp', 'cryptography', 'numpy', 'pyjwt', 
+        'sqlalchemy', 'protobuf', 'requests', 'urllib3'
+    }
+    
+    # Common paths for Home Assistant integrations
+    CORE_INTEGRATION_PATHS = [
+        '/usr/src/homeassistant/homeassistant/components',
+        '/config/custom_components'
+    ]
+    
+    def __init__(self):
+        """Initialize the dependency graph builder"""
+        self.integrations = {}
+        self.dependency_map = {}  # Maps dependency name to list of integrations using it
+        self.graph = {}
+        
+    def build_graph_from_paths(self, paths: List[str] = None) -> Dict:
+        """
+        Build dependency graph by scanning integration paths
+        
+        Args:
+            paths: List of paths to scan for integrations. If None, uses defaults.
+            
+        Returns:
+            Dict containing the dependency graph and analysis
+        """
+        if paths is None:
+            paths = self.CORE_INTEGRATION_PATHS
+            
+        logger.info("Building dependency graph from integration manifests")
+        logger.debug(f"Scanning paths: {paths}")
+        
+        # Scan all paths for integrations
+        for path in paths:
+            if os.path.exists(path):
+                self._scan_integration_path(path)
+            else:
+                logger.debug(f"Path does not exist: {path}")
+        
+        # Build the dependency map
+        self._build_dependency_map()
+        
+        # Generate the graph structure
+        graph_data = self._generate_graph_structure()
+        
+        logger.info(f"Dependency graph built: {len(self.integrations)} integrations, "
+                   f"{len(self.dependency_map)} unique dependencies")
+        
+        return graph_data
+    
+    def _scan_integration_path(self, base_path: str):
+        """
+        Scan a path for integration directories and parse their manifests
+        
+        Args:
+            base_path: Path to scan for integrations
+        """
+        try:
+            path = Path(base_path)
+            if not path.exists():
+                return
+                
+            # Each subdirectory is potentially an integration
+            for integration_dir in path.iterdir():
+                if not integration_dir.is_dir():
+                    continue
+                    
+                manifest_path = integration_dir / 'manifest.json'
+                if manifest_path.exists():
+                    self._parse_manifest(manifest_path, integration_dir.name)
+                    
+        except Exception as e:
+            logger.warning(f"Error scanning path {base_path}: {e}")
+    
+    def _parse_manifest(self, manifest_path: Path, integration_name: str):
+        """
+        Parse a manifest.json file and extract dependency information
+        
+        Args:
+            manifest_path: Path to manifest.json
+            integration_name: Name of the integration
+        """
+        try:
+            with open(manifest_path, 'r', encoding='utf-8') as f:
+                manifest = json.load(f)
+            
+            # Extract relevant fields
+            requirements = manifest.get('requirements', [])
+            homeassistant = manifest.get('homeassistant')
+            version = manifest.get('version')
+            domain = manifest.get('domain', integration_name)
+            name = manifest.get('name', integration_name)
+            
+            # Parse requirements into structured format
+            parsed_requirements = self._parse_requirements(requirements)
+            
+            # Store integration data
+            self.integrations[domain] = {
+                'name': name,
+                'domain': domain,
+                'version': version,
+                'homeassistant': homeassistant,
+                'requirements': parsed_requirements,
+                'raw_requirements': requirements,
+                'manifest_path': str(manifest_path)
+            }
+            
+            logger.debug(f"Parsed manifest for {name}: {len(requirements)} requirements")
+            
+        except json.JSONDecodeError as e:
+            logger.warning(f"Malformed manifest.json at {manifest_path}: {e}")
+            # Gracefully handle - store with error flag
+            self.integrations[integration_name] = {
+                'name': integration_name,
+                'domain': integration_name,
+                'error': 'malformed_json',
+                'manifest_path': str(manifest_path)
+            }
+        except Exception as e:
+            logger.warning(f"Error parsing manifest at {manifest_path}: {e}")
+            self.integrations[integration_name] = {
+                'name': integration_name,
+                'domain': integration_name,
+                'error': str(e),
+                'manifest_path': str(manifest_path)
+            }
+    
+    def _parse_requirements(self, requirements: List[str]) -> List[Dict]:
+        """
+        Parse requirement strings into structured format
+        
+        Args:
+            requirements: List of requirement strings (e.g., "aiohttp>=3.9.0")
+            
+        Returns:
+            List of dicts with package name and version specifiers
+        """
+        parsed = []
+        
+        for req_string in requirements:
+            try:
+                req = Requirement(req_string)
+                parsed.append({
+                    'package': req.name.lower(),
+                    'specifier': str(req.specifier) if req.specifier else 'any',
+                    'raw': req_string,
+                    'high_risk': req.name.lower() in self.HIGH_RISK_LIBRARIES
+                })
+            except InvalidRequirement as e:
+                logger.debug(f"Invalid requirement format: {req_string}: {e}")
+                # Try simple parsing as fallback
+                match = re.match(r'^([a-zA-Z0-9_-]+)', req_string)
+                if match:
+                    package = match.group(1).lower()
+                    parsed.append({
+                        'package': package,
+                        'specifier': 'unknown',
+                        'raw': req_string,
+                        'high_risk': package in self.HIGH_RISK_LIBRARIES,
+                        'parse_error': str(e)
+                    })
+                    
+        return parsed
+    
+    def _build_dependency_map(self):
+        """Build a map of dependencies to integrations that use them"""
+        self.dependency_map = {}
+        
+        for domain, integration in self.integrations.items():
+            if 'error' in integration:
+                continue
+                
+            for req in integration.get('requirements', []):
+                package = req['package']
+                if package not in self.dependency_map:
+                    self.dependency_map[package] = []
+                    
+                self.dependency_map[package].append({
+                    'integration': integration['name'],
+                    'domain': domain,
+                    'specifier': req['specifier'],
+                    'high_risk': req.get('high_risk', False)
+                })
+    
+    def _generate_graph_structure(self) -> Dict:
+        """
+        Generate the final graph structure with both machine-readable and human-readable formats
+        
+        Returns:
+            Dict with 'integrations', 'dependencies', 'summary', and 'json' keys
+        """
+        # Machine-readable: full data structure
+        machine_readable = {
+            'integrations': self.integrations,
+            'dependency_map': self.dependency_map,
+            'statistics': {
+                'total_integrations': len(self.integrations),
+                'total_dependencies': len(self.dependency_map),
+                'integrations_with_errors': len([i for i in self.integrations.values() if 'error' in i]),
+                'high_risk_dependencies': len([d for d in self.dependency_map.keys() if d in self.HIGH_RISK_LIBRARIES])
+            }
+        }
+        
+        # Human-readable: formatted text
+        human_readable = self._generate_human_readable_summary()
+        
+        return {
+            'machine_readable': machine_readable,
+            'human_readable': human_readable,
+            'integrations': self.integrations,
+            'dependency_map': self.dependency_map
+        }
+    
+    def _generate_human_readable_summary(self) -> str:
+        """Generate a human-readable summary of the dependency graph"""
+        lines = []
+        lines.append("=" * 60)
+        lines.append("DEPENDENCY GRAPH SUMMARY")
+        lines.append("=" * 60)
+        lines.append("")
+        
+        # Statistics
+        total_integrations = len(self.integrations)
+        total_deps = len(self.dependency_map)
+        errors = len([i for i in self.integrations.values() if 'error' in i])
+        
+        lines.append(f"Total Integrations: {total_integrations}")
+        lines.append(f"Unique Dependencies: {total_deps}")
+        if errors > 0:
+            lines.append(f"Integrations with Parse Errors: {errors}")
+        lines.append("")
+        
+        # High-risk dependencies
+        high_risk = {pkg: users for pkg, users in self.dependency_map.items() 
+                    if pkg in self.HIGH_RISK_LIBRARIES}
+        
+        if high_risk:
+            lines.append("HIGH-RISK DEPENDENCIES:")
+            lines.append("-" * 60)
+            for pkg, users in sorted(high_risk.items(), key=lambda x: len(x[1]), reverse=True):
+                lines.append(f"  {pkg}: used by {len(users)} integration(s)")
+                for user in users[:3]:  # Show first 3
+                    lines.append(f"    └─ {user['integration']} ({user['specifier']})")
+                if len(users) > 3:
+                    lines.append(f"    └─ ... and {len(users) - 3} more")
+            lines.append("")
+        
+        # Top dependencies by usage
+        top_deps = sorted(self.dependency_map.items(), 
+                         key=lambda x: len(x[1]), reverse=True)[:10]
+        
+        if top_deps:
+            lines.append("TOP 10 MOST-USED DEPENDENCIES:")
+            lines.append("-" * 60)
+            for pkg, users in top_deps:
+                risk_indicator = " ⚠️ HIGH RISK" if pkg in self.HIGH_RISK_LIBRARIES else ""
+                lines.append(f"  {pkg}: {len(users)} integration(s){risk_indicator}")
+            lines.append("")
+        
+        # Sample integration tree (show first 5)
+        lines.append("SAMPLE INTEGRATION DEPENDENCIES:")
+        lines.append("-" * 60)
+        sample_count = 0
+        for domain, integration in self.integrations.items():
+            if 'error' in integration:
+                continue
+            if sample_count >= 5:
+                break
+                
+            requirements = integration.get('requirements', [])
+            if requirements:
+                lines.append(f"{integration['name']}:")
+                for req in requirements:
+                    risk = " ⚠️" if req.get('high_risk') else ""
+                    lines.append(f"  ├─ {req['package']} {req['specifier']}{risk}")
+                lines.append("")
+                sample_count += 1
+        
+        if sample_count < len(self.integrations):
+            lines.append(f"... and {len(self.integrations) - sample_count} more integrations")
+            lines.append("")
+        
+        lines.append("=" * 60)
+        
+        return "\n".join(lines)
+    
+    def get_shared_dependencies(self) -> List[Dict]:
+        """
+        Get dependencies that are shared by multiple integrations
+        
+        Returns:
+            List of dicts with dependency info and conflict details
+        """
+        shared = []
+        
+        for package, users in self.dependency_map.items():
+            if len(users) > 1:
+                # Check for version conflicts
+                specifiers = [u['specifier'] for u in users if u['specifier'] != 'any']
+                has_conflict = len(set(specifiers)) > 1
+                
+                shared.append({
+                    'package': package,
+                    'user_count': len(users),
+                    'users': users,
+                    'high_risk': package in self.HIGH_RISK_LIBRARIES,
+                    'has_version_conflict': has_conflict,
+                    'specifiers': list(set(specifiers))
+                })
+        
+        # Sort by user count (most shared first)
+        shared.sort(key=lambda x: x['user_count'], reverse=True)
+        
+        return shared
+    
+    def detect_version_conflicts(self) -> List[Dict]:
+        """
+        Detect potential version conflicts in shared dependencies
+        
+        Returns:
+            List of conflicts with details
+        """
+        conflicts = []
+        
+        for package, users in self.dependency_map.items():
+            if len(users) <= 1:
+                continue
+            
+            # Group by specifier
+            specifier_groups = {}
+            for user in users:
+                spec = user['specifier']
+                if spec not in specifier_groups:
+                    specifier_groups[spec] = []
+                specifier_groups[spec].append(user)
+            
+            # If more than one unique specifier, potential conflict
+            if len(specifier_groups) > 1:
+                conflicts.append({
+                    'package': package,
+                    'high_risk': package in self.HIGH_RISK_LIBRARIES,
+                    'conflict_type': 'version_constraint_mismatch',
+                    'specifier_groups': specifier_groups,
+                    'affected_integrations': [u['integration'] for u in users]
+                })
+        
+        return conflicts

@@ -9,6 +9,7 @@ from typing import Dict, List
 from ha_client import HomeAssistantClient
 from ai_client import AIClient
 from dashboard_manager import DashboardManager
+from dependency_graph_builder import DependencyGraphBuilder
 
 logger = logging.getLogger(__name__)
 
@@ -32,8 +33,30 @@ class SentryService:
     def __init__(self, config):
         """Initialize the sentry service"""
         self.config = config
-        self.ai_client = AIClient(config)
         self.running = False
+        self.dependency_graph = None
+        
+        # Build dependency graph on initialization if enabled
+        if config.enable_dependency_graph:
+            logger.info("Building dependency graph from installed integrations...")
+            try:
+                graph_builder = DependencyGraphBuilder()
+                graph_data = graph_builder.build_graph_from_paths()
+                self.dependency_graph = graph_data
+                
+                stats = graph_data.get('machine_readable', {}).get('statistics', {})
+                logger.info(f"Dependency graph built: {stats.get('total_integrations', 0)} integrations, "
+                           f"{stats.get('total_dependencies', 0)} dependencies")
+                if stats.get('high_risk_dependencies', 0) > 0:
+                    logger.info(f"Found {stats.get('high_risk_dependencies', 0)} high-risk dependencies")
+            except Exception as e:
+                logger.warning(f"Failed to build dependency graph: {e}")
+                logger.info("Continuing without dependency graph analysis")
+        else:
+            logger.info("Dependency graph building is disabled in configuration")
+        
+        # Initialize AI client with dependency graph
+        self.ai_client = AIClient(config, dependency_graph=self.dependency_graph)
         
         logger.info("Sentry Service initialized")
     
@@ -222,6 +245,10 @@ If sensors don't appear, check the add-on logs for authentication errors. The ad
                 logger.debug("Reporting analysis results to Home Assistant")
                 await self._report_results(ha_client, addon_updates, hacs_updates, analysis, all_updates)
                 
+                # Save machine-readable report (Feature 4) if enabled
+                if self.config.save_reports:
+                    self._save_machine_readable_report(all_updates, analysis)
+                
         except Exception as e:
             logger.error(f"Error during update check: {e}", exc_info=True)
     
@@ -367,3 +394,67 @@ If sensors don't appear, check the add-on logs for authentication errors. The ad
         )
         
         logger.info("Results reported to Home Assistant")
+    
+    def _save_machine_readable_report(self, updates: List[Dict], analysis: Dict):
+        """
+        Save machine-readable report to JSON file (Feature 4)
+        Includes dependency graph and analysis results
+        """
+        try:
+            import json
+            import os
+            
+            # Create reports directory if it doesn't exist
+            reports_dir = '/data/reports'
+            os.makedirs(reports_dir, exist_ok=True)
+            
+            # Build comprehensive report
+            report = {
+                'timestamp': datetime.now().isoformat(),
+                'updates': {
+                    'total': len(updates),
+                    'by_type': self._categorize_updates(updates),
+                    'details': updates
+                },
+                'analysis': {
+                    'safe': analysis.get('safe'),
+                    'confidence': analysis.get('confidence'),
+                    'summary': analysis.get('summary'),
+                    'ai_powered': analysis.get('ai_analysis', False),
+                    'issues': analysis.get('issues', []),
+                    'recommendations': analysis.get('recommendations', [])
+                },
+                'dependency_graph': None
+            }
+            
+            # Include dependency graph if available
+            if self.dependency_graph:
+                report['dependency_graph'] = {
+                    'statistics': self.dependency_graph.get('machine_readable', {}).get('statistics', {}),
+                    'high_risk_dependencies': [
+                        {
+                            'package': pkg,
+                            'users': len(users)
+                        }
+                        for pkg, users in self.dependency_graph.get('dependency_map', {}).items()
+                        if pkg in {'aiohttp', 'cryptography', 'numpy', 'pyjwt', 'sqlalchemy', 'protobuf', 'requests', 'urllib3'}
+                    ]
+                }
+            
+            # Save to file
+            report_file = os.path.join(reports_dir, 'latest_report.json')
+            with open(report_file, 'w') as f:
+                json.dump(report, f, indent=2)
+            
+            logger.info(f"Machine-readable report saved to {report_file}")
+            
+            # Also save timestamped version
+            timestamp_file = os.path.join(reports_dir, f"report_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json")
+            with open(timestamp_file, 'w') as f:
+                json.dump(report, f, indent=2)
+            
+            logger.debug(f"Timestamped report saved to {timestamp_file}")
+            
+        except Exception as e:
+            logger.warning(f"Failed to save machine-readable report: {e}")
+            # Don't fail the entire check just because we couldn't save the report

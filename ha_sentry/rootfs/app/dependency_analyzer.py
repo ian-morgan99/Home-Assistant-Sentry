@@ -1,6 +1,7 @@
 """
 Deep Dependency Analysis without AI
 Analyzes update conflicts using version parsing and heuristic rules
+Now enhanced with dependency graph analysis for shared dependency detection
 """
 import logging
 import re
@@ -12,6 +13,12 @@ logger = logging.getLogger(__name__)
 
 class DependencyAnalyzer:
     """Performs deep dependency analysis without AI"""
+    
+    # High-risk libraries to highlight (aligned with dependency_graph_builder)
+    HIGH_RISK_LIBRARIES = {
+        'aiohttp', 'cryptography', 'numpy', 'pyjwt', 
+        'sqlalchemy', 'protobuf', 'requests', 'urllib3'
+    }
     
     # Known problematic combinations
     CONFLICT_PATTERNS = {
@@ -42,9 +49,13 @@ class DependencyAnalyzer:
         'homeassistant', 'hacs', 'esphome', 'zigbee2mqtt', 'zwavejs'
     ]
     
-    def __init__(self):
-        """Initialize the analyzer"""
-        pass
+    def __init__(self, dependency_graph=None):
+        """Initialize the analyzer
+        
+        Args:
+            dependency_graph: Optional dependency graph data from DependencyGraphBuilder
+        """
+        self.dependency_graph = dependency_graph
     
     def analyze_updates(self, addon_updates: List[Dict], hacs_updates: List[Dict]) -> Dict:
         """
@@ -81,6 +92,12 @@ class DependencyAnalyzer:
         breaking_issues = self._check_breaking_changes(addon_updates, hacs_updates)
         issues.extend(breaking_issues['issues'])
         recommendations.extend(breaking_issues['recommendations'])
+        
+        # 6. Analyze shared dependency risks (Feature 2 - NEW)
+        if self.dependency_graph:
+            shared_dep_issues = self._analyze_shared_dependency_risks()
+            issues.extend(shared_dep_issues['issues'])
+            recommendations.extend(shared_dep_issues['recommendations'])
         
         # Determine overall safety
         critical_count = len([i for i in issues if i['severity'] == 'critical'])
@@ -277,6 +294,85 @@ class DependencyAnalyzer:
                 })
                 recommendations.append(f"Check if {update['name']} requires incremental updates")
                 breaking_count += 1
+        
+        return {'issues': issues, 'recommendations': recommendations}
+    
+    def _analyze_shared_dependency_risks(self) -> Dict:
+        """
+        Analyze shared dependency risks using the dependency graph (Feature 2)
+        Detects multiple integrations relying on same dependency with different constraints
+        """
+        issues = []
+        recommendations = []
+        
+        if not self.dependency_graph:
+            return {'issues': issues, 'recommendations': recommendations}
+        
+        dependency_map = self.dependency_graph.get('dependency_map', {})
+        
+        # Find shared dependencies
+        shared_deps = {}
+        for package, users in dependency_map.items():
+            if len(users) > 1:
+                shared_deps[package] = users
+        
+        if not shared_deps:
+            logger.debug("No shared dependencies detected")
+            return {'issues': issues, 'recommendations': recommendations}
+        
+        logger.info(f"Analyzing {len(shared_deps)} shared dependencies")
+        
+        # Analyze each shared dependency
+        for package, users in shared_deps.items():
+            user_count = len(users)
+            is_high_risk = package in self.HIGH_RISK_LIBRARIES
+            
+            # Get unique version specifiers
+            specifiers = set(u['specifier'] for u in users if u['specifier'] not in ['any', 'unknown'])
+            has_conflict = len(specifiers) > 1
+            
+            # Determine severity based on risk and conflict
+            if is_high_risk and user_count >= 5:
+                severity = 'high'
+                impact = f"High-risk library {package} is used by {user_count} integrations. Updates may have wide-reaching effects."
+            elif is_high_risk:
+                severity = 'medium'
+                impact = f"High-risk library {package} is shared by {user_count} integrations."
+            elif user_count >= 10:
+                severity = 'medium'
+                impact = f"Dependency {package} is used by {user_count} integrations. Large blast radius if issues occur."
+            else:
+                severity = 'low'
+                impact = f"Dependency {package} is shared by {user_count} integrations."
+            
+            # Check for version conflicts
+            if has_conflict:
+                severity = 'high' if is_high_risk else 'medium'
+                impact += f" Version constraint conflicts detected: {', '.join(specifiers)}"
+                
+                issues.append({
+                    'severity': severity,
+                    'component': f'shared_dependency_{package}',
+                    'description': f"Version conflict for {package}: used by {user_count} integrations with different requirements",
+                    'impact': impact,
+                    'affected_integrations': [u['integration'] for u in users]
+                })
+                
+                recommendations.append(f"Review {package} version requirements across integrations")
+                recommendations.append(f"Test integrations using {package} after updates")
+            
+            # Report high-risk shared dependencies even without conflicts
+            elif is_high_risk:
+                issues.append({
+                    'severity': severity,
+                    'component': f'shared_dependency_{package}',
+                    'description': f"High-risk shared dependency: {package} (used by {user_count} integrations)",
+                    'impact': impact,
+                    'affected_integrations': [u['integration'] for u in users]
+                })
+                
+                if user_count >= 5:
+                    recommendations.append(f"Monitor {package} carefully - changes affect {user_count} integrations")
         
         return {'issues': issues, 'recommendations': recommendations}
     

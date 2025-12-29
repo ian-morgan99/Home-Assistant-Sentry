@@ -27,6 +27,10 @@ class ConfigManager:
         self.log_level = os.getenv('LOG_LEVEL', 'standard').lower()
         self.supervisor_token = os.getenv('SUPERVISOR_TOKEN', '')
         
+        # New configuration options for dependency graph and reporting
+        self.enable_dependency_graph = self._get_bool_env('ENABLE_DEPENDENCY_GRAPH', True)
+        self.save_reports = self._get_bool_env('SAVE_REPORTS', True)
+        
         # Home Assistant API configuration
         self.ha_url = 'http://supervisor/core'
         self.supervisor_url = 'http://supervisor'
