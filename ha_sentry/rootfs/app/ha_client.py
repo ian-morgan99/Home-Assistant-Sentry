@@ -65,6 +65,10 @@ class HomeAssistantClient:
                     return updates
                 else:
                     logger.error(f"Failed to get add-ons: {response.status}")
+                    if response.status == 401:
+                        logger.error("Authentication failed: The SUPERVISOR_TOKEN is missing or invalid.")
+                        logger.error("This add-on requires the SUPERVISOR_TOKEN to communicate with Home Assistant.")
+                        logger.error("Please ensure the add-on has the 'hassio_api' role enabled in its configuration.")
                     return []
         except Exception as e:
             logger.error(f"Error getting add-on updates: {e}", exc_info=True)
@@ -127,6 +131,10 @@ class HomeAssistantClient:
                     return all_updates
                 else:
                     logger.error(f"Failed to get states: {response.status}")
+                    if response.status == 401:
+                        logger.error("Authentication failed: The SUPERVISOR_TOKEN is missing or invalid.")
+                        logger.error("This add-on requires the SUPERVISOR_TOKEN to communicate with Home Assistant.")
+                        logger.error("Please ensure the add-on has proper authentication configured.")
                     return []
         except Exception as e:
             logger.error(f"Error getting all updates: {e}", exc_info=True)
@@ -189,6 +197,10 @@ class HomeAssistantClient:
                     return hacs_updates
                 else:
                     logger.error(f"Failed to get states: {response.status}")
+                    if response.status == 401:
+                        logger.error("Authentication failed: The SUPERVISOR_TOKEN is missing or invalid.")
+                        logger.error("This add-on requires the SUPERVISOR_TOKEN to communicate with Home Assistant.")
+                        logger.error("Please ensure the add-on has proper authentication configured.")
                     return []
         except Exception as e:
             logger.error(f"Error getting HACS updates: {e}", exc_info=True)
@@ -210,6 +222,9 @@ class HomeAssistantClient:
                     return True
                 else:
                     logger.error(f"Failed to create notification: {response.status}")
+                    if response.status == 401:
+                        logger.error("Authentication failed: Unable to create notification.")
+                        logger.error("Please ensure the add-on has proper authentication configured.")
                     return False
         except Exception as e:
             logger.error(f"Error creating notification: {e}", exc_info=True)
@@ -230,6 +245,9 @@ class HomeAssistantClient:
                     return True
                 else:
                     logger.error(f"Failed to update sensor: {response.status}")
+                    if response.status == 401:
+                        logger.error("Authentication failed: Unable to update sensor.")
+                        logger.error("Please ensure the add-on has proper authentication configured.")
                     return False
         except Exception as e:
             logger.error(f"Error updating sensor: {e}", exc_info=True)
@@ -252,6 +270,10 @@ class HomeAssistantClient:
                 else:
                     response_text = await response.text()
                     logger.error(f"Failed to create dashboard: {response.status} - {response_text}")
+                    if response.status == 401:
+                        logger.error("Authentication failed: Unable to create dashboard.")
+                        logger.error("Please ensure the add-on has proper authentication configured.")
+                        logger.info("You can disable auto-dashboard creation in the add-on configuration.")
                     return False
         except Exception as e:
             logger.error(f"Error creating dashboard: {e}", exc_info=True)
