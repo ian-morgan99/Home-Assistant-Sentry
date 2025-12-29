@@ -12,6 +12,18 @@ from dashboard_manager import DashboardManager
 
 logger = logging.getLogger(__name__)
 
+# Update type categorization constants
+UPDATE_TYPE_CORE = 'core'
+UPDATE_TYPE_SUPERVISOR = 'supervisor'
+UPDATE_TYPE_OS = 'os'
+UPDATE_TYPE_ADDON = 'addon'
+UPDATE_TYPE_HACS = 'hacs'
+UPDATE_TYPE_INTEGRATION = 'integration'
+
+# Grouping for display and analysis
+SYSTEM_UPDATE_TYPES = [UPDATE_TYPE_CORE, UPDATE_TYPE_SUPERVISOR, UPDATE_TYPE_OS, UPDATE_TYPE_ADDON]
+INTEGRATION_UPDATE_TYPES = [UPDATE_TYPE_HACS, UPDATE_TYPE_INTEGRATION]
+
 
 class SentryService:
     """Main service for monitoring and analyzing Home Assistant updates"""
@@ -98,8 +110,8 @@ class SentryService:
                     logger.info(f"Found {len(all_updates)} total updates")
                     
                     # For backward compatibility with analysis, categorize updates
-                    addon_updates = [u for u in all_updates if u.get('type') in ['addon', 'core', 'supervisor', 'os']]
-                    hacs_updates = [u for u in all_updates if u.get('type') in ['hacs', 'integration']]
+                    addon_updates = [u for u in all_updates if u.get('type') in SYSTEM_UPDATE_TYPES]
+                    hacs_updates = [u for u in all_updates if u.get('type') in INTEGRATION_UPDATE_TYPES]
                     
                     logger.debug(f"  System/Add-on updates: {len(addon_updates)}")
                     logger.debug(f"  Integration/HACS updates: {len(hacs_updates)}")
@@ -174,10 +186,10 @@ class SentryService:
         }
         
         for update in all_updates:
-            update_type = update.get('type', 'addon')
-            if update_type in ['core', 'supervisor', 'os']:
+            update_type = update.get('type', UPDATE_TYPE_ADDON)
+            if update_type in [UPDATE_TYPE_CORE, UPDATE_TYPE_SUPERVISOR, UPDATE_TYPE_OS]:
                 counts['core'] += 1
-            elif update_type == 'addon':
+            elif update_type == UPDATE_TYPE_ADDON:
                 counts['addon'] += 1
             else:  # hacs, integration
                 counts['hacs'] += 1

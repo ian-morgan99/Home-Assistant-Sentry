@@ -7,6 +7,14 @@ from typing import Dict, List, Optional
 
 logger = logging.getLogger(__name__)
 
+# Update type constants
+UPDATE_TYPE_CORE = 'core'
+UPDATE_TYPE_SUPERVISOR = 'supervisor'
+UPDATE_TYPE_OS = 'os'
+UPDATE_TYPE_ADDON = 'addon'
+UPDATE_TYPE_HACS = 'hacs'
+UPDATE_TYPE_INTEGRATION = 'integration'
+
 
 class HomeAssistantClient:
     """Client for interacting with Home Assistant APIs"""
@@ -128,22 +136,22 @@ class HomeAssistantClient:
         """Categorize update entity by type"""
         entity_lower = entity_id.lower()
         
-        # Core system components
+        # Check for specific system components first (most specific)
         if 'home_assistant_core' in entity_lower:
-            return 'core'
-        elif 'home_assistant_supervisor' in entity_lower or 'supervisor' in entity_lower:
-            return 'supervisor'
+            return UPDATE_TYPE_CORE
+        elif 'home_assistant_supervisor' in entity_lower:
+            return UPDATE_TYPE_SUPERVISOR
         elif 'home_assistant_os' in entity_lower or 'operating_system' in entity_lower:
-            return 'os'
-        # Add-ons typically have specific naming patterns
-        elif 'addon' in entity_lower or entity_id.startswith('update.'):
-            # Check if it's a HACS integration
-            if 'hacs' in entity_lower or attributes.get('repository', '').startswith('http'):
-                return 'hacs'
-            # Default to addon if from supervisor
-            return 'addon'
+            return UPDATE_TYPE_OS
+        # Check if it's a HACS integration (contains hacs in name or has repository attribute)
+        elif 'hacs' in entity_lower or attributes.get('repository', '').startswith('http'):
+            return UPDATE_TYPE_HACS
+        # Check for add-on specific patterns
+        elif 'addon' in entity_lower:
+            return UPDATE_TYPE_ADDON
+        # Default to integration for other update entities
         else:
-            return 'integration'
+            return UPDATE_TYPE_INTEGRATION
     
     async def get_hacs_updates(self) -> List[Dict]:
         """Get available HACS integration updates (legacy method, prefer get_all_updates)"""

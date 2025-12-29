@@ -15,20 +15,20 @@ def test_categorize_update_logic():
         """Categorize update entity by type"""
         entity_lower = entity_id.lower()
         
-        # Core system components
+        # Check for specific system components first (most specific)
         if 'home_assistant_core' in entity_lower:
             return 'core'
-        elif 'home_assistant_supervisor' in entity_lower or 'supervisor' in entity_lower:
+        elif 'home_assistant_supervisor' in entity_lower:
             return 'supervisor'
         elif 'home_assistant_os' in entity_lower or 'operating_system' in entity_lower:
             return 'os'
-        # Add-ons typically have specific naming patterns
-        elif 'addon' in entity_lower or entity_id.startswith('update.'):
-            # Check if it's a HACS integration
-            if 'hacs' in entity_lower or attributes.get('repository', '').startswith('http'):
-                return 'hacs'
-            # Default to addon if from supervisor
+        # Check if it's a HACS integration (contains hacs in name or has repository attribute)
+        elif 'hacs' in entity_lower or attributes.get('repository', '').startswith('http'):
+            return 'hacs'
+        # Check for add-on specific patterns
+        elif 'addon' in entity_lower:
             return 'addon'
+        # Default to integration for other update entities
         else:
             return 'integration'
     
@@ -41,8 +41,11 @@ def test_categorize_update_logic():
     assert categorize_update('update.hacs_something', {}) == 'hacs'
     assert categorize_update('update.some_integration', {'repository': 'https://github.com/test'}) == 'hacs'
     
-    # Test addon categorization (default)
+    # Test addon categorization
     assert categorize_update('update.addon_mosquitto', {}) == 'addon'
+    
+    # Test integration categorization (generic update entity)
+    assert categorize_update('update.some_device', {}) == 'integration'
     
     print("✓ Update categorization logic test passed")
     return True
