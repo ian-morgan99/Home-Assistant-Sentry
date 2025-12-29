@@ -197,13 +197,32 @@ If sensors don't appear, check the add-on logs for authentication errors. The ad
                     all_updates = await ha_client.get_all_updates()
                     logger.info(f"Found {len(all_updates)} total updates")
                     
+                    # If get_all_updates returns empty, try fallback to legacy methods
+                    if len(all_updates) == 0:
+                        logger.warning("No updates found via unified API - attempting legacy fallback methods")
+                        logger.info("This may indicate:")
+                        logger.info("  - No updates are currently available (normal)")
+                        logger.info("  - Update entities are not configured in Home Assistant")
+                        logger.info("  - Possible API compatibility issue with HA version")
+                        
+                        # Try fallback: check supervisor API directly for add-ons
+                        logger.debug("Fallback: Checking Supervisor API for add-on updates")
+                        addon_updates_fallback = await ha_client.get_addon_updates()
+                        if len(addon_updates_fallback) > 0:
+                            logger.info(f"Fallback successful: Found {len(addon_updates_fallback)} add-on updates via Supervisor API")
+                            addon_updates = addon_updates_fallback
+                            all_updates.extend(addon_updates_fallback)
+                        else:
+                            logger.debug("No add-on updates found via Supervisor API fallback")
+                    
                     # For backward compatibility with analysis, categorize updates
                     # The AI analyzer expects two categories: addon_updates (system) and hacs_updates (integrations)
-                    addon_updates = [u for u in all_updates if u.get('type') in ADDON_ANALYSIS_TYPES]
-                    hacs_updates = [u for u in all_updates if u.get('type') in INTEGRATION_ANALYSIS_TYPES]
-                    
-                    logger.debug(f"  System/Add-on updates: {len(addon_updates)}")
-                    logger.debug(f"  Integration/HACS updates: {len(hacs_updates)}")
+                    if len(all_updates) > 0:
+                        addon_updates = [u for u in all_updates if u.get('type') in ADDON_ANALYSIS_TYPES]
+                        hacs_updates = [u for u in all_updates if u.get('type') in INTEGRATION_ANALYSIS_TYPES]
+                        
+                        logger.debug(f"  System/Add-on updates: {len(addon_updates)}")
+                        logger.debug(f"  Integration/HACS updates: {len(hacs_updates)}")
                 else:
                     # Legacy method: check individually based on flags
                     if self.config.check_addons:
@@ -254,7 +273,9 @@ If sensors don't appear, check the add-on logs for authentication errors. The ad
     
     async def _report_no_updates(self, ha_client: HomeAssistantClient):
         """Report when no updates are available"""
+        logger.info("All systems up to date - no updates available")
         logger.debug("Creating up-to-date status sensor")
+        
         if self.config.create_dashboard_entities:
             await ha_client.set_sensor_state(
                 'sensor.ha_sentry_update_status',
@@ -264,11 +285,42 @@ If sensors don't appear, check the add-on logs for authentication errors. The ad
                     'icon': 'mdi:check-circle',
                     'last_check': datetime.now().isoformat(),
                     'updates_available': 0,
-                    'safe_to_update': True
+                    'safe_to_update': True,
+                    'ha_compatibility': '2024.11.x - 2025.1.x'
+                }
+            )
+            
+            # Also update the updates_available sensor
+            await ha_client.set_sensor_state(
+                'sensor.ha_sentry_updates_available',
+                '0',
+                {
+                    'friendly_name': 'HA Sentry Updates Available',
+                    'icon': 'mdi:update',
+                    'last_check': datetime.now().isoformat()
                 }
             )
         else:
             logger.debug("Dashboard entities disabled, skipping sensor update")
+        
+        # Send a notification about the up-to-date status
+        await ha_client.create_persistent_notification(
+            "✅ Home Assistant Up to Date",
+            f"""Your Home Assistant installation is up to date!
+
+**Last Check:** {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
+
+No updates are currently available for:
+- Home Assistant Core
+- Supervisor
+- Operating System
+- Add-ons
+- Integrations (HACS)
+
+*Next check scheduled: {self.config.check_schedule}*
+""",
+            'ha_sentry_no_updates'
+        )
     
     def _categorize_updates(self, all_updates: List[Dict]) -> Dict[str, int]:
         """Categorize updates by type and count them"""

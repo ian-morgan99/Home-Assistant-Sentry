@@ -117,7 +117,10 @@ class HomeAssistantClient:
             return None
     
     async def get_all_updates(self) -> List[Dict]:
-        """Get all available updates from update entities (Core, Supervisor, OS, Add-ons, Integrations)"""
+        """Get all available updates from update entities (Core, Supervisor, OS, Add-ons, Integrations)
+        
+        Compatible with Home Assistant 2024.11.x, 2024.12.x, and 2025.1.x
+        """
         try:
             url = f"{self.config.ha_url}/api/states"
             logger.debug(f"Fetching all update entities from: {url}")
@@ -128,14 +131,22 @@ class HomeAssistantClient:
                     
                     # Look for all update.* entities with state 'on' (update available)
                     all_updates = []
+                    update_entities_found = 0
+                    
                     for state in states:
                         entity_id = state.get('entity_id', '')
                         # Filter for update domain entities
                         if entity_id.startswith('update.'):
+                            update_entities_found += 1
                             # Check if update is available
                             entity_state = state.get('state', '')
                             if entity_state == 'on':
                                 attributes = state.get('attributes', {})
+                                
+                                # Validate that required attributes are present
+                                if not self._validate_update_entity(entity_id, attributes):
+                                    logger.warning(f"Update entity {entity_id} missing required attributes, skipping")
+                                    continue
                                 
                                 # Determine update type based on entity_id
                                 update_type = self._categorize_update(entity_id, attributes)
@@ -153,16 +164,47 @@ class HomeAssistantClient:
                                 all_updates.append(update_info)
                                 logger.debug(f"  Update: {update_info['name']} ({update_info['type']}) {update_info['current_version']} → {update_info['latest_version']}")
                     
-                    logger.info(f"Found {len(all_updates)} total updates")
+                    logger.info(f"Found {len(all_updates)} total updates from {update_entities_found} update entities")
+                    
+                    # Log a compatibility hint if no update entities were found at all
+                    if update_entities_found == 0:
+                        logger.warning("No update.* entities found in Home Assistant")
+                        logger.warning("This may indicate:")
+                        logger.warning("  - Updates are not yet available")
+                        logger.warning("  - Update entities are not enabled in your HA configuration")
+                        logger.warning("  - Compatibility issue with HA version (expected 2024.11+)")
+                    
                     return all_updates
+                elif response.status == 404:
+                    logger.error(f"API endpoint not found: {url}")
+                    logger.error("This may indicate a Home Assistant version compatibility issue")
+                    logger.error("Expected: Home Assistant 2024.11.x or later")
+                    logger.error("The /api/states endpoint should be available in all supported versions")
+                    return []
                 else:
                     logger.error(f"Failed to get states: {response.status}")
                     if response.status == 401:
                         self._log_auth_error("Unable to fetch update entities from Home Assistant API")
+                    elif response.status == 403:
+                        logger.error("Permission denied accessing Home Assistant API")
+                        logger.error("Ensure 'homeassistant_api: true' is set in the add-on configuration")
                     return []
         except Exception as e:
             logger.error(f"Error getting all updates: {e}", exc_info=True)
             return []
+    
+    def _validate_update_entity(self, entity_id: str, attributes: Dict) -> bool:
+        """Validate that update entity has required attributes for compatibility"""
+        # At minimum, we expect version information
+        has_installed = 'installed_version' in attributes
+        has_latest = 'latest_version' in attributes
+        
+        if not (has_installed and has_latest):
+            logger.debug(f"Entity {entity_id} missing version attributes: "
+                        f"installed_version={has_installed}, latest_version={has_latest}")
+            return False
+        
+        return True
     
     def _categorize_update(self, entity_id: str, attributes: Dict) -> str:
         """Categorize update entity by type"""
@@ -279,11 +321,14 @@ class HomeAssistantClient:
         Note: This feature has limited support. Home Assistant add-ons may not have 
         sufficient permissions to create Lovelace dashboards via the API.
         Consider disabling auto_create_dashboard and manually creating dashboards instead.
+        
+        Compatible with Home Assistant 2024.11.x, 2024.12.x, and 2025.1.x
         """
         try:
             # Use the lovelace_dashboards endpoint to create a new dashboard
             url = f"{self.config.ha_url}/api/lovelace/dashboards"
             logger.info("Attempting to create Sentry dashboard in Lovelace")
+            logger.debug(f"Dashboard API URL: {url}")
             
             async with self.session.post(url, json=dashboard_config) as response:
                 if response.status in (200, 201):
@@ -292,6 +337,17 @@ class HomeAssistantClient:
                 elif response.status == 409:
                     logger.info("Dashboard already exists, skipping creation")
                     return True
+                elif response.status == 404:
+                    logger.error(f"Lovelace dashboard API endpoint not found: {url}")
+                    logger.error("This may indicate a Home Assistant version compatibility issue")
+                    logger.error("The /api/lovelace/dashboards endpoint should be available in HA 2024.11+")
+                    logger.info("WORKAROUND: Disable 'auto_create_dashboard' and manually create your dashboard")
+                    logger.info("See documentation: https://github.com/ian-morgan99/Home-Assistant-Sentry/blob/main/DOCS.md#dashboard-integration")
+                    return False
+                elif response.status == 403:
+                    logger.error("Permission denied creating Lovelace dashboard")
+                    self._log_dashboard_permission_error()
+                    return False
                 else:
                     response_text = await response.text()
                     logger.error(f"Failed to create dashboard: {response.status} - {response_text}")

@@ -2,6 +2,8 @@
 
 > **Important**: This is a Home Assistant **add-on**, not a HACS integration. It must be installed through the Supervisor Add-on Store, not through HACS.
 
+> **✅ Compatibility**: Tested and verified with Home Assistant versions **2024.11.x**, **2024.12.x**, and **2025.1.x**
+
 ## Table of Contents
 
 1. [Introduction](#introduction)
@@ -22,7 +24,7 @@ Home Assistant Sentry is an add-on that helps you safely manage updates to your 
 ### Prerequisites
 
 - Home Assistant OS or Supervised installation
-- Home Assistant Core 2023.1 or later
+- Home Assistant Core **2024.11 or later** (tested with 2024.11.x, 2024.12.x, and 2025.1.x)
 - (Optional) HACS installed for integration update monitoring
 - (Optional) AI service for enhanced analysis (Ollama, LMStudio, OpenWebUI, or OpenAI)
 
@@ -383,6 +385,53 @@ card:
 - Update to the latest version of the add-on (v1.1.1 or later)
 - The issue has been fixed by updating the OpenAI library dependency
 - If you continue to see this error, try restarting the add-on
+
+#### 7. No Update Entities Found
+
+**Problem**: "No update.* entities found in Home Assistant" warning in logs
+
+**This may indicate**:
+- No updates are currently available (normal situation)
+- Update entities are not enabled in your Home Assistant configuration
+- Possible Home Assistant version compatibility issue
+
+**Solutions**:
+- Verify your Home Assistant version is **2024.11 or later** (check Settings → System → About)
+- Check if update entities exist: Go to Developer Tools → States and search for `update.`
+- Ensure update entity integration is enabled in Home Assistant
+- If running HA 2024.11+, update entities should be available by default
+- Check add-on logs for specific error messages about API endpoints
+
+#### 8. API Endpoint Not Found (404)
+
+**Problem**: "API endpoint not found" error in logs
+
+**This indicates a potential Home Assistant API compatibility issue**:
+- The `/api/states` endpoint should be available in all HA versions 2024.11+
+- The `/api/lovelace/dashboards` endpoint is used for dashboard creation
+
+**Solutions**:
+- Verify your Home Assistant version: Settings → System → About
+- Update Home Assistant to version **2024.11.0 or later**
+- For dashboard creation failures: Set `auto_create_dashboard: false` and create dashboards manually
+- Check Home Assistant logs for any API-related errors
+- If the issue persists on a supported version, report it as a bug
+
+#### 9. Empty Update Results with Fallback Warnings
+
+**Problem**: "No updates found via unified API - attempting legacy fallback methods" in logs
+
+**This is a compatibility fallback mechanism**:
+- The add-on first tries the modern update entity API
+- If that returns empty, it falls back to legacy Supervisor API
+- This ensures compatibility across different HA versions
+
+**Solutions**:
+- If the fallback succeeds, no action needed - the add-on is working correctly
+- If both methods return empty and you know updates exist, check:
+  - Update entity permissions in HA configuration
+  - Supervisor API access (requires `hassio_api: true` in config)
+- Check Developer Tools → States for update.* entities to verify they exist
 
 ### Checking Logs
 
