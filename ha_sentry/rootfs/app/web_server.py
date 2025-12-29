@@ -688,7 +688,9 @@ class DependencyTreeWebServer:
         
         async function loadComponents() {
             try {
-                const response = await fetch('/api/components');
+                const response = await fetch('api/components', {
+                    credentials: 'same-origin'
+                });
                 
                 if (response.status === 503) {
                     // Service unavailable - show detailed configuration error
@@ -730,7 +732,9 @@ class DependencyTreeWebServer:
         
         async function loadStats() {
             try {
-                const response = await fetch('/api/graph-data');
+                const response = await fetch('api/graph-data', {
+                    credentials: 'same-origin'
+                });
                 
                 if (response.status === 503) {
                     return; // Don't show stats if service unavailable
@@ -781,7 +785,9 @@ class DependencyTreeWebServer:
         }
         
         async function visualizeDependencies(component) {
-            const response = await fetch(`/api/dependency-tree/${component}`);
+            const response = await fetch(`api/dependency-tree/${component}`, {
+                credentials: 'same-origin'
+            });
             
             if (!response.ok) {
                 showError(`Failed to load dependency tree: HTTP ${response.status} ${response.statusText}`);
@@ -829,7 +835,9 @@ class DependencyTreeWebServer:
         }
         
         async function visualizeWhereUsed(component) {
-            const response = await fetch(`/api/where-used/${component}`);
+            const response = await fetch(`api/where-used/${component}`, {
+                credentials: 'same-origin'
+            });
             
             if (!response.ok) {
                 showError(`Failed to load where-used information: HTTP ${response.status} ${response.statusText}`);
@@ -883,7 +891,9 @@ class DependencyTreeWebServer:
                 return;
             }
             
-            const response = await fetch(`/api/change-impact?components=${encodeURIComponent(componentsInput)}`);
+            const response = await fetch(`api/change-impact?components=${encodeURIComponent(componentsInput)}`, {
+                credentials: 'same-origin'
+            });
             
             if (!response.ok) {
                 showError(`Failed to load change impact: HTTP ${response.status} ${response.statusText}`);
