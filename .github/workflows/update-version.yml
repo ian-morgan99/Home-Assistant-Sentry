@@ -41,9 +41,9 @@ jobs:
       - name: Verify changes
         run: |
           echo "=== config.json ==="
-          grep -A 1 '"name"' ha_sentry/config.json | head -3
+          grep '"version":' ha_sentry/config.json
           echo "=== config.yaml ==="
-          grep -A 1 'name:' ha_sentry/config.yaml | head -3
+          grep 'version:' ha_sentry/config.yaml
       
       - name: Commit and push changes
         run: |
@@ -54,6 +54,6 @@ jobs:
             echo "No changes to commit"
           else
             git commit -m "chore: update version to ${{ steps.get_version.outputs.version }}"
-            git push origin main
+            git push origin main || { echo "Failed to push changes"; exit 1; }
             echo "Version updated and pushed to main branch"
           fi
