@@ -662,7 +662,52 @@ class DependencyTreeWebServer:
             loadComponents();
             loadStats();
             setupModeButtons();
+            handleUrlFragment();  // Handle URL fragment for deep linking
         });
+        
+        function handleUrlFragment() {
+            // Check if there's a hash in the URL (e.g., #whereused:component or #impact:comp1,comp2)
+            const hash = window.location.hash.substring(1);  // Remove the #
+            if (!hash) return;
+            
+            const [mode, value] = hash.split(':');
+            
+            if (mode === 'whereused' && value) {
+                // Set mode to where-used
+                document.querySelectorAll('.mode-btn').forEach(b => b.classList.remove('active'));
+                document.querySelector('.mode-btn[data-mode="whereused"]').classList.add('active');
+                currentMode = 'whereused';
+                
+                // Wait for components to load, then select and visualize
+                const checkComponents = setInterval(() => {
+                    if (components.length > 0) {
+                        clearInterval(checkComponents);
+                        const select = document.getElementById('component-select');
+                        select.value = value;
+                        if (select.value === value) {  // Verify the option exists
+                            visualize();
+                        }
+                    }
+                }, 100);
+            } else if (mode === 'impact' && value) {
+                // Set mode to impact
+                document.querySelectorAll('.mode-btn').forEach(b => b.classList.remove('active'));
+                document.querySelector('.mode-btn[data-mode="impact"]').classList.add('active');
+                currentMode = 'impact';
+                
+                // Show impact input
+                const impactInput = document.getElementById('impact-input-group');
+                const componentSelect = document.getElementById('component-select').closest('.control-group');
+                impactInput.style.display = 'block';
+                componentSelect.style.display = 'none';
+                
+                // Set the components value
+                document.getElementById('impact-components').value = value;
+                
+                // Wait a bit then trigger visualization
+                setTimeout(() => visualize(), 500);
+            }
+        }
         
         function setupModeButtons() {
             document.querySelectorAll('.mode-btn').forEach(btn => {
