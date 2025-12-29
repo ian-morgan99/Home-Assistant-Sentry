@@ -2,6 +2,7 @@
 Home Assistant API Client
 """
 import aiohttp
+import json
 import logging
 from typing import Dict, List, Optional
 
@@ -146,6 +147,23 @@ class HomeAssistantClient:
                 if response.status == 200:
                     states = await response.json()
                     logger.debug(f"Retrieved {len(states)} total states")
+                    
+                    # Log entity domain breakdown
+                    if logger.isEnabledFor(logging.DEBUG):
+                        domains = {}
+                        for state in states:
+                            domain = state.get('entity_id', '').split('.')[0]
+                            domains[domain] = domains.get(domain, 0) + 1
+                        logger.debug(f"Entity domains: {dict(sorted(domains.items(), key=lambda x: -x[1])[:10])}")
+                    
+                    # Log sample update entities
+                    update_entities = [s for s in states if s.get('entity_id', '').startswith('update.')]
+                    logger.debug(f"Found {len(update_entities)} entities with 'update.' domain")
+                    
+                    if update_entities and logger.isEnabledFor(logging.DEBUG):
+                        sample_entities = update_entities[:5]
+                        for entity in sample_entities:
+                            logger.debug(f"  Sample: {entity.get('entity_id')} | state={entity.get('state')}")
                     
                     # Look for all update.* entities with state 'on' (update available)
                     all_updates = []
@@ -304,6 +322,8 @@ class HomeAssistantClient:
         try:
             url = f"{self.config.ha_url}/api/lovelace/dashboards"
             logger.info("Attempting to create Sentry dashboard in Lovelace")
+            logger.debug(f"POST {url}")
+            logger.debug(f"Payload: {json.dumps(dashboard_config, indent=2)[:500]}")
             logger.debug(f"Dashboard creation URL: {url}")
             logger.debug(f"Dashboard config: {dashboard_config.get('url_path')}, title: {dashboard_config.get('title')}")
             
