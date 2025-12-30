@@ -132,6 +132,11 @@ class DependencyTreeWebServer:
         
     async def _handle_index(self, request):
         """Serve the main HTML page"""
+        # Log access for debugging
+        logger.debug(f"Web UI accessed from: {request.remote}")
+        logger.debug(f"Request path: {request.path}")
+        logger.debug(f"Request URL: {request.url}")
+        
         html = self._generate_html()
         return web.Response(text=html, content_type='text/html')
         
@@ -723,6 +728,12 @@ class DependencyTreeWebServer:
             loadStats();
             setupModeButtons();
             handleUrlFragment();  // Handle URL fragment for deep linking
+            
+            // Log current URL for debugging
+            console.log('Web UI loaded');
+            console.log('  URL:', window.location.href);
+            console.log('  Path:', window.location.pathname);
+            console.log('  Hash:', window.location.hash);
         });
         
         function handleUrlFragment() {
@@ -864,6 +875,18 @@ class DependencyTreeWebServer:
                 
                 components = data.components;
                 const select = document.getElementById('component-select');
+                
+                if (components.length === 0) {
+                    // No components found - show helpful message
+                    select.innerHTML = '<option value="">No integrations found</option>';
+                    showError('No integrations found in the dependency graph. This could mean:<br>' +
+                             '1. No integrations are installed (unlikely)<br>' +
+                             '2. Integration paths are not accessible<br>' +
+                             '3. The dependency graph failed to build<br><br>' +
+                             'Check the add-on logs for more details.');
+                    return;
+                }
+                
                 select.innerHTML = '<option value="">-- Select a component --</option>';
                 
                 components.forEach(comp => {
@@ -873,8 +896,12 @@ class DependencyTreeWebServer:
                     option.textContent = `[${comp.type_label}] ${comp.name} (${comp.dependency_count} deps)`;
                     select.appendChild(option);
                 });
+                
+                // Log success for debugging
+                console.log(`Loaded ${components.length} components successfully`);
             } catch (error) {
                 showError('Failed to load components: ' + error.message);
+                console.error('Component loading error:', error);
             }
         }
         
