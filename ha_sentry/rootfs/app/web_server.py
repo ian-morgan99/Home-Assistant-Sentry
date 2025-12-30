@@ -114,10 +114,12 @@ class DependencyTreeWebServer:
             try:
                 logger.error(f"  Request URL: {request.url}")
             except (AttributeError, ValueError) as url_error:
-                # URL property may fail in test environments or with malformed requests
+                # URL property may fail when accessed through Home Assistant ingress proxy
+                # or in test environments with malformed requests
                 # AttributeError: Missing URL components
-                # ValueError: Invalid host/port format
-                logger.debug(f"Could not log request URL: {url_error}")
+                # ValueError: Invalid host/port format (e.g., 'homeassistant.local:8123')
+                # This is expected when using HA ingress and can be safely ignored
+                logger.debug(f"Request URL not available (expected when using HA ingress): {url_error}")
             
             # Sanitize error message for production - avoid leaking sensitive information
             # For HTML responses (web UI), include details since it's typically accessed by admin users
@@ -231,11 +233,10 @@ class DependencyTreeWebServer:
             logger.debug(f"Request path: {request.path}")
             try:
                 logger.debug(f"Request URL: {request.url}")
-            except (AttributeError, ValueError) as url_error:
-                # URL property may fail with malformed requests or when accessed through proxies
-                # AttributeError: Missing URL components
-                # ValueError: Invalid host/port format
-                logger.debug(f"Could not log request URL: {url_error}")
+            except (AttributeError, ValueError):
+                # URL property may fail when accessed through Home Assistant ingress proxy
+                # This is expected and can be safely ignored - the path and remote are sufficient
+                pass
             
             html = self._generate_html()
             return web.Response(text=html, content_type='text/html')

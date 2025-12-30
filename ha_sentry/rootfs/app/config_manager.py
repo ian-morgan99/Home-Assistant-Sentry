@@ -87,6 +87,12 @@ class ConfigManager:
     def _parse_custom_paths(self) -> list:
         """Parse custom integration paths from environment variable"""
         paths_json = os.getenv('CUSTOM_INTEGRATION_PATHS', '[]')
+        
+        # Handle empty string explicitly - treat as empty array
+        if not paths_json or paths_json.strip() == '':
+            logger.debug("CUSTOM_INTEGRATION_PATHS is empty, using default paths")
+            return []
+        
         try:
             paths = json.loads(paths_json)
             if isinstance(paths, list):
