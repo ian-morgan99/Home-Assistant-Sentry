@@ -4,6 +4,7 @@ Provides a web interface to visualize component dependencies and impact analysis
 """
 import json
 import logging
+import html
 from aiohttp import web
 from pathlib import Path
 from typing import Dict, List, Optional
@@ -48,36 +49,45 @@ class DependencyTreeWebServer:
         
     async def start(self):
         """Start the web server"""
-        if not self.config.enable_web_ui:
-            logger.info("Web UI disabled in configuration")
-            return
-        
-        # Validate dependency graph is available
-        if not self.dependency_graph_builder:
-            logger.error("Cannot start web server: Dependency graph builder is not available")
-            logger.error("This usually means:")
-            logger.error("  1. 'enable_dependency_graph' is disabled in configuration")
-            logger.error("  2. Dependency graph building failed during initialization")
-            logger.error("To fix: Set 'enable_dependency_graph: true' in add-on configuration")
-            logger.error("Note: Web UI requires dependency graph to be enabled")
-            return
+        try:
+            if not self.config.enable_web_ui:
+                logger.info("Web UI disabled in configuration")
+                return
             
-        logger.info(f"Starting dependency tree web server on port {self.port}")
-        logger.info(f"  Binding to: 0.0.0.0:{self.port}")
-        logger.info(f"  Web UI configuration: enable_web_ui={self.config.enable_web_ui}")
-        
-        self.app = web.Application()
-        self._setup_routes()
-        
-        self.runner = web.AppRunner(self.app)
-        await self.runner.setup()
-        self.site = web.TCPSite(self.runner, '0.0.0.0', self.port)
-        await self.site.start()
-        
-        logger.info(f"✅ Dependency tree visualization started successfully")
-        logger.info(f"   Available at http://localhost:{self.port}")
-        logger.info(f"   Or via Home Assistant ingress panel (Sentry in sidebar)")
-        logger.info(f"   Total integrations: {len(self.dependency_graph_builder.integrations)}")
+            # Validate dependency graph is available
+            if not self.dependency_graph_builder:
+                logger.error("Cannot start web server: Dependency graph builder is not available")
+                logger.error("This usually means:")
+                logger.error("  1. 'enable_dependency_graph' is disabled in configuration")
+                logger.error("  2. Dependency graph building failed during initialization")
+                logger.error("To fix: Set 'enable_dependency_graph: true' in add-on configuration")
+                logger.error("Note: Web UI requires dependency graph to be enabled")
+                return
+                
+            logger.info(f"Starting dependency tree web server on port {self.port}")
+            logger.info(f"  Binding to: 0.0.0.0:{self.port}")
+            logger.info(f"  Web UI configuration: enable_web_ui={self.config.enable_web_ui}")
+            
+            self.app = web.Application(middlewares=[self.error_middleware])
+            self._setup_routes()
+            
+            self.runner = web.AppRunner(self.app)
+            await self.runner.setup()
+            self.site = web.TCPSite(self.runner, '0.0.0.0', self.port)
+            await self.site.start()
+            
+            logger.info(f"✅ Dependency tree visualization started successfully")
+            logger.info(f"   Available at http://localhost:{self.port}")
+            logger.info(f"   Or via Home Assistant ingress panel (Sentry in sidebar)")
+            logger.info(f"   Total integrations: {len(self.dependency_graph_builder.integrations)}")
+        except Exception as e:
+            logger.error(f"❌ Failed to start web server: {e}", exc_info=True)
+            logger.error("Web UI will not be available")
+            logger.error("Common causes:")
+            logger.error(f"  1. Port {self.port} is already in use")
+            logger.error("  2. Permission denied binding to the port")
+            logger.error("  3. Network configuration issue")
+            logger.error("Check the error details above for more information")
         
     async def stop(self):
         """Stop the web server"""
@@ -86,6 +96,43 @@ class DependencyTreeWebServer:
         if self.runner:
             await self.runner.cleanup()
         logger.info("Web server stopped")
+    
+    @web.middleware
+    async def error_middleware(self, request, handler):
+        """Global error handler middleware to catch unhandled exceptions"""
+        try:
+            response = await handler(request)
+            return response
+        except web.HTTPException as e:
+            # HTTP exceptions are intentional, re-raise them
+            raise
+        except Exception as e:
+            # Log the error with full traceback
+            logger.error(f"Unhandled exception in request handler: {e}", exc_info=True)
+            logger.error(f"  Request path: {request.path}")
+            logger.error(f"  Request method: {request.method}")
+            try:
+                logger.error(f"  Request URL: {request.url}")
+            except (AttributeError, ValueError) as url_error:
+                # URL property may fail in test environments or with malformed requests
+                # AttributeError: Missing URL components
+                # ValueError: Invalid host/port format
+                logger.debug(f"Could not log request URL: {url_error}")
+            
+            # Sanitize error message for production - avoid leaking sensitive information
+            # For HTML responses (web UI), include details since it's typically accessed by admin users
+            # For API responses, use generic message
+            if request.path.startswith('/api/'):
+                # API endpoints: return generic error to avoid information disclosure
+                return web.json_response({
+                    'error': 'Internal server error',
+                    'message': 'An unexpected error occurred. Please check the add-on logs for details.',
+                    'path': request.path
+                }, status=500)
+            else:
+                # HTML pages: show details for admin troubleshooting
+                error_html = self._generate_error_html(str(e), "Internal Server Error")
+                return web.Response(text=error_html, content_type='text/html', status=500)
         
     def _setup_routes(self):
         """Setup HTTP routes"""
@@ -95,6 +142,48 @@ class DependencyTreeWebServer:
         self.app.router.add_get('/api/where-used/{component}', self._handle_where_used)
         self.app.router.add_get('/api/change-impact', self._handle_change_impact)
         self.app.router.add_get('/api/graph-data', self._handle_graph_data)
+    
+    def _generate_error_html(self, error_message: str, title: str = "Error") -> str:
+        """
+        Generate a user-friendly error HTML page
+        
+        Args:
+            error_message: The error message to display (will be HTML-escaped)
+            title: The page title
+        
+        Returns:
+            str: HTML error page
+        """
+        # Escape the error message to prevent XSS
+        escaped_message = html.escape(error_message)
+        
+        return f"""<!DOCTYPE html>
+<html>
+<head>
+    <title>{html.escape(title)} - Home Assistant Sentry</title>
+    <style>
+        body {{ font-family: Arial, sans-serif; padding: 40px; background: #f5f5f5; }}
+        .error {{ background: white; padding: 30px; border-radius: 8px; max-width: 600px; margin: 0 auto; }}
+        h1 {{ color: #d32f2f; }}
+        pre {{ background: #f5f5f5; padding: 15px; border-radius: 4px; overflow-x: auto; word-wrap: break-word; }}
+    </style>
+</head>
+<body>
+    <div class="error">
+        <h1>❌ {html.escape(title)}</h1>
+        <p>The Home Assistant Sentry web interface encountered an error:</p>
+        <pre>{escaped_message}</pre>
+        <p><strong>Please check the add-on logs for more details.</strong></p>
+        <p>Common causes:</p>
+        <ul>
+            <li>Dependency graph is not enabled in configuration</li>
+            <li>Web UI configuration issue</li>
+            <li>Add-on initialization error</li>
+        </ul>
+        <p><a href="/">Retry</a></p>
+    </div>
+</body>
+</html>"""
     
     def _determine_component_type(self, domain: str, integration: Dict) -> str:
         """
@@ -136,13 +225,19 @@ class DependencyTreeWebServer:
         
     async def _handle_index(self, request):
         """Serve the main HTML page"""
-        # Log access for debugging
-        logger.debug(f"Web UI accessed from: {request.remote}")
-        logger.debug(f"Request path: {request.path}")
-        logger.debug(f"Request URL: {request.url}")
-        
-        html = self._generate_html()
-        return web.Response(text=html, content_type='text/html')
+        try:
+            # Log access for debugging
+            logger.debug(f"Web UI accessed from: {request.remote}")
+            logger.debug(f"Request path: {request.path}")
+            logger.debug(f"Request URL: {request.url}")
+            
+            html = self._generate_html()
+            return web.Response(text=html, content_type='text/html')
+        except Exception as e:
+            logger.error(f"Error serving index page: {e}", exc_info=True)
+            # Return error page using shared template
+            error_html = self._generate_error_html(str(e), "Error Loading Web UI")
+            return web.Response(text=error_html, content_type='text/html', status=500)
         
     async def _handle_get_components(self, request):
         """Get list of all components"""
