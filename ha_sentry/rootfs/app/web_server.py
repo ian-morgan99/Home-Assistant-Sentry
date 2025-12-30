@@ -26,7 +26,7 @@ class DependencyTreeWebServer:
     TYPE_LABELS = {
         'core': 'Core',
         'addon': 'Add-on',  # Reserved for future use
-        'hacs': 'HACS',
+        'hacs': 'HACS Integration',
         'integration': 'Integration'
     }
     
@@ -105,7 +105,8 @@ class DependencyTreeWebServer:
             integration: Integration manifest data
         
         Returns:
-            str: Component type ('core', 'addon', 'hacs', 'integration')
+            str: Component type ('core', 'hacs', 'integration').
+                Note: 'addon' is reserved for future use and is not currently returned.
         """
         # Check manifest path to determine if it's a custom component (HACS)
         manifest_path = integration.get('manifest_path', '')
@@ -731,6 +732,17 @@ class DependencyTreeWebServer:
         // and when accessed through Home Assistant's ingress proxy at /api/hassio_ingress/ha_sentry/
         
         /**
+         * Escape HTML entities to prevent XSS attacks
+         * @param {string} text - Text to escape
+         * @returns {string} - HTML-safe text
+         */
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+        
+        /**
          * Wait for components to load with timeout, then execute callback
          * @param {function} callback - Function to call when components are loaded
          * @param {function} errorCallback - Function to call on timeout or error
@@ -798,8 +810,10 @@ class DependencyTreeWebServer:
                             visualize();
                         } else {
                             // Component not found in list, show error
-                            console.warn(`Component '${value}' not found in component list`);
-                            showError(`Component '${value}' not found. It may not be a tracked integration.`);
+                            // Escape component name to prevent XSS
+                            const escapedValue = escapeHtml(value);
+                            console.warn(`Component '${escapedValue}' not found in component list`);
+                            showError(`Component '${escapedValue}' not found. It may not be a tracked integration.`);
                         }
                     },
                     () => {
@@ -824,8 +838,15 @@ class DependencyTreeWebServer:
                 // Set the components value
                 document.getElementById('impact-components').value = value;
                 
-                // Wait a bit then trigger visualization
-                setTimeout(() => visualize(), 500);
+                // Wait for components to load, then trigger visualization
+                waitForComponents(
+                    () => {
+                        visualize();
+                    },
+                    () => {
+                        showError('Timeout waiting for components to load');
+                    }
+                );
             } else if (mode === 'dependency' && value) {
                 // Set mode to dependency (default mode)
                 document.querySelectorAll('.mode-btn').forEach(b => b.classList.remove('active'));
@@ -842,6 +863,10 @@ class DependencyTreeWebServer:
                         select.value = value;
                         if (select.value === value) {  // Verify the option exists
                             visualize();
+                        } else {
+                            // Component not found in list, show error
+                            const escapedValue = escapeHtml(value);
+                            showError(`Component '${escapedValue}' not found. It may not be a tracked integration.`);
                         }
                     },
                     () => {
@@ -1165,8 +1190,9 @@ class DependencyTreeWebServer:
         
         function showError(message) {
             const viz = document.getElementById('visualization');
-            // Convert newlines to <br> tags for proper HTML display
-            const htmlMessage = message.replace(/\n/g, '<br>');
+            // Escape HTML to prevent XSS, then convert newlines to <br> tags
+            const escapedMessage = escapeHtml(message);
+            const htmlMessage = escapedMessage.replace(/\n/g, '<br>');
             viz.innerHTML = `<div class="error">❌ Error: ${htmlMessage}</div>`;
         }
         
