@@ -46,6 +46,18 @@ class AIClient:
         try:
             logger.debug(f"Initializing AI client for provider: {self.config.ai_provider}")
             from openai import OpenAI
+            import httpx
+            
+            # Configure timeout to prevent hanging on network issues
+            # Connect timeout: 10 seconds to establish connection
+            # Read timeout: 120 seconds for AI response generation
+            # Write timeout: 30 seconds for sending request
+            timeout = httpx.Timeout(
+                connect=10.0,  # Connection establishment
+                read=120.0,    # Reading response (AI may take time to generate)
+                write=30.0,    # Writing request
+                pool=10.0      # Acquiring connection from pool
+            )
             
             # Configure based on provider
             if self.config.ai_provider == 'ollama':
@@ -56,7 +68,8 @@ class AIClient:
                 logger.debug(f"Configuring Ollama client with base_url: {base_url}")
                 self.client = OpenAI(
                     base_url=base_url,
-                    api_key="ollama"  # Ollama doesn't require a real key
+                    api_key="ollama",  # Ollama doesn't require a real key
+                    timeout=timeout
                 )
             elif self.config.ai_provider == 'lmstudio':
                 # LMStudio typically runs on localhost:1234
@@ -66,7 +79,8 @@ class AIClient:
                 logger.debug(f"Configuring LMStudio client with base_url: {base_url}")
                 self.client = OpenAI(
                     base_url=base_url,
-                    api_key="lm-studio"  # LMStudio doesn't require a real key
+                    api_key="lm-studio",  # LMStudio doesn't require a real key
+                    timeout=timeout
                 )
             elif self.config.ai_provider == 'openwebui':
                 # OpenWebUI with compatible endpoint
@@ -76,14 +90,16 @@ class AIClient:
                 logger.debug(f"Configuring OpenWebUI client with base_url: {base_url}")
                 self.client = OpenAI(
                     base_url=base_url,
-                    api_key=self.config.api_key or "not-needed"
+                    api_key=self.config.api_key or "not-needed",
+                    timeout=timeout
                 )
             else:  # openai or default
                 # Standard OpenAI API
                 logger.debug(f"Configuring OpenAI client with endpoint: {self.config.ai_endpoint}")
                 self.client = OpenAI(
                     api_key=self.config.api_key,
-                    base_url=self.config.ai_endpoint if self.config.ai_endpoint != 'http://localhost:11434' else None
+                    base_url=self.config.ai_endpoint if self.config.ai_endpoint != 'http://localhost:11434' else None,
+                    timeout=timeout
                 )
             
             logger.info(f"AI client initialized: {self.config.ai_provider}")
