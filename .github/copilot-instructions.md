@@ -31,22 +31,22 @@ This is a **Home Assistant add-on** (not a HACS integration) that runs as a sepa
 
 ```
 Home-Assistant-Sentry/
-├── ha_sentry/                   # Add-on directory
-│   ├── rootfs/                  # Root filesystem for the add-on container
-│   │   └── app/                 # Main application code
-│   │       ├── main.py          # Entry point
-│   │       ├── config_manager.py    # Configuration management
-│   │       ├── ha_client.py     # Home Assistant API client
-│   │       ├── ai_client.py     # AI provider integration
-│   │       ├── dashboard_manager.py # Dashboard entities manager
-│   │       ├── dependency_analyzer.py # Dependency analysis
-│   │       ├── dependency_graph_builder.py # Dependency graph building
-│   │       ├── sentry_service.py    # Main service coordinator
-│   │       └── web_server.py    # Web UI server
-│   ├── config.yaml              # Add-on configuration
-│   ├── Dockerfile               # Container image definition
-│   └── requirements.txt         # Python dependencies
-├── tests/                       # Test files
+├── ha_sentry/                          # Add-on directory
+│   ├── rootfs/                         # Root filesystem for the add-on container
+│   │   └── app/                        # Main application code
+│   │       ├── main.py                 # Entry point
+│   │       ├── config_manager.py       # Configuration management
+│   │       ├── ha_client.py            # Home Assistant API client
+│   │       ├── ai_client.py            # AI provider integration
+│   │       ├── dashboard_manager.py    # Dashboard entities manager
+│   │       ├── dependency_analyzer.py  # Dependency analysis
+│   │       ├── dependency_graph_builder.py  # Dependency graph building
+│   │       ├── sentry_service.py       # Main service coordinator
+│   │       └── web_server.py           # Web UI server
+│   ├── config.yaml                     # Add-on configuration
+│   ├── Dockerfile                      # Container image definition
+│   └── requirements.txt                # Python dependencies
+├── tests/                              # Test files
 └── [documentation files]
 ```
 
