@@ -79,6 +79,58 @@ class DependencyTreeWebServer:
         self.app.router.add_get('/api/where-used/{component}', self._handle_where_used)
         self.app.router.add_get('/api/change-impact', self._handle_change_impact)
         self.app.router.add_get('/api/graph-data', self._handle_graph_data)
+    
+    def _determine_component_type(self, domain: str, integration: Dict) -> str:
+        """
+        Determine the type of a component based on its domain and manifest
+        
+        Args:
+            domain: Integration domain
+            integration: Integration manifest data
+        
+        Returns:
+            str: Component type ('core', 'addon', 'hacs', 'integration')
+        """
+        # Check if it's a core integration
+        if domain in ['homeassistant', 'hassio', 'supervisor']:
+            return 'core'
+        
+        # Check for HACS indicators in the manifest
+        manifest = integration
+        if 'version' in manifest and manifest.get('version'):
+            # Custom integrations typically have version numbers
+            # Check for common HACS patterns
+            documentation_url = manifest.get('documentation', '').lower()
+            issue_tracker = manifest.get('issue_tracker', '').lower()
+            
+            if 'github.com' in documentation_url or 'github.com' in issue_tracker:
+                # Likely a HACS integration
+                return 'hacs'
+        
+        # Check if it's located in custom_components (HACS installs here)
+        # Note: We can't directly check filesystem in this context, but we can infer
+        # from other properties
+        
+        # Default to integration for built-in components
+        return 'integration'
+    
+    def _get_type_label(self, component_type: str) -> str:
+        """
+        Get a user-friendly label for a component type
+        
+        Args:
+            component_type: The component type code
+        
+        Returns:
+            str: Formatted label for display
+        """
+        type_labels = {
+            'core': 'Core',
+            'addon': 'Add-on',
+            'hacs': 'HACS',
+            'integration': 'Integration'
+        }
+        return type_labels.get(component_type, 'Unknown')
         
     async def _handle_index(self, request):
         """Serve the main HTML page"""
@@ -101,15 +153,21 @@ class DependencyTreeWebServer:
             components = []
             for domain, integration in self.dependency_graph_builder.integrations.items():
                 if 'error' not in integration:
+                    # Determine component type based on domain and manifest
+                    component_type = self._determine_component_type(domain, integration)
+                    
                     components.append({
                         'domain': domain,
                         'name': integration.get('name', domain),
                         'version': integration.get('version'),
-                        'dependency_count': len(integration.get('requirements', []))
+                        'dependency_count': len(integration.get('requirements', [])),
+                        'type': component_type,
+                        'type_label': self._get_type_label(component_type)
                     })
             
-            # Sort by name
-            components.sort(key=lambda x: x['name'])
+            # Sort by type (using sort order), then by name
+            type_order = {'core': 0, 'addon': 1, 'hacs': 2, 'integration': 3}
+            components.sort(key=lambda x: (type_order.get(x['type'], 999), x['name'].lower()))
             
             return web.json_response({
                 'components': components,
@@ -679,25 +737,41 @@ class DependencyTreeWebServer:
             if (mode === 'whereused' && value) {
                 // Set mode to where-used
                 document.querySelectorAll('.mode-btn').forEach(b => b.classList.remove('active'));
-                document.querySelector('.mode-btn[data-mode="whereused"]').classList.add('active');
-                currentMode = 'whereused';
+                const whereUsedBtn = document.querySelector('.mode-btn[data-mode="whereused"]');
+                if (whereUsedBtn) {
+                    whereUsedBtn.classList.add('active');
+                    currentMode = 'whereused';
+                }
                 
                 // Wait for components to load, then select and visualize
+                const maxAttempts = 50;  // 5 seconds max wait
+                let attempts = 0;
                 const checkComponents = setInterval(() => {
+                    attempts++;
                     if (components.length > 0) {
                         clearInterval(checkComponents);
                         const select = document.getElementById('component-select');
                         select.value = value;
                         if (select.value === value) {  // Verify the option exists
                             visualize();
+                        } else {
+                            // Component not found in list, show error
+                            console.warn(`Component '${value}' not found in component list`);
+                            showError(`Component '${value}' not found. It may not be a tracked integration.`);
                         }
+                    } else if (attempts >= maxAttempts) {
+                        clearInterval(checkComponents);
+                        showError('Timeout waiting for components to load');
                     }
                 }, 100);
             } else if (mode === 'impact' && value) {
                 // Set mode to impact
                 document.querySelectorAll('.mode-btn').forEach(b => b.classList.remove('active'));
-                document.querySelector('.mode-btn[data-mode="impact"]').classList.add('active');
-                currentMode = 'impact';
+                const impactBtn = document.querySelector('.mode-btn[data-mode="impact"]');
+                if (impactBtn) {
+                    impactBtn.classList.add('active');
+                    currentMode = 'impact';
+                }
                 
                 // Show impact input
                 const impactInput = document.getElementById('impact-input-group');
@@ -710,6 +784,32 @@ class DependencyTreeWebServer:
                 
                 // Wait a bit then trigger visualization
                 setTimeout(() => visualize(), 500);
+            } else if (mode === 'dependency' && value) {
+                // Set mode to dependency (default mode)
+                document.querySelectorAll('.mode-btn').forEach(b => b.classList.remove('active'));
+                const dependencyBtn = document.querySelector('.mode-btn[data-mode="dependency"]');
+                if (dependencyBtn) {
+                    dependencyBtn.classList.add('active');
+                    currentMode = 'dependency';
+                }
+                
+                // Wait for components to load, then select and visualize
+                const maxAttempts = 50;  // 5 seconds max wait
+                let attempts = 0;
+                const checkComponents = setInterval(() => {
+                    attempts++;
+                    if (components.length > 0) {
+                        clearInterval(checkComponents);
+                        const select = document.getElementById('component-select');
+                        select.value = value;
+                        if (select.value === value) {  // Verify the option exists
+                            visualize();
+                        }
+                    } else if (attempts >= maxAttempts) {
+                        clearInterval(checkComponents);
+                        showError('Timeout waiting for components to load');
+                    }
+                }, 100);
             }
         }
         
@@ -771,7 +871,8 @@ class DependencyTreeWebServer:
                 components.forEach(comp => {
                     const option = document.createElement('option');
                     option.value = comp.domain;
-                    option.textContent = `${comp.name} (${comp.dependency_count} deps)`;
+                    // Show type label and name, with dependency count
+                    option.textContent = `[${comp.type_label}] ${comp.name} (${comp.dependency_count} deps)`;
                     select.appendChild(option);
                 });
             } catch (error) {
