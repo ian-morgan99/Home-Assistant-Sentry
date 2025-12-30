@@ -113,19 +113,24 @@ class DependencyTreeWebServer:
             logger.error(f"  Request method: {request.method}")
             try:
                 logger.error(f"  Request URL: {request.url}")
-            except Exception:
-                # URL might not be available in test environments
-                pass
+            except (AttributeError, ValueError) as url_error:
+                # URL property may fail in test environments or with malformed requests
+                # AttributeError: Missing URL components
+                # ValueError: Invalid host/port format
+                logger.debug(f"Could not log request URL: {url_error}")
             
-            # Return JSON error for API endpoints
+            # Sanitize error message for production - avoid leaking sensitive information
+            # For HTML responses (web UI), include details since it's typically accessed by admin users
+            # For API responses, use generic message
             if request.path.startswith('/api/'):
+                # API endpoints: return generic error to avoid information disclosure
                 return web.json_response({
                     'error': 'Internal server error',
-                    'message': str(e),
+                    'message': 'An unexpected error occurred. Please check the add-on logs for details.',
                     'path': request.path
                 }, status=500)
             else:
-                # Return HTML error for other endpoints using shared error template
+                # HTML pages: show details for admin troubleshooting
                 error_html = self._generate_error_html(str(e), "Internal Server Error")
                 return web.Response(text=error_html, content_type='text/html', status=500)
         
