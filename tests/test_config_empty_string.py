@@ -11,6 +11,9 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'ha_sentry', 'r
 
 def test_empty_string_custom_paths():
     """Test that empty string in CUSTOM_INTEGRATION_PATHS doesn't cause warning"""
+    # Save original environment variable if it exists
+    original_value = os.environ.get('CUSTOM_INTEGRATION_PATHS')
+    
     try:
         from config_manager import ConfigManager
         
@@ -27,10 +30,6 @@ def test_empty_string_custom_paths():
         config2 = ConfigManager()
         assert config2.custom_integration_paths == []
         
-        # Clean up
-        if 'CUSTOM_INTEGRATION_PATHS' in os.environ:
-            del os.environ['CUSTOM_INTEGRATION_PATHS']
-        
         print("✓ Empty string custom paths test passed")
         return True
     except Exception as e:
@@ -38,6 +37,12 @@ def test_empty_string_custom_paths():
         import traceback
         traceback.print_exc()
         return False
+    finally:
+        # Restore original environment variable or remove if it didn't exist
+        if original_value is not None:
+            os.environ['CUSTOM_INTEGRATION_PATHS'] = original_value
+        elif 'CUSTOM_INTEGRATION_PATHS' in os.environ:
+            del os.environ['CUSTOM_INTEGRATION_PATHS']
 
 
 if __name__ == '__main__':
