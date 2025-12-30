@@ -18,13 +18,14 @@ class DependencyTreeWebServer:
     CORE_DOMAINS = {'homeassistant', 'hassio', 'supervisor'}
     
     # Type order for sorting (lower number = higher priority)
+    # Note: 'addon' is reserved for future use when add-on data is included
     TYPE_SORT_ORDER = {'core': 0, 'addon': 1, 'hacs': 2, 'integration': 3}
     UNKNOWN_TYPE_SORT_ORDER = 999  # Fallback for unknown types
     
     # Type labels for display
     TYPE_LABELS = {
         'core': 'Core',
-        'addon': 'Add-on',
+        'addon': 'Add-on',  # Reserved for future use
         'hacs': 'HACS',
         'integration': 'Integration'
     }
@@ -718,6 +719,7 @@ class DependencyTreeWebServer:
     <script>
         let currentMode = 'dependency';
         let components = [];
+        let componentLoadIntervalId = null;  // Track interval to prevent memory leaks
         
         // Constants for component loading timeout
         const COMPONENT_LOAD_TIMEOUT_MS = 5000;  // 5 seconds max wait
@@ -734,14 +736,22 @@ class DependencyTreeWebServer:
          * @param {function} errorCallback - Function to call on timeout or error
          */
         function waitForComponents(callback, errorCallback) {
+            // Clear any existing interval to prevent memory leaks
+            if (componentLoadIntervalId !== null) {
+                clearInterval(componentLoadIntervalId);
+                componentLoadIntervalId = null;
+            }
+            
             let attempts = 0;
-            const checkComponents = setInterval(() => {
+            componentLoadIntervalId = setInterval(() => {
                 attempts++;
                 if (components.length > 0) {
-                    clearInterval(checkComponents);
+                    clearInterval(componentLoadIntervalId);
+                    componentLoadIntervalId = null;
                     callback();
                 } else if (attempts >= MAX_COMPONENT_LOAD_ATTEMPTS) {
-                    clearInterval(checkComponents);
+                    clearInterval(componentLoadIntervalId);
+                    componentLoadIntervalId = null;
                     if (errorCallback) {
                         errorCallback();
                     }
@@ -898,10 +908,11 @@ class DependencyTreeWebServer:
                 if (components.length === 0) {
                     // No components found - show helpful message
                     select.innerHTML = '<option value="">No integrations found</option>';
-                    showError('No integrations found in the dependency graph. This could mean:<br>' +
-                             '1. No integrations are installed (unlikely)<br>' +
-                             '2. Integration paths are not accessible<br>' +
-                             '3. The dependency graph failed to build<br><br>' +
+                    showError('No integrations found in the dependency graph.\\n\\n' +
+                             'This could mean:\\n' +
+                             '1. No integrations are installed (unlikely)\\n' +
+                             '2. Integration paths are not accessible\\n' +
+                             '3. The dependency graph failed to build\\n\\n' +
                              'Check the add-on logs for more details.');
                     return;
                 }
@@ -1154,7 +1165,9 @@ class DependencyTreeWebServer:
         
         function showError(message) {
             const viz = document.getElementById('visualization');
-            viz.innerHTML = `<div class="error">❌ Error: ${message}</div>`;
+            // Convert newlines to <br> tags for proper HTML display
+            const htmlMessage = message.replace(/\n/g, '<br>');
+            viz.innerHTML = `<div class="error">❌ Error: ${htmlMessage}</div>`;
         }
         
         function showConfigError(data) {
