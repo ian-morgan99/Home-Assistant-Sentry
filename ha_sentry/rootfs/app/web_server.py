@@ -229,7 +229,13 @@ class DependencyTreeWebServer:
             # Log access for debugging
             logger.debug(f"Web UI accessed from: {request.remote}")
             logger.debug(f"Request path: {request.path}")
-            logger.debug(f"Request URL: {request.url}")
+            try:
+                logger.debug(f"Request URL: {request.url}")
+            except (AttributeError, ValueError) as url_error:
+                # URL property may fail with malformed requests or when accessed through proxies
+                # AttributeError: Missing URL components
+                # ValueError: Invalid host/port format
+                logger.debug(f"Could not log request URL: {url_error}")
             
             html = self._generate_html()
             return web.Response(text=html, content_type='text/html')
