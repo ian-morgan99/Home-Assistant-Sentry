@@ -91,27 +91,25 @@ class DependencyTreeWebServer:
         Returns:
             str: Component type ('core', 'addon', 'hacs', 'integration')
         """
-        # Check if it's a core integration
+        # Check manifest path to determine if it's a custom component (HACS)
+        manifest_path = integration.get('manifest_path', '')
+        
+        # HACS integrations are installed in custom_components
+        if 'custom_components' in manifest_path:
+            return 'hacs'
+        
+        # Check if it's a core Home Assistant component
         if domain in ['homeassistant', 'hassio', 'supervisor']:
             return 'core'
         
-        # Check for HACS indicators in the manifest
-        manifest = integration
-        if 'version' in manifest and manifest.get('version'):
-            # Custom integrations typically have version numbers
-            # Check for common HACS patterns
-            documentation_url = manifest.get('documentation', '').lower()
-            issue_tracker = manifest.get('issue_tracker', '').lower()
-            
-            if 'github.com' in documentation_url or 'github.com' in issue_tracker:
-                # Likely a HACS integration
-                return 'hacs'
+        # Check for version field - custom integrations typically have explicit versions
+        # while built-in integrations often don't
+        if integration.get('version'):
+            # Has version but not in custom_components - could be a built-in with version
+            # or an integration from another source
+            return 'integration'
         
-        # Check if it's located in custom_components (HACS installs here)
-        # Note: We can't directly check filesystem in this context, but we can infer
-        # from other properties
-        
-        # Default to integration for built-in components
+        # Default to built-in integration
         return 'integration'
     
     def _get_type_label(self, component_type: str) -> str:
