@@ -19,6 +19,7 @@ export SAFETY_THRESHOLD=$(bashio::config 'safety_threshold')
 export LOG_LEVEL=$(bashio::config 'log_level')
 export ENABLE_DEPENDENCY_GRAPH=$(bashio::config 'enable_dependency_graph')
 export SAVE_REPORTS=$(bashio::config 'save_reports')
+export ENABLE_WEB_UI=$(bashio::config 'enable_web_ui')
 
 # Parse custom integration paths with proper error handling
 if CUSTOM_PATHS=$(bashio::config 'custom_integration_paths' | jq -c '.' 2>/dev/null); then
