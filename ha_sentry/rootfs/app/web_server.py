@@ -4,6 +4,7 @@ Provides a web interface to visualize component dependencies and impact analysis
 """
 import json
 import logging
+import html
 from aiohttp import web
 from pathlib import Path
 from typing import Dict, List, Optional
@@ -124,28 +125,8 @@ class DependencyTreeWebServer:
                     'path': request.path
                 }, status=500)
             else:
-                # Return HTML error for other endpoints
-                error_html = f"""<!DOCTYPE html>
-<html>
-<head>
-    <title>Error - Home Assistant Sentry</title>
-    <style>
-        body {{ font-family: Arial, sans-serif; padding: 40px; background: #f5f5f5; }}
-        .error {{ background: white; padding: 30px; border-radius: 8px; max-width: 600px; margin: 0 auto; }}
-        h1 {{ color: #d32f2f; }}
-        pre {{ background: #f5f5f5; padding: 15px; border-radius: 4px; overflow-x: auto; }}
-    </style>
-</head>
-<body>
-    <div class="error">
-        <h1>❌ Internal Server Error</h1>
-        <p>An unexpected error occurred:</p>
-        <pre>{str(e)}</pre>
-        <p><strong>Please check the add-on logs for detailed information.</strong></p>
-        <p><a href="/">Return to home</a></p>
-    </div>
-</body>
-</html>"""
+                # Return HTML error for other endpoints using shared error template
+                error_html = self._generate_error_html(str(e), "Internal Server Error")
                 return web.Response(text=error_html, content_type='text/html', status=500)
         
     def _setup_routes(self):
@@ -156,6 +137,48 @@ class DependencyTreeWebServer:
         self.app.router.add_get('/api/where-used/{component}', self._handle_where_used)
         self.app.router.add_get('/api/change-impact', self._handle_change_impact)
         self.app.router.add_get('/api/graph-data', self._handle_graph_data)
+    
+    def _generate_error_html(self, error_message: str, title: str = "Error") -> str:
+        """
+        Generate a user-friendly error HTML page
+        
+        Args:
+            error_message: The error message to display (will be HTML-escaped)
+            title: The page title
+        
+        Returns:
+            str: HTML error page
+        """
+        # Escape the error message to prevent XSS
+        escaped_message = html.escape(error_message)
+        
+        return f"""<!DOCTYPE html>
+<html>
+<head>
+    <title>{html.escape(title)} - Home Assistant Sentry</title>
+    <style>
+        body {{ font-family: Arial, sans-serif; padding: 40px; background: #f5f5f5; }}
+        .error {{ background: white; padding: 30px; border-radius: 8px; max-width: 600px; margin: 0 auto; }}
+        h1 {{ color: #d32f2f; }}
+        pre {{ background: #f5f5f5; padding: 15px; border-radius: 4px; overflow-x: auto; word-wrap: break-word; }}
+    </style>
+</head>
+<body>
+    <div class="error">
+        <h1>❌ {html.escape(title)}</h1>
+        <p>The Home Assistant Sentry web interface encountered an error:</p>
+        <pre>{escaped_message}</pre>
+        <p><strong>Please check the add-on logs for more details.</strong></p>
+        <p>Common causes:</p>
+        <ul>
+            <li>Dependency graph is not enabled in configuration</li>
+            <li>Web UI configuration issue</li>
+            <li>Add-on initialization error</li>
+        </ul>
+        <p><a href="/">Retry</a></p>
+    </div>
+</body>
+</html>"""
     
     def _determine_component_type(self, domain: str, integration: Dict) -> str:
         """
@@ -207,34 +230,8 @@ class DependencyTreeWebServer:
             return web.Response(text=html, content_type='text/html')
         except Exception as e:
             logger.error(f"Error serving index page: {e}", exc_info=True)
-            # Return a simple error page instead of 500
-            error_html = f"""<!DOCTYPE html>
-<html>
-<head>
-    <title>Error - Home Assistant Sentry</title>
-    <style>
-        body {{ font-family: Arial, sans-serif; padding: 40px; background: #f5f5f5; }}
-        .error {{ background: white; padding: 30px; border-radius: 8px; max-width: 600px; margin: 0 auto; }}
-        h1 {{ color: #d32f2f; }}
-        pre {{ background: #f5f5f5; padding: 15px; border-radius: 4px; overflow-x: auto; }}
-    </style>
-</head>
-<body>
-    <div class="error">
-        <h1>❌ Error Loading Web UI</h1>
-        <p>The Home Assistant Sentry web interface encountered an error:</p>
-        <pre>{str(e)}</pre>
-        <p><strong>Please check the add-on logs for more details.</strong></p>
-        <p>Common causes:</p>
-        <ul>
-            <li>Dependency graph is not enabled in configuration</li>
-            <li>Web UI configuration issue</li>
-            <li>Add-on initialization error</li>
-        </ul>
-        <p><a href="/">Retry</a></p>
-    </div>
-</body>
-</html>"""
+            # Return error page using shared template
+            error_html = self._generate_error_html(str(e), "Error Loading Web UI")
             return web.Response(text=error_html, content_type='text/html', status=500)
         
     async def _handle_get_components(self, request):
