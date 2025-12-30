@@ -187,13 +187,41 @@ Be thorough but concise. Focus on actionable insights."""
     
     def _get_dependency_info_for_update(self, update: Dict) -> Dict:
         """
-        Extract dependency information for an update from the dependency graph
+        Extract dependency information for an update from the dependency graph.
         
         Args:
-            update: Update information dict
+            update: Update information dict (e.g. from add-on or HACS metadata).
             
         Returns:
-            Dict with dependency information
+            Dict with dependency information. The structure depends on the update type:
+            
+            - For system updates (`type` in `["core", "supervisor", "os"]`):
+              
+              {
+                  "type": "system",
+                  "high_risk_dependencies": [
+                      {
+                          "package": str,     # Python package name
+                          "user_count": int,  # Number of integrations using this package
+                          "high_risk": bool   # Always True for packages in HIGH_RISK_LIBRARIES
+                      },
+                      ...
+                  ],
+                  "impact_radius": int       # Total number of integrations in the system
+              }
+            
+            - For add-on / integration updates:
+              
+              {
+                  "type": "integration",
+                  "requirements": List[Dict],     # Integration requirements from dependency graph,
+                                                  # truncated to MAX_DEPENDENCIES_SHOWN
+                  "high_risk_count": int,         # Number of requirements marked as high risk
+                  "shared_dependency_impact": int # Number of other integrations sharing dependencies
+              }
+            
+            If no dependency graph is available or the update cannot be matched to an
+            integration, an empty dict is returned.
         """
         if not self.dependency_graph:
             return {}
@@ -223,13 +251,13 @@ Be thorough but concise. Focus on actionable insights."""
         # For add-ons and integrations, try to find matching integration
         update_name = update.get('name', '').lower()
         slug = update.get('slug', '').lower()
-        entity_id = update.get('entity_id', '').lower()
         
         # Try to find matching integration by domain/name
         matching_integration = None
         for domain, integration_data in integrations.items():
+            # Use exact matching to avoid false positives
             if (domain.lower() == slug or 
-                domain.lower() in update_name or
+                domain.lower() == update_name or
                 integration_data.get('name', '').lower() == update_name):
                 matching_integration = integration_data
                 break
@@ -244,7 +272,7 @@ Be thorough but concise. Focus on actionable insights."""
             for req in requirements:
                 pkg = req.get('package')
                 if pkg and pkg in dependency_map:
-                    impacted.update([u['integration'] for u in dependency_map[pkg]])
+                    impacted.update(u['integration'] for u in dependency_map[pkg])
             
             return {
                 'type': 'integration',
@@ -295,7 +323,11 @@ Be thorough but concise. Focus on actionable insights."""
                 if addon.get('release_url'):
                     context += f"  - Release Notes: {addon['release_url']}\n"
                 if addon.get('release_summary'):
-                    summary = addon['release_summary'][:self.MAX_RELEASE_SUMMARY_LENGTH]
+                    full_summary = addon['release_summary']
+                    if len(full_summary) > self.MAX_RELEASE_SUMMARY_LENGTH:
+                        summary = full_summary[:self.MAX_RELEASE_SUMMARY_LENGTH] + "..."
+                    else:
+                        summary = full_summary
                     context += f"  - Summary: {summary}\n"
                 if addon.get('description'):
                     context += f"  - Description: {addon['description']}\n"
@@ -335,7 +367,11 @@ Be thorough but concise. Focus on actionable insights."""
                 if hacs.get('release_url'):
                     context += f"  - Release Notes: {hacs['release_url']}\n"
                 if hacs.get('release_summary'):
-                    summary = hacs['release_summary'][:self.MAX_RELEASE_SUMMARY_LENGTH]
+                    full_summary = hacs['release_summary']
+                    if len(full_summary) > self.MAX_RELEASE_SUMMARY_LENGTH:
+                        summary = full_summary[:self.MAX_RELEASE_SUMMARY_LENGTH] + "..."
+                    else:
+                        summary = full_summary
                     context += f"  - Summary: {summary}\n"
                 
                 # Add dependency information
