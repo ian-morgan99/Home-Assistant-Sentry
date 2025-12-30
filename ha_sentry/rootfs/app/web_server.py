@@ -14,6 +14,17 @@ logger = logging.getLogger(__name__)
 class DependencyTreeWebServer:
     """Web server for dependency tree visualization"""
     
+    # Type order for sorting (lower number = higher priority)
+    TYPE_SORT_ORDER = {'core': 0, 'addon': 1, 'hacs': 2, 'integration': 3}
+    
+    # Type labels for display
+    TYPE_LABELS = {
+        'core': 'Core',
+        'addon': 'Add-on',
+        'hacs': 'HACS',
+        'integration': 'Integration'
+    }
+    
     def __init__(self, dependency_graph_builder, config_manager, port=8099):
         """
         Initialize the web server
@@ -102,13 +113,6 @@ class DependencyTreeWebServer:
         if domain in ['homeassistant', 'hassio', 'supervisor']:
             return 'core'
         
-        # Check for version field - custom integrations typically have explicit versions
-        # while built-in integrations often don't
-        if integration.get('version'):
-            # Has version but not in custom_components - could be a built-in with version
-            # or an integration from another source
-            return 'integration'
-        
         # Default to built-in integration
         return 'integration'
     
@@ -122,13 +126,7 @@ class DependencyTreeWebServer:
         Returns:
             str: Formatted label for display
         """
-        type_labels = {
-            'core': 'Core',
-            'addon': 'Add-on',
-            'hacs': 'HACS',
-            'integration': 'Integration'
-        }
-        return type_labels.get(component_type, 'Unknown')
+        return self.TYPE_LABELS.get(component_type, 'Unknown')
         
     async def _handle_index(self, request):
         """Serve the main HTML page"""
@@ -169,8 +167,7 @@ class DependencyTreeWebServer:
                     })
             
             # Sort by type (using sort order), then by name
-            type_order = {'core': 0, 'addon': 1, 'hacs': 2, 'integration': 3}
-            components.sort(key=lambda x: (type_order.get(x['type'], 999), x['name'].lower()))
+            components.sort(key=lambda x: (self.TYPE_SORT_ORDER.get(x['type'], 999), x['name'].lower()))
             
             return web.json_response({
                 'components': components,
@@ -718,9 +715,35 @@ class DependencyTreeWebServer:
         let currentMode = 'dependency';
         let components = [];
         
+        // Constants for component loading timeout
+        const COMPONENT_LOAD_TIMEOUT_MS = 5000;  // 5 seconds max wait
+        const COMPONENT_LOAD_INTERVAL_MS = 100;   // Check every 100ms
+        const MAX_COMPONENT_LOAD_ATTEMPTS = COMPONENT_LOAD_TIMEOUT_MS / COMPONENT_LOAD_INTERVAL_MS;
+        
         // NOTE: All API fetch() calls use relative URLs with './' prefix (e.g., './api/components')
         // This ensures the URLs resolve correctly both when accessed directly at the server root
         // and when accessed through Home Assistant's ingress proxy at /api/hassio_ingress/ha_sentry/
+        
+        /**
+         * Wait for components to load with timeout, then execute callback
+         * @param {function} callback - Function to call when components are loaded
+         * @param {function} errorCallback - Function to call on timeout or error
+         */
+        function waitForComponents(callback, errorCallback) {
+            let attempts = 0;
+            const checkComponents = setInterval(() => {
+                attempts++;
+                if (components.length > 0) {
+                    clearInterval(checkComponents);
+                    callback();
+                } else if (attempts >= MAX_COMPONENT_LOAD_ATTEMPTS) {
+                    clearInterval(checkComponents);
+                    if (errorCallback) {
+                        errorCallback();
+                    }
+                }
+            }, COMPONENT_LOAD_INTERVAL_MS);
+        }
         
         // Initialize
         document.addEventListener('DOMContentLoaded', () => {
@@ -753,12 +776,8 @@ class DependencyTreeWebServer:
                 }
                 
                 // Wait for components to load, then select and visualize
-                const maxAttempts = 50;  // 5 seconds max wait
-                let attempts = 0;
-                const checkComponents = setInterval(() => {
-                    attempts++;
-                    if (components.length > 0) {
-                        clearInterval(checkComponents);
+                waitForComponents(
+                    () => {
                         const select = document.getElementById('component-select');
                         select.value = value;
                         if (select.value === value) {  // Verify the option exists
@@ -768,11 +787,11 @@ class DependencyTreeWebServer:
                             console.warn(`Component '${value}' not found in component list`);
                             showError(`Component '${value}' not found. It may not be a tracked integration.`);
                         }
-                    } else if (attempts >= maxAttempts) {
-                        clearInterval(checkComponents);
+                    },
+                    () => {
                         showError('Timeout waiting for components to load');
                     }
-                }, 100);
+                );
             } else if (mode === 'impact' && value) {
                 // Set mode to impact
                 document.querySelectorAll('.mode-btn').forEach(b => b.classList.remove('active'));
@@ -803,22 +822,18 @@ class DependencyTreeWebServer:
                 }
                 
                 // Wait for components to load, then select and visualize
-                const maxAttempts = 50;  // 5 seconds max wait
-                let attempts = 0;
-                const checkComponents = setInterval(() => {
-                    attempts++;
-                    if (components.length > 0) {
-                        clearInterval(checkComponents);
+                waitForComponents(
+                    () => {
                         const select = document.getElementById('component-select');
                         select.value = value;
                         if (select.value === value) {  // Verify the option exists
                             visualize();
                         }
-                    } else if (attempts >= maxAttempts) {
-                        clearInterval(checkComponents);
+                    },
+                    () => {
                         showError('Timeout waiting for components to load');
                     }
-                }, 100);
+                );
             }
         }
         
