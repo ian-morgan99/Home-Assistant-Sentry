@@ -23,6 +23,144 @@ ports:
   8099/tcp: 8099
 ports_description:
   8099/tcp: Web interface
+  
+# ==================================================================================
+# CONFIGURATION PARAMETER GUIDE
+# ==================================================================================
+#
+# Below are detailed descriptions of each configuration parameter.
+# Adjust these settings based on your needs and setup.
+#
+# AI CONFIGURATION
+# ----------------
+# ai_enabled: Enable AI-powered analysis for updates
+#   - true: Use AI to analyze updates (requires ai_provider, ai_endpoint, ai_model)
+#   - false: Use advanced heuristic analysis without AI (still provides deep analysis)
+#   WHEN TO USE: Enable if you want the most comprehensive analysis. Disable if you
+#                don't have an AI service available or prefer local heuristic analysis.
+#
+# ai_provider: Which AI service to use
+#   - "openai": OpenAI cloud service (requires API key)
+#   - "ollama": Local Ollama instance (free, runs locally)
+#   - "lmstudio": Local LMStudio instance (free, runs locally)
+#   - "openwebui": OpenWebUI instance (local or remote)
+#   WHEN TO USE: Choose based on your setup. Use "ollama" or "lmstudio" for complete
+#                privacy and no cloud dependencies.
+#
+# ai_endpoint: URL where your AI service is accessible
+#   - For Ollama: "http://localhost:11434" (or your Ollama host)
+#   - For LMStudio: "http://localhost:1234" (or your LMStudio host)
+#   - For OpenAI: "https://api.openai.com/v1"
+#   - For OpenWebUI: "http://your-openwebui-host:8080"
+#   WHEN TO USE: Change from default if your AI service runs on a different host/port.
+#
+# ai_model: Which AI model to use
+#   - For Ollama: "llama2", "mistral", "codellama", etc.
+#   - For LMStudio: Whatever model you've loaded
+#   - For OpenAI: "gpt-3.5-turbo", "gpt-4", etc.
+#   WHEN TO USE: Choose a model that's available in your AI service.
+#
+# api_key: API key for authentication (if required)
+#   - Required for OpenAI
+#   - Not required for Ollama or LMStudio
+#   - May be required for OpenWebUI depending on your setup
+#   WHEN TO USE: Only when your AI provider requires authentication.
+#
+# SCHEDULING CONFIGURATION
+# ------------------------
+# check_schedule: Time of day to run the daily check
+#   - Format: "HH:MM" in 24-hour time (e.g., "02:00" for 2 AM, "14:30" for 2:30 PM)
+#   - Default: "02:00" (2 AM)
+#   WHEN TO USE: Set to a time when your system is typically idle and you want the
+#                check to run. Early morning is recommended to have results ready
+#                when you check in the morning.
+#
+# UPDATE MONITORING CONFIGURATION
+# --------------------------------
+# check_all_updates: Monitor all update types (Core, Supervisor, OS, Add-ons, Integrations)
+#   - true: Check all system updates (RECOMMENDED - most comprehensive)
+#   - false: Use legacy mode with check_addons and check_hacs settings
+#   WHEN TO USE: Keep true for complete update monitoring. Set false only if you want
+#                granular control using check_addons and check_hacs.
+#
+# check_addons: Monitor add-on updates (legacy parameter)
+#   - true: Check add-on updates
+#   - false: Skip add-on updates
+#   WHEN TO USE: Only used when check_all_updates is false. Keep true unless you
+#                specifically want to monitor only HACS integrations.
+#
+# check_hacs: Monitor HACS integration updates (legacy parameter)
+#   - true: Check HACS integration updates
+#   - false: Skip HACS updates
+#   WHEN TO USE: Only used when check_all_updates is false. Keep true unless you
+#                specifically want to monitor only add-ons.
+#
+# DASHBOARD CONFIGURATION
+# -----------------------
+# create_dashboard_entities: Create sensor entities in Home Assistant
+#   - true: Creates 6 sensor entities you can add to dashboards (RECOMMENDED)
+#   - false: No sensor entities created (you'll only get notifications)
+#   WHEN TO USE: Enable if you want to see update status in dashboards. Disable if
+#                you only want notifications and don't need dashboard integration.
+#
+# auto_create_dashboard: Automatically create a Lovelace dashboard
+#   - true: Attempts to create a pre-configured dashboard (has API limitations)
+#   - false: You manually add sensors to your dashboard (RECOMMENDED)
+#   WHEN TO USE: Keep false (recommended). The auto-creation has API permission
+#                limitations. Manually adding sensors to your dashboard is more reliable.
+#
+# ANALYSIS CONFIGURATION
+# ----------------------
+# safety_threshold: Confidence threshold for marking updates as safe
+#   - Range: 0.0 to 1.0
+#   - 0.9-1.0: Very conservative (only approve very confident analyses)
+#   - 0.7: Balanced (recommended for most users)
+#   - 0.5-0.6: Aggressive (accept more uncertain analyses)
+#   WHEN TO USE: Lower if you're comfortable with some uncertainty. Raise if you want
+#                to be very cautious and only approve highly confident analyses.
+#
+# DEPENDENCY ANALYSIS CONFIGURATION
+# ----------------------------------
+# enable_dependency_graph: Build and analyze dependency relationships
+#   - true: Parse integration manifests and build dependency graph (RECOMMENDED)
+#   - false: Skip dependency graph analysis
+#   WHEN TO USE: Enable for enhanced analysis of shared dependencies and conflicts.
+#                Disable if you have issues with integration path scanning or don't
+#                need dependency conflict detection.
+#
+# custom_integration_paths: Custom paths to scan for integrations
+#   - Default: [] (uses built-in default paths)
+#   - Example: ["/config/custom_components", "/share/integrations"]
+#   WHEN TO USE: Only if default paths don't work in your environment. The add-on
+#                will suggest paths in the logs if defaults fail.
+#
+# WEB UI CONFIGURATION
+# --------------------
+# enable_web_ui: Enable web-based dependency visualization interface
+#   - true: Start web server for dependency tree visualization (RECOMMENDED)
+#   - false: Disable web UI
+#   WHEN TO USE: Enable to access the interactive dependency visualization via the
+#                Sentry sidebar panel. Requires enable_dependency_graph to be true.
+#
+# REPORTING CONFIGURATION
+# -----------------------
+# save_reports: Save machine-readable JSON reports to disk
+#   - true: Save detailed reports to /data/reports/ (RECOMMENDED)
+#   - false: Don't save reports
+#   WHEN TO USE: Enable for debugging, external analysis, or keeping historical records.
+#                Reports include full analysis details in JSON format.
+#
+# LOGGING CONFIGURATION
+# ---------------------
+# log_level: Logging verbosity
+#   - "minimal": Only errors (production use with minimal logging)
+#   - "standard": Info and errors (RECOMMENDED for normal use)
+#   - "maximal": Debug, info, and errors (troubleshooting and development)
+#   WHEN TO USE: Use "standard" normally. Use "maximal" when troubleshooting issues.
+#                Use "minimal" if you want the quietest operation.
+#
+# ==================================================================================
+
 options:
   ai_enabled: true
   ai_provider: "openai"
