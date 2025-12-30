@@ -161,8 +161,10 @@ class SentryService:
             except Exception as e:
                 logger.error(f"Error creating dashboard: {e}", exc_info=True)
         
-        # Run initial check
-        await self.run_update_check()
+        # Run initial check as a background task to avoid blocking the web server
+        # This allows the web UI to be responsive even if the AI provider is slow/unavailable
+        logger.info("Scheduling initial update check as background task...")
+        asyncio.create_task(self._run_initial_check())
         
         # Start scheduled checks
         await self._schedule_checks()
@@ -238,6 +240,16 @@ If sensors don't appear, check the add-on logs for authentication errors. The ad
                 logger.info("Sent startup notification to guide users")
         except Exception as e:
             logger.error(f"Error sending startup notification: {e}", exc_info=True)
+    
+    async def _run_initial_check(self):
+        """Run the initial update check as a background task"""
+        try:
+            logger.info("Running initial update check...")
+            await self.run_update_check()
+            logger.info("Initial update check completed")
+        except Exception as e:
+            logger.error(f"Error in initial update check: {e}", exc_info=True)
+            logger.info("Initial check failed, but service will continue with scheduled checks")
     
     async def _schedule_checks(self):
         """Schedule periodic update checks"""
