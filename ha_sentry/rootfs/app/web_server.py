@@ -110,7 +110,11 @@ class DependencyTreeWebServer:
             logger.error(f"Unhandled exception in request handler: {e}", exc_info=True)
             logger.error(f"  Request path: {request.path}")
             logger.error(f"  Request method: {request.method}")
-            logger.error(f"  Request URL: {request.url}")
+            try:
+                logger.error(f"  Request URL: {request.url}")
+            except Exception:
+                # URL might not be available in test environments
+                pass
             
             # Return JSON error for API endpoints
             if request.path.startswith('/api/'):
