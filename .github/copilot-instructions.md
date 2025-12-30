@@ -224,6 +224,60 @@ pip install -r ha_sentry/requirements.txt
 2. Edit `_get_system_prompt()` to guide AI analysis
 3. Test with various update scenarios
 
+## Version Management
+
+### Version Numbers
+
+Version numbers MUST be updated in **both** configuration files when making a release:
+- `ha_sentry/config.json` - Update the `"version"` field
+- `ha_sentry/config.yaml` - Update the `version:` field
+
+**Important**: Both files must have matching version numbers.
+
+### Semantic Versioning
+
+Follow semantic versioning (MAJOR.MINOR.PATCH):
+- **Patch increment (0.0.1)**: Bug fixes and minor changes (e.g., 1.2.0 → 1.2.1)
+- **Minor increment (0.1.0)**: New features or larger changes (e.g., 1.2.0 → 1.3.0)
+- **Major increment (1.0.0)**: Breaking changes (e.g., 1.2.0 → 2.0.0)
+
+### Automated Version Updates
+
+Versions are automatically updated via GitHub Actions when a release is created. The workflow:
+1. Validates the version is properly incremented
+2. Updates both config.json and config.yaml
+3. Commits changes to the main branch
+
+### Changelog Format
+
+The CHANGELOG.md follows Home Assistant Add-on standards:
+
+**Format Requirements:**
+- Version heading: `## X.Y.Z - YYYY-MM-DD` (without brackets)
+- Use `TBD` for unreleased versions: `## 1.2.0 - TBD`
+- List changes as bullet points with `-`
+- Newest version at the top
+- Keep entries clear and concise
+
+**Example:**
+```markdown
+## 1.2.0 - 2024-12-30
+- Added new feature X
+- Fixed bug in Y component
+- Improved performance of Z operation
+
+## 1.1.0 - 2024-12-15
+- Added support for Home Assistant 2024.12
+```
+
+**Why This Matters:**
+Home Assistant's add-on manager displays the changelog to users. Following the standard format ensures:
+- Users can clearly see what changed in each version
+- The reason for each change is evident from within Home Assistant
+- Version history is properly displayed in the add-on manager
+
+When making changes, always update CHANGELOG.md with clear, user-friendly descriptions.
+
 ## Documentation
 
 Key documentation files:
