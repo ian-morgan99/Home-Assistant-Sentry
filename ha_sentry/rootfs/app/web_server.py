@@ -14,6 +14,22 @@ logger = logging.getLogger(__name__)
 class DependencyTreeWebServer:
     """Web server for dependency tree visualization"""
     
+    # Core Home Assistant domains
+    CORE_DOMAINS = {'homeassistant', 'hassio', 'supervisor'}
+    
+    # Type order for sorting (lower number = higher priority)
+    # Note: 'addon' is reserved for future use when add-on data is included
+    TYPE_SORT_ORDER = {'core': 0, 'addon': 1, 'hacs': 2, 'integration': 3}
+    UNKNOWN_TYPE_SORT_ORDER = 999  # Fallback for unknown types
+    
+    # Type labels for display
+    TYPE_LABELS = {
+        'core': 'Core',
+        'addon': 'Add-on',  # Reserved for future use
+        'hacs': 'HACS Integration',
+        'integration': 'Integration'
+    }
+    
     def __init__(self, dependency_graph_builder, config_manager, port=8099):
         """
         Initialize the web server
@@ -79,9 +95,52 @@ class DependencyTreeWebServer:
         self.app.router.add_get('/api/where-used/{component}', self._handle_where_used)
         self.app.router.add_get('/api/change-impact', self._handle_change_impact)
         self.app.router.add_get('/api/graph-data', self._handle_graph_data)
+    
+    def _determine_component_type(self, domain: str, integration: Dict) -> str:
+        """
+        Determine the type of a component based on its domain and manifest
+        
+        Args:
+            domain: Integration domain
+            integration: Integration manifest data
+        
+        Returns:
+            str: Component type ('core', 'hacs', 'integration').
+                Note: 'addon' is reserved for future use and is not currently returned.
+        """
+        # Check manifest path to determine if it's a custom component (HACS)
+        manifest_path = integration.get('manifest_path', '')
+        
+        # HACS integrations are installed in custom_components
+        if 'custom_components' in manifest_path:
+            return 'hacs'
+        
+        # Check if it's a core Home Assistant component
+        if domain in self.CORE_DOMAINS:
+            return 'core'
+        
+        # Default to built-in integration
+        return 'integration'
+    
+    def _get_type_label(self, component_type: str) -> str:
+        """
+        Get a user-friendly label for a component type
+        
+        Args:
+            component_type: The component type code
+        
+        Returns:
+            str: Formatted label for display
+        """
+        return self.TYPE_LABELS.get(component_type, 'Unknown')
         
     async def _handle_index(self, request):
         """Serve the main HTML page"""
+        # Log access for debugging
+        logger.debug(f"Web UI accessed from: {request.remote}")
+        logger.debug(f"Request path: {request.path}")
+        logger.debug(f"Request URL: {request.url}")
+        
         html = self._generate_html()
         return web.Response(text=html, content_type='text/html')
         
@@ -101,15 +160,20 @@ class DependencyTreeWebServer:
             components = []
             for domain, integration in self.dependency_graph_builder.integrations.items():
                 if 'error' not in integration:
+                    # Determine component type based on domain and manifest
+                    component_type = self._determine_component_type(domain, integration)
+                    
                     components.append({
                         'domain': domain,
                         'name': integration.get('name', domain),
                         'version': integration.get('version'),
-                        'dependency_count': len(integration.get('requirements', []))
+                        'dependency_count': len(integration.get('requirements', [])),
+                        'type': component_type,
+                        'type_label': self._get_type_label(component_type)
                     })
             
-            # Sort by name
-            components.sort(key=lambda x: x['name'])
+            # Sort by type (using sort order), then by name
+            components.sort(key=lambda x: (self.TYPE_SORT_ORDER.get(x['type'], self.UNKNOWN_TYPE_SORT_ORDER), x['name'].lower()))
             
             return web.json_response({
                 'components': components,
@@ -656,10 +720,56 @@ class DependencyTreeWebServer:
     <script>
         let currentMode = 'dependency';
         let components = [];
+        let componentLoadIntervalId = null;  // Track interval to prevent memory leaks
+        
+        // Constants for component loading timeout
+        const COMPONENT_LOAD_TIMEOUT_MS = 5000;  // 5 seconds max wait
+        const COMPONENT_LOAD_INTERVAL_MS = 100;   // Check every 100ms
+        const MAX_COMPONENT_LOAD_ATTEMPTS = Math.floor(COMPONENT_LOAD_TIMEOUT_MS / COMPONENT_LOAD_INTERVAL_MS);
         
         // NOTE: All API fetch() calls use relative URLs with './' prefix (e.g., './api/components')
         // This ensures the URLs resolve correctly both when accessed directly at the server root
         // and when accessed through Home Assistant's ingress proxy at /api/hassio_ingress/ha_sentry/
+        
+        /**
+         * Escape HTML entities to prevent XSS attacks
+         * @param {string} text - Text to escape
+         * @returns {string} - HTML-safe text
+         */
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+        
+        /**
+         * Wait for components to load with timeout, then execute callback
+         * @param {function} callback - Function to call when components are loaded
+         * @param {function} errorCallback - Function to call on timeout or error
+         */
+        function waitForComponents(callback, errorCallback) {
+            // Clear any existing interval to prevent memory leaks
+            if (componentLoadIntervalId !== null) {
+                clearInterval(componentLoadIntervalId);
+                componentLoadIntervalId = null;
+            }
+            
+            let attempts = 0;
+            componentLoadIntervalId = setInterval(() => {
+                attempts++;
+                if (components.length > 0) {
+                    clearInterval(componentLoadIntervalId);
+                    componentLoadIntervalId = null;
+                    callback();
+                } else if (attempts >= MAX_COMPONENT_LOAD_ATTEMPTS) {
+                    clearInterval(componentLoadIntervalId);
+                    componentLoadIntervalId = null;
+                    if (errorCallback) {
+                        errorCallback();
+                    }
+                }
+            }, COMPONENT_LOAD_INTERVAL_MS);
+        }
         
         // Initialize
         document.addEventListener('DOMContentLoaded', () => {
@@ -667,6 +777,12 @@ class DependencyTreeWebServer:
             loadStats();
             setupModeButtons();
             handleUrlFragment();  // Handle URL fragment for deep linking
+            
+            // Log current URL for debugging
+            console.log('Web UI loaded');
+            console.log('  URL:', window.location.href);
+            console.log('  Path:', window.location.pathname);
+            console.log('  Hash:', window.location.hash);
         });
         
         function handleUrlFragment() {
@@ -679,25 +795,39 @@ class DependencyTreeWebServer:
             if (mode === 'whereused' && value) {
                 // Set mode to where-used
                 document.querySelectorAll('.mode-btn').forEach(b => b.classList.remove('active'));
-                document.querySelector('.mode-btn[data-mode="whereused"]').classList.add('active');
-                currentMode = 'whereused';
+                const whereUsedBtn = document.querySelector('.mode-btn[data-mode="whereused"]');
+                if (whereUsedBtn) {
+                    whereUsedBtn.classList.add('active');
+                    currentMode = 'whereused';
+                }
                 
                 // Wait for components to load, then select and visualize
-                const checkComponents = setInterval(() => {
-                    if (components.length > 0) {
-                        clearInterval(checkComponents);
+                waitForComponents(
+                    () => {
                         const select = document.getElementById('component-select');
                         select.value = value;
                         if (select.value === value) {  // Verify the option exists
                             visualize();
+                        } else {
+                            // Component not found in list, show error
+                            // Escape component name to prevent XSS
+                            const escapedValue = escapeHtml(value);
+                            console.warn(`Component '${escapedValue}' not found in component list`);
+                            showError(`Component '${escapedValue}' not found. It may not be a tracked integration.`);
                         }
+                    },
+                    () => {
+                        showError('Timeout waiting for components to load');
                     }
-                }, 100);
+                );
             } else if (mode === 'impact' && value) {
                 // Set mode to impact
                 document.querySelectorAll('.mode-btn').forEach(b => b.classList.remove('active'));
-                document.querySelector('.mode-btn[data-mode="impact"]').classList.add('active');
-                currentMode = 'impact';
+                const impactBtn = document.querySelector('.mode-btn[data-mode="impact"]');
+                if (impactBtn) {
+                    impactBtn.classList.add('active');
+                    currentMode = 'impact';
+                }
                 
                 // Show impact input
                 const impactInput = document.getElementById('impact-input-group');
@@ -708,8 +838,41 @@ class DependencyTreeWebServer:
                 // Set the components value
                 document.getElementById('impact-components').value = value;
                 
-                // Wait a bit then trigger visualization
-                setTimeout(() => visualize(), 500);
+                // Wait for components to load, then trigger visualization
+                waitForComponents(
+                    () => {
+                        visualize();
+                    },
+                    () => {
+                        showError('Timeout waiting for components to load');
+                    }
+                );
+            } else if (mode === 'dependency' && value) {
+                // Set mode to dependency (default mode)
+                document.querySelectorAll('.mode-btn').forEach(b => b.classList.remove('active'));
+                const dependencyBtn = document.querySelector('.mode-btn[data-mode="dependency"]');
+                if (dependencyBtn) {
+                    dependencyBtn.classList.add('active');
+                    currentMode = 'dependency';
+                }
+                
+                // Wait for components to load, then select and visualize
+                waitForComponents(
+                    () => {
+                        const select = document.getElementById('component-select');
+                        select.value = value;
+                        if (select.value === value) {  // Verify the option exists
+                            visualize();
+                        } else {
+                            // Component not found in list, show error
+                            const escapedValue = escapeHtml(value);
+                            showError(`Component '${escapedValue}' not found. It may not be a tracked integration.`);
+                        }
+                    },
+                    () => {
+                        showError('Timeout waiting for components to load');
+                    }
+                );
             }
         }
         
@@ -766,16 +929,34 @@ class DependencyTreeWebServer:
                 
                 components = data.components;
                 const select = document.getElementById('component-select');
+                
+                if (components.length === 0) {
+                    // No components found - show helpful message
+                    select.innerHTML = '<option value="">No integrations found</option>';
+                    showError('No integrations found in the dependency graph.\\n\\n' +
+                             'This could mean:\\n' +
+                             '1. No integrations are installed (unlikely)\\n' +
+                             '2. Integration paths are not accessible\\n' +
+                             '3. The dependency graph failed to build\\n\\n' +
+                             'Check the add-on logs for more details.');
+                    return;
+                }
+                
                 select.innerHTML = '<option value="">-- Select a component --</option>';
                 
                 components.forEach(comp => {
                     const option = document.createElement('option');
                     option.value = comp.domain;
-                    option.textContent = `${comp.name} (${comp.dependency_count} deps)`;
+                    // Show type label and name, with dependency count
+                    option.textContent = `[${comp.type_label}] ${comp.name} (${comp.dependency_count} deps)`;
                     select.appendChild(option);
                 });
+                
+                // Log success for debugging
+                console.log(`Loaded ${components.length} components successfully`);
             } catch (error) {
                 showError('Failed to load components: ' + error.message);
+                console.error('Component loading error:', error);
             }
         }
         
@@ -1009,7 +1190,10 @@ class DependencyTreeWebServer:
         
         function showError(message) {
             const viz = document.getElementById('visualization');
-            viz.innerHTML = `<div class="error">❌ Error: ${message}</div>`;
+            // Escape HTML to prevent XSS, then convert newlines to <br> tags
+            const escapedMessage = escapeHtml(message);
+            const htmlMessage = escapedMessage.replace(/\n/g, '<br>');
+            viz.innerHTML = `<div class="error">❌ Error: ${htmlMessage}</div>`;
         }
         
         function showConfigError(data) {
