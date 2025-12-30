@@ -14,8 +14,12 @@ logger = logging.getLogger(__name__)
 class DependencyTreeWebServer:
     """Web server for dependency tree visualization"""
     
+    # Core Home Assistant domains
+    CORE_DOMAINS = {'homeassistant', 'hassio', 'supervisor'}
+    
     # Type order for sorting (lower number = higher priority)
     TYPE_SORT_ORDER = {'core': 0, 'addon': 1, 'hacs': 2, 'integration': 3}
+    UNKNOWN_TYPE_SORT_ORDER = 999  # Fallback for unknown types
     
     # Type labels for display
     TYPE_LABELS = {
@@ -110,7 +114,7 @@ class DependencyTreeWebServer:
             return 'hacs'
         
         # Check if it's a core Home Assistant component
-        if domain in ['homeassistant', 'hassio', 'supervisor']:
+        if domain in self.CORE_DOMAINS:
             return 'core'
         
         # Default to built-in integration
@@ -167,7 +171,7 @@ class DependencyTreeWebServer:
                     })
             
             # Sort by type (using sort order), then by name
-            components.sort(key=lambda x: (self.TYPE_SORT_ORDER.get(x['type'], 999), x['name'].lower()))
+            components.sort(key=lambda x: (self.TYPE_SORT_ORDER.get(x['type'], self.UNKNOWN_TYPE_SORT_ORDER), x['name'].lower()))
             
             return web.json_response({
                 'components': components,
@@ -718,7 +722,7 @@ class DependencyTreeWebServer:
         // Constants for component loading timeout
         const COMPONENT_LOAD_TIMEOUT_MS = 5000;  // 5 seconds max wait
         const COMPONENT_LOAD_INTERVAL_MS = 100;   // Check every 100ms
-        const MAX_COMPONENT_LOAD_ATTEMPTS = COMPONENT_LOAD_TIMEOUT_MS / COMPONENT_LOAD_INTERVAL_MS;
+        const MAX_COMPONENT_LOAD_ATTEMPTS = Math.floor(COMPONENT_LOAD_TIMEOUT_MS / COMPONENT_LOAD_INTERVAL_MS);
         
         // NOTE: All API fetch() calls use relative URLs with './' prefix (e.g., './api/components')
         // This ensures the URLs resolve correctly both when accessed directly at the server root
