@@ -42,80 +42,108 @@ class SentryService:
         self.dependency_graph = None
         self.dependency_graph_builder = None
         self.web_server = None
+        self._graph_build_task = None
         
-        # Build dependency graph on initialization if enabled
-        if config.enable_dependency_graph:
-            logger.info("=" * 60)
-            logger.info("DEPENDENCY GRAPH INITIALIZATION")
-            logger.info("=" * 60)
-            logger.info("Building dependency graph from installed integrations...")
-            try:
-                graph_builder = DependencyGraphBuilder()
-                
-                # Use custom paths if provided, otherwise use defaults
-                integration_paths = None
-                if hasattr(config, 'custom_integration_paths') and config.custom_integration_paths:
-                    logger.info(f"Using custom integration paths: {config.custom_integration_paths}")
-                    integration_paths = config.custom_integration_paths
-                else:
-                    logger.info("Using default integration paths")
-                
-                graph_data = graph_builder.build_graph_from_paths(integration_paths)
-                self.dependency_graph = graph_data
-                self.dependency_graph_builder = graph_builder
-                
-                stats = graph_data.get('machine_readable', {}).get('statistics', {})
-                logger.info(f"✅ Dependency graph built successfully")
-                logger.info(f"   Total integrations: {stats.get('total_integrations', 0)}")
-                logger.info(f"   Total dependencies: {stats.get('total_dependencies', 0)}")
-                if stats.get('high_risk_dependencies', 0) > 0:
-                    logger.info(f"   High-risk dependencies: {stats.get('high_risk_dependencies', 0)}")
-                logger.info("=" * 60)
-            except Exception as e:
-                logger.error("=" * 60)
-                logger.error("DEPENDENCY GRAPH BUILD FAILED")
-                logger.error("=" * 60)
-                logger.error(f"Failed to build dependency graph: {e}", exc_info=True)
-                logger.error("")
-                logger.error("This means:")
-                logger.error("  - The web UI will not be available (503 errors)")
-                logger.error("  - Dependency analysis features will be limited")
-                logger.error("")
-                logger.error("Common causes:")
-                logger.error("  1. Integration manifest files are corrupted or missing")
-                logger.error("  2. File system permissions issues")
-                logger.error("  3. Invalid custom integration paths in configuration")
-                logger.error("")
-                logger.error("To resolve:")
-                logger.error("  1. Check add-on logs for detailed error information")
-                logger.error("  2. Verify Home Assistant integrations are properly installed")
-                logger.error("  3. Try disabling custom_integration_paths if configured")
-                logger.error("  4. If issue persists, disable dependency graph:")
-                logger.error("     Set 'enable_dependency_graph: false' in configuration")
-                logger.error("=" * 60)
-                logger.info("Continuing without dependency graph analysis")
-        else:
+        # Note: Dependency graph will be built asynchronously after service starts
+        # This ensures the web server starts quickly without blocking
+        if not config.enable_dependency_graph:
             logger.info("Dependency graph building is disabled in configuration")
             logger.info("  enable_dependency_graph: false")
             logger.info("  Note: Web UI will not be available without dependency graph")
         
-        # Initialize AI client with dependency graph
+        # Initialize AI client with dependency graph (will be None initially)
         self.ai_client = AIClient(config, dependency_graph=self.dependency_graph)
         
         logger.info("Sentry Service initialized")
+    
+    async def _build_dependency_graph_async(self):
+        """Build dependency graph asynchronously in background"""
+        try:
+            logger.info("=" * 60)
+            logger.info("DEPENDENCY GRAPH INITIALIZATION (Background)")
+            logger.info("=" * 60)
+            logger.info("Building dependency graph from installed integrations...")
+            
+            graph_builder = DependencyGraphBuilder()
+            
+            # Use custom paths if provided, otherwise use defaults
+            integration_paths = None
+            if hasattr(self.config, 'custom_integration_paths') and self.config.custom_integration_paths:
+                logger.info(f"Using custom integration paths: {self.config.custom_integration_paths}")
+                integration_paths = self.config.custom_integration_paths
+            else:
+                logger.info("Using default integration paths")
+            
+            # Build the graph (runs in executor to avoid blocking)
+            graph_data = await asyncio.get_event_loop().run_in_executor(
+                None, graph_builder.build_graph_from_paths, integration_paths
+            )
+            
+            self.dependency_graph = graph_data
+            self.dependency_graph_builder = graph_builder
+            
+            # Update AI client with new graph
+            self.ai_client.dependency_graph = graph_data
+            
+            stats = graph_data.get('machine_readable', {}).get('statistics', {})
+            logger.info(f"✅ Dependency graph built successfully")
+            logger.info(f"   Total integrations: {stats.get('total_integrations', 0)}")
+            logger.info(f"   Total dependencies: {stats.get('total_dependencies', 0)}")
+            if stats.get('high_risk_dependencies', 0) > 0:
+                logger.info(f"   High-risk dependencies: {stats.get('high_risk_dependencies', 0)}")
+            logger.info("=" * 60)
+            
+        except Exception as e:
+            logger.error("=" * 60)
+            logger.error("DEPENDENCY GRAPH BUILD FAILED")
+            logger.error("=" * 60)
+            logger.error(f"Failed to build dependency graph: {e}", exc_info=True)
+            logger.error("")
+            logger.error("This means:")
+            logger.error("  - The web UI will show 'loading components...' indefinitely")
+            logger.error("  - Dependency analysis features will be limited")
+            logger.error("")
+            logger.error("Common causes:")
+            logger.error("  1. Integration manifest files are corrupted or missing")
+            logger.error("  2. File system permissions issues")
+            logger.error("  3. Invalid custom integration paths in configuration")
+            logger.error("")
+            logger.error("To resolve:")
+            logger.error("  1. Check add-on logs for detailed error information")
+            logger.error("  2. Verify Home Assistant integrations are properly installed")
+            logger.error("  3. Try disabling custom_integration_paths if configured")
+            logger.error("  4. If issue persists, disable dependency graph:")
+            logger.error("     Set 'enable_dependency_graph: false' in configuration")
+            logger.error("=" * 60)
+            logger.info("Continuing without dependency graph analysis")
+    
+    async def rebuild_dependency_graph(self):
+        """Rebuild the dependency graph (e.g., after new component installation)"""
+        logger.info("Rebuilding dependency graph...")
+        await self._build_dependency_graph_async()
     
     async def start(self):
         """Start the service"""
         self.running = True
         logger.info(f"Starting service with schedule: {self.config.check_schedule}")
         
+        # Start dependency graph building in background if enabled
+        if self.config.enable_dependency_graph:
+            logger.info("Starting dependency graph build in background...")
+            self._graph_build_task = asyncio.create_task(self._build_dependency_graph_async())
+        
         # Start web server for dependency visualization if enabled
-        if self.config.enable_web_ui and self.dependency_graph_builder:
+        # Note: Web server will start immediately, even before graph is built
+        # The /api/components endpoint will return empty list until graph is ready
+        if self.config.enable_web_ui:
             try:
                 logger.info("Starting web server for dependency visualization...")
                 logger.info(f"  Web UI port: {self.WEB_UI_PORT}")
-                logger.info(f"  Dependency graph available: Yes")
-                logger.info(f"  Total integrations loaded: {len(self.dependency_graph_builder.integrations)}")
+                logger.info(f"  Dependency graph: Building in background...")
+                # Create a placeholder graph builder that the web server can reference
+                # It will be populated once the async build completes
+                if not self.dependency_graph_builder:
+                    self.dependency_graph_builder = DependencyGraphBuilder()
                 self.web_server = DependencyTreeWebServer(
                     self.dependency_graph_builder,
                     self.config,
@@ -130,21 +158,6 @@ class SentryService:
                 logger.info("  2. Verify 'enable_dependency_graph' is true in configuration")
                 logger.info("  3. Check add-on logs for dependency graph building errors")
                 logger.info("Continuing without web UI")
-        elif self.config.enable_web_ui and not self.dependency_graph_builder:
-            logger.error("Web UI is enabled but dependency graph is not available")
-            logger.error("Web UI requires the dependency graph to function")
-            logger.error("Configuration mismatch detected:")
-            logger.error(f"  enable_web_ui: {self.config.enable_web_ui}")
-            logger.error(f"  enable_dependency_graph: {self.config.enable_dependency_graph}")
-            logger.error(f"  dependency_graph_builder: {self.dependency_graph_builder is not None}")
-            logger.error("")
-            logger.error("To fix this issue:")
-            logger.error("  1. Go to Settings → Add-ons → Home Assistant Sentry → Configuration")
-            logger.error("  2. Enable 'enable_dependency_graph: true'")
-            logger.error("  3. Restart the add-on")
-            logger.error("")
-            logger.error("If you don't need the web UI, you can disable it:")
-            logger.error("  Set 'enable_web_ui: false' in configuration")
         elif not self.config.enable_web_ui:
             logger.info("Web UI disabled in configuration (enable_web_ui: false)")
         
