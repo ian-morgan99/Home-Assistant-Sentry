@@ -110,13 +110,17 @@ class DependencyAnalyzer:
         # Determine if safe to update
         safe = critical_count == 0 and high_count == 0
         
-        # Generate summary
-        summary = self._generate_summary(total_updates, issues, safe)
+        # Generate summary with detailed component information
+        summary = self._generate_summary(
+            total_updates, issues, safe, addon_updates, hacs_updates
+        )
         
-        # Add general recommendations if none exist
+        # Add detailed recommendations based on what was analyzed
         if not recommendations:
-            recommendations.append('No specific concerns detected. Updates appear safe to install.')
-            recommendations.append('Always backup your system before major updates.')
+            # Provide informative recommendations about what was checked
+            recommendations.extend(self._generate_detailed_recommendations(
+                addon_updates, hacs_updates, safe
+            ))
         
         return {
             'safe': safe,
@@ -445,20 +449,153 @@ class DependencyAnalyzer:
         # Cap between 0.5 and 0.75 (never as confident as AI)
         return max(0.5, min(0.75, base_confidence))
     
-    def _generate_summary(self, total_updates: int, issues: List[Dict], safe: bool) -> str:
-        """Generate analysis summary"""
+    def _generate_summary(self, total_updates: int, issues: List[Dict], safe: bool,
+                         addon_updates: List[Dict], hacs_updates: List[Dict]) -> str:
+        """Generate detailed analysis summary with component information"""
         critical = len([i for i in issues if i['severity'] == 'critical'])
         high = len([i for i in issues if i['severity'] == 'high'])
         medium = len([i for i in issues if i['severity'] == 'medium'])
         
-        summary = f"Deep analysis: {total_updates} updates available. "
+        # Start with basic summary
+        summary_parts = []
+        summary_parts.append(f"Analyzed {total_updates} updates")
         
+        # Add component breakdown
+        if addon_updates or hacs_updates:
+            components = []
+            if addon_updates:
+                components.append(f"{len(addon_updates)} add-on/system")
+            if hacs_updates:
+                components.append(f"{len(hacs_updates)} integration/HACS")
+            summary_parts.append(f"({', '.join(components)})")
+        
+        # Add dependency graph context if available
+        if self.dependency_graph:
+            stats = self.dependency_graph.get('machine_readable', {}).get('statistics', {})
+            total_integrations = stats.get('total_integrations', 0)
+            
+            # Count shared dependencies affected by updates
+            shared_deps_analyzed = self._count_shared_dependencies_in_updates(
+                addon_updates, hacs_updates
+            )
+            
+            if shared_deps_analyzed > 0:
+                summary_parts.append(
+                    f"Found {shared_deps_analyzed} shared dependencies across {total_integrations} integrations"
+                )
+        
+        summary = " - ".join(summary_parts) + ". "
+        
+        # Add safety verdict
         if safe:
             if medium > 0:
-                summary += f"Safe to proceed with caution. {medium} medium-priority items to review."
+                summary += f"Safe to proceed with caution ({medium} medium-priority items to review)."
             else:
-                summary += "Safe to proceed."
+                summary += "No concerns detected - safe to proceed."
         else:
             summary += f"Review required: {critical} critical, {high} high-priority issues detected."
         
         return summary
+    
+    def _count_shared_dependencies_in_updates(self, addon_updates: List[Dict], 
+                                             hacs_updates: List[Dict]) -> int:
+        """
+        Count how many shared dependencies are affected by the updates
+        
+        Returns:
+            Number of dependencies that are shared among multiple integrations
+        """
+        if not self.dependency_graph:
+            return 0
+        
+        dependency_map = self.dependency_graph.get('dependency_map', {})
+        integrations = self.dependency_graph.get('integrations', {})
+        
+        # Get list of components being updated
+        updating_components = set()
+        for update in addon_updates + hacs_updates:
+            slug = update.get('slug', '').lower()
+            name = update.get('name', '').lower()
+            if slug:
+                updating_components.add(slug)
+            if name:
+                updating_components.add(name)
+        
+        # Count shared dependencies from updating components
+        shared_count = 0
+        checked_packages = set()
+        
+        for domain, integration_data in integrations.items():
+            if domain.lower() in updating_components:
+                requirements = integration_data.get('requirements', [])
+                for req in requirements:
+                    pkg = req.get('package')
+                    if pkg and pkg not in checked_packages:
+                        checked_packages.add(pkg)
+                        # Check if this package is used by other integrations
+                        users = dependency_map.get(pkg, [])
+                        if len(users) > 1:
+                            shared_count += 1
+        
+        return shared_count
+    
+    def _generate_detailed_recommendations(self, addon_updates: List[Dict], 
+                                          hacs_updates: List[Dict], safe: bool) -> List[str]:
+        """
+        Generate detailed recommendations based on the updates being analyzed
+        
+        Returns:
+            List of informative recommendations
+        """
+        recommendations = []
+        
+        # List the components being updated
+        if addon_updates:
+            addon_names = [u.get('name', 'Unknown') for u in addon_updates[:5]]
+            if len(addon_updates) > 5:
+                addon_names.append(f"and {len(addon_updates) - 5} more")
+            recommendations.append(
+                f"Add-ons/System updates: {', '.join(addon_names)}"
+            )
+        
+        if hacs_updates:
+            hacs_names = [u.get('name', 'Unknown') for u in hacs_updates[:5]]
+            if len(hacs_updates) > 5:
+                hacs_names.append(f"and {len(hacs_updates) - 5} more")
+            recommendations.append(
+                f"HACS/Integration updates: {', '.join(hacs_names)}"
+            )
+        
+        # Add dependency analysis info if available
+        if self.dependency_graph:
+            stats = self.dependency_graph.get('machine_readable', {}).get('statistics', {})
+            dependency_map = self.dependency_graph.get('dependency_map', {})
+            
+            # Count high-risk shared dependencies
+            high_risk_shared = sum(
+                1 for pkg, users in dependency_map.items()
+                if pkg in self.HIGH_RISK_LIBRARIES and len(users) > 1
+            )
+            
+            if high_risk_shared > 0:
+                recommendations.append(
+                    f"Monitoring {high_risk_shared} high-risk shared dependencies "
+                    f"across {stats.get('total_integrations', 0)} integrations"
+                )
+            
+            # Add info about shared dependency analysis
+            shared_deps = sum(1 for users in dependency_map.values() if len(users) > 1)
+            if shared_deps > 0:
+                recommendations.append(
+                    f"Checked {shared_deps} shared dependencies for version conflicts"
+                )
+        
+        # Add safety-specific recommendations
+        if safe:
+            recommendations.append("No version conflicts or breaking changes detected")
+            recommendations.append("All updates appear safe to install")
+            recommendations.append("Always backup your system before major updates")
+        else:
+            recommendations.append("Review detected issues before proceeding with updates")
+        
+        return recommendations
