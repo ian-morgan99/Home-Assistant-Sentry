@@ -23,16 +23,17 @@ jobs:
       - name: Get versions from config files
         id: get_versions
         run: |
-          # Get version from config.json
+          # Ensure jq is installed
           if ! command -v jq &> /dev/null; then
-            echo "jq not found, using grep as fallback"
-            JSON_VERSION=$(grep -Po '(?<="version": ")[^"]*' ha_sentry/config.json)
-          else
-            JSON_VERSION=$(jq -r '.version' ha_sentry/config.json)
+            echo "Installing jq..."
+            sudo apt-get update && sudo apt-get install -y jq
           fi
           
-          # Get version from config.yaml
-          YAML_VERSION=$(grep -Po '(?<=version: ")[^"]*' ha_sentry/config.yaml)
+          # Get version from config.json using jq
+          JSON_VERSION=$(jq -r '.version' ha_sentry/config.json)
+          
+          # Get version from config.yaml (simple grep approach)
+          YAML_VERSION=$(grep '^version:' ha_sentry/config.yaml | cut -d'"' -f2)
           
           echo "json_version=$JSON_VERSION" >> $GITHUB_OUTPUT
           echo "yaml_version=$YAML_VERSION" >> $GITHUB_OUTPUT
@@ -54,8 +55,8 @@ jobs:
             # Update config.yaml to match config.json
             sed -i "s/version: \"[^\"]*\"/version: \"$JSON_VERSION\"/" ha_sentry/config.yaml
             
-            # Verify the change
-            UPDATED_YAML_VERSION=$(grep -Po '(?<=version: ")[^"]*' ha_sentry/config.yaml)
+            # Verify the change using simple grep
+            UPDATED_YAML_VERSION=$(grep '^version:' ha_sentry/config.yaml | cut -d'"' -f2)
             echo "Updated config.yaml version: $UPDATED_YAML_VERSION"
             
             # Commit and push the change

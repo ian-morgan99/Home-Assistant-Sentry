@@ -122,6 +122,26 @@ class SentryService:
         logger.info("Rebuilding dependency graph...")
         await self._build_dependency_graph_async()
     
+    async def stop(self):
+        """Stop the service and cleanup background tasks"""
+        logger.info("Stopping Sentry service...")
+        self.running = False
+        
+        # Cancel the graph build task if still running
+        if self._graph_build_task and not self._graph_build_task.done():
+            logger.info("Cancelling dependency graph build task...")
+            self._graph_build_task.cancel()
+            try:
+                await self._graph_build_task
+            except asyncio.CancelledError:
+                logger.debug("Dependency graph build task cancelled")
+        
+        # Stop web server
+        if self.web_server:
+            await self.web_server.stop()
+        
+        logger.info("Sentry service stopped")
+    
     async def start(self):
         """Start the service"""
         self.running = True

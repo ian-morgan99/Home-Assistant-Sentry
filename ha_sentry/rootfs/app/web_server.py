@@ -1047,8 +1047,9 @@ class DependencyTreeWebServer:
                     }
                     
                     // After max retries, show error message
+                    const waitTime = MAX_COMPONENT_LOAD_RETRIES * 2;  // Calculate actual wait time
                     select.innerHTML = '<option value="">No integrations found</option>';
-                    showError('No integrations found in the dependency graph after waiting 30 seconds.\\n\\n' +
+                    showError(`No integrations found in the dependency graph after waiting ${waitTime} seconds.\\n\\n` +
                              'This could mean:\\n' +
                              '1. The dependency graph is still building (check logs)\\n' +
                              '2. No integrations are installed (unlikely)\\n' +

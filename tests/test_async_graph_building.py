@@ -11,9 +11,6 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'ha_sentry', 'r
 def test_sentry_service_has_async_methods():
     """Test that SentryService has async graph building methods"""
     try:
-        # Import with minimal dependencies
-        import inspect
-        
         # Read the source file
         sentry_file = os.path.join(os.path.dirname(__file__), '..', 'ha_sentry', 'rootfs', 'app', 'sentry_service.py')
         with open(sentry_file, 'r') as f:
@@ -23,8 +20,10 @@ def test_sentry_service_has_async_methods():
         checks = [
             ('async def _build_dependency_graph_async', '_build_dependency_graph_async method exists'),
             ('async def rebuild_dependency_graph', 'rebuild_dependency_graph method exists'),
+            ('async def stop', 'stop method exists for cleanup'),
             ('asyncio.create_task(self._build_dependency_graph_async())', 'Background task creation'),
             ('self._graph_build_task', 'Graph build task tracking'),
+            ('self._graph_build_task.cancel()', 'Task cancellation in stop method'),
         ]
         
         passed = 0
