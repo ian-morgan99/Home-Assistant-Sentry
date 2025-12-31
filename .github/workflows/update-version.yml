@@ -142,7 +142,7 @@ jobs:
           VERSION="${{ steps.get_version.outputs.version }}"
           
           # Check if this version already exists in CHANGELOG.md
-          if grep -q "^## $VERSION$" CHANGELOG.md; then
+          if grep -q "^## $VERSION$" ha_sentry/CHANGELOG.md; then
             echo "Version $VERSION already exists in CHANGELOG.md, skipping"
           else
             echo "Adding version $VERSION to CHANGELOG.md"
@@ -160,9 +160,9 @@ jobs:
                 next
               }
               { print }
-            ' CHANGELOG.md > CHANGELOG.md.tmp
+            ' ha_sentry/CHANGELOG.md > ha_sentry/CHANGELOG.md.tmp
             
-            mv CHANGELOG.md.tmp CHANGELOG.md
+            mv ha_sentry/CHANGELOG.md.tmp ha_sentry/CHANGELOG.md
             echo "✓ Added version $VERSION to CHANGELOG.md"
           fi
       
@@ -174,14 +174,14 @@ jobs:
           echo "=== config.yaml ==="
           grep 'version:' ha_sentry/config.yaml
           echo "=== CHANGELOG.md (first 10 lines) ==="
-          head -n 10 CHANGELOG.md
+          head -n 10 ha_sentry/CHANGELOG.md
       
       - name: Commit and push changes
         if: steps.check_bot.outputs.skip != 'true'
         run: |
           git config --global user.name 'github-actions[bot]'
           git config --global user.email 'github-actions[bot]@users.noreply.github.com'
-          git add ha_sentry/config.json ha_sentry/config.yaml CHANGELOG.md
+          git add ha_sentry/config.json ha_sentry/config.yaml ha_sentry/CHANGELOG.md
           if git diff --staged --quiet; then
             echo "No changes to commit (version already up to date)"
           else

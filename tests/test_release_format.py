@@ -8,6 +8,7 @@ import json
 
 # Repository root - used for building absolute paths
 repo_root = os.path.join(os.path.dirname(__file__), '..')
+addon_dir = os.path.join(repo_root, 'ha_sentry')
 
 
 def _extract_yaml_version(content):
@@ -96,7 +97,7 @@ def test_config_versions_match():
 def test_changelog_format():
     """Verify CHANGELOG.md follows Home Assistant Add-on format"""
     try:
-        changelog_path = os.path.join(repo_root, 'CHANGELOG.md')
+        changelog_path = os.path.join(addon_dir, 'CHANGELOG.md')
         with open(changelog_path, 'r') as f:
             content = f.read()
         
@@ -139,7 +140,7 @@ def test_changelog_has_current_version():
         current_version = config.get('version', '')
         
         # Read CHANGELOG.md
-        changelog_path = os.path.join(repo_root, 'CHANGELOG.md')
+        changelog_path = os.path.join(addon_dir, 'CHANGELOG.md')
         with open(changelog_path, 'r') as f:
             content = f.read()
         
@@ -160,7 +161,7 @@ def test_changelog_has_current_version():
 def test_changelog_structure():
     """Verify CHANGELOG.md has proper structure"""
     try:
-        changelog_path = os.path.join(repo_root, 'CHANGELOG.md')
+        changelog_path = os.path.join(addon_dir, 'CHANGELOG.md')
         with open(changelog_path, 'r') as f:
             lines = f.readlines()
         
