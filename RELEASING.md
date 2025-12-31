@@ -8,7 +8,7 @@ Starting from version 1.3.04, version numbers in configuration files are **autom
 
 ### How It Works
 
-When code is pushed to the main branch:
+When code is pushed to the main branch (including when a Pull Request is merged):
 
 1. A GitHub Actions workflow (`.github/workflows/update-version.yml`) automatically triggers
 2. **First, it syncs version between config files** if they're out of sync (config.yaml matches config.json)

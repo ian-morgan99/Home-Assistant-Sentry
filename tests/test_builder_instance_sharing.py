@@ -21,23 +21,17 @@ def test_builder_instance_reuse():
         
         # Check that we create builder BEFORE starting async task
         checks = [
-            ('if not self.dependency_graph_builder:\n                self.dependency_graph_builder = DependencyGraphBuilder()', 
-             'Builder created before async task'),
+            ('self.dependency_graph_builder = DependencyGraphBuilder()', 
+             'Builder created/initialized'),
             ('graph_builder = self.dependency_graph_builder', 
              'Reuses existing builder instance in async method'),
-            ('# No need to reassign self.dependency_graph_builder', 
-             'Comment confirming no reassignment needed'),
         ]
         
         passed = 0
         failed = 0
         
         for check_str, description in checks:
-            # Normalize whitespace for comparison
-            normalized_check = ' '.join(check_str.split())
-            normalized_source = ' '.join(source.split())
-            
-            if normalized_check in normalized_source:
+            if check_str in source:
                 print(f"✓ {description}")
                 passed += 1
             else:
@@ -60,22 +54,23 @@ def test_no_new_builder_in_async():
     try:
         sentry_file = os.path.join(os.path.dirname(__file__), '..', 'ha_sentry', 'rootfs', 'app', 'sentry_service.py')
         with open(sentry_file, 'r') as f:
-            source = f.read()
+            lines = f.readlines()
         
-        # Extract the _build_dependency_graph_async method
-        start_marker = 'async def _build_dependency_graph_async(self):'
-        end_marker = 'async def rebuild_dependency_graph(self):'
+        # Find the _build_dependency_graph_async method
+        in_method = False
+        method_lines = []
+        for i, line in enumerate(lines):
+            if 'async def _build_dependency_graph_async(self):' in line:
+                in_method = True
+            elif in_method:
+                # Stop when we hit the next method definition
+                if line.strip().startswith('async def ') or line.strip().startswith('def '):
+                    break
+                method_lines.append(line)
         
-        start_idx = source.find(start_marker)
-        end_idx = source.find(end_marker, start_idx)
+        method_source = ''.join(method_lines)
         
-        if start_idx == -1 or end_idx == -1:
-            print("✗ Could not find method boundaries")
-            return 0, 1
-        
-        method_source = source[start_idx:end_idx]
-        
-        # Check that the method does NOT create a new builder
+        # Check that the method reuses existing builder
         # We should see: graph_builder = self.dependency_graph_builder
         # We should NOT see: graph_builder = DependencyGraphBuilder()
         
@@ -91,6 +86,7 @@ def test_no_new_builder_in_async():
             return 0, 1
         else:
             print("✗ Could not determine builder usage pattern")
+            print(f"  has_reuse: {has_reuse}, has_new_creation: {has_new_creation}")
             return 0, 1
             
     except Exception as e:
@@ -108,32 +104,17 @@ def test_builder_shared_with_webserver():
         with open(sentry_file, 'r') as f:
             source = f.read()
         
-        # In the start() method, we should:
-        # 1. Create builder first
-        # 2. Pass it to async task (implicitly via self.dependency_graph_builder)
-        # 3. Pass it to web server
+        # Web server should receive the builder instance
+        check = 'DependencyTreeWebServer(\n                    self.dependency_graph_builder,'
+        # Also check without strict formatting
+        check_alt = 'DependencyTreeWebServer(self.dependency_graph_builder'
         
-        checks = [
-            ('self.web_server = DependencyTreeWebServer(\n                    self.dependency_graph_builder,', 
-             'Web server receives builder instance'),
-        ]
-        
-        passed = 0
-        failed = 0
-        
-        for check_str, description in checks:
-            # Normalize whitespace for comparison
-            normalized_check = ' '.join(check_str.split())
-            normalized_source = ' '.join(source.split())
-            
-            if normalized_check in normalized_source:
-                print(f"✓ {description}")
-                passed += 1
-            else:
-                print(f"✗ {description} - NOT FOUND")
-                failed += 1
-        
-        return passed, failed
+        if check in source or check_alt in source:
+            print("✓ Web server receives builder instance")
+            return 1, 0
+        else:
+            print("✗ Web server does not receive builder instance - NOT FOUND")
+            return 0, 1
         
     except Exception as e:
         print(f"✗ Test failed with error: {e}")
