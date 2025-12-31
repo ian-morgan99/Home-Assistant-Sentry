@@ -64,7 +64,9 @@ class SentryService:
             logger.info("=" * 60)
             logger.info("Building dependency graph from installed integrations...")
             
-            graph_builder = DependencyGraphBuilder()
+            # Reuse the existing builder instance that was passed to the web server
+            # This ensures the web server sees the populated data when building completes
+            graph_builder = self.dependency_graph_builder
             
             # Use custom paths if provided, otherwise use defaults
             integration_paths = None
@@ -80,7 +82,7 @@ class SentryService:
             )
             
             self.dependency_graph = graph_data
-            self.dependency_graph_builder = graph_builder
+            # No need to reassign self.dependency_graph_builder - we're using the same instance
             
             # Update AI client with new graph
             self.ai_client.dependency_graph = graph_data
@@ -147,8 +149,12 @@ class SentryService:
         self.running = True
         logger.info(f"Starting service with schedule: {self.config.check_schedule}")
         
-        # Start dependency graph building in background if enabled
+        # Create the dependency graph builder instance first
+        # This single instance will be shared by both the async builder and web server
+        # ensuring they reference the same data structure
         if self.config.enable_dependency_graph:
+            if not self.dependency_graph_builder:
+                self.dependency_graph_builder = DependencyGraphBuilder()
             logger.info("Starting dependency graph build in background...")
             self._graph_build_task = asyncio.create_task(self._build_dependency_graph_async())
         
@@ -160,8 +166,8 @@ class SentryService:
                 logger.info("Starting web server for dependency visualization...")
                 logger.info(f"  Web UI port: {self.WEB_UI_PORT}")
                 logger.info(f"  Dependency graph: Building in background...")
-                # Create a placeholder graph builder that the web server can reference
-                # It will be populated once the async build completes
+                # Ensure builder exists (in case dependency_graph is disabled)
+                # The web server needs a builder reference to function
                 if not self.dependency_graph_builder:
                     self.dependency_graph_builder = DependencyGraphBuilder()
                 self.web_server = DependencyTreeWebServer(
