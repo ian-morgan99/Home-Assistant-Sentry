@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.3.09
+- Version automatically incremented
+- Manual update recommended: Add detailed release notes here
+
+
 ## 1.3.08
 - Fixed CHANGELOG.md format to match Home Assistant expectations (simple ## X.Y.Z headings)
 - Added automatic CHANGELOG.md updates to version increment workflow
