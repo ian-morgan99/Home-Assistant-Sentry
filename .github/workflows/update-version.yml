@@ -136,6 +136,36 @@ jobs:
           sed -i "s/version: \"[^\"]*\"/version: \"$VERSION\"/" ha_sentry/config.yaml
           echo "Updated config.yaml to version $VERSION"
       
+      - name: Update CHANGELOG.md
+        if: steps.check_bot.outputs.skip != 'true'
+        run: |
+          VERSION="${{ steps.get_version.outputs.version }}"
+          
+          # Check if this version already exists in CHANGELOG.md
+          if grep -q "^## $VERSION$" CHANGELOG.md; then
+            echo "Version $VERSION already exists in CHANGELOG.md, skipping"
+          else
+            echo "Adding version $VERSION to CHANGELOG.md"
+            
+            # Create a temporary file with the new version entry
+            # Insert after the "# Changelog" line
+            awk -v version="$VERSION" '
+              /^# Changelog$/ {
+                print $0
+                print ""
+                print "## " version
+                print "- Version automatically incremented"
+                print "- Manual update recommended: Add detailed release notes here"
+                print ""
+                next
+              }
+              { print }
+            ' CHANGELOG.md > CHANGELOG.md.tmp
+            
+            mv CHANGELOG.md.tmp CHANGELOG.md
+            echo "✓ Added version $VERSION to CHANGELOG.md"
+          fi
+      
       - name: Verify changes
         if: steps.check_bot.outputs.skip != 'true'
         run: |
@@ -143,13 +173,15 @@ jobs:
           grep '"version":' ha_sentry/config.json
           echo "=== config.yaml ==="
           grep 'version:' ha_sentry/config.yaml
+          echo "=== CHANGELOG.md (first 10 lines) ==="
+          head -n 10 CHANGELOG.md
       
       - name: Commit and push changes
         if: steps.check_bot.outputs.skip != 'true'
         run: |
           git config --global user.name 'github-actions[bot]'
           git config --global user.email 'github-actions[bot]@users.noreply.github.com'
-          git add ha_sentry/config.json ha_sentry/config.yaml
+          git add ha_sentry/config.json ha_sentry/config.yaml CHANGELOG.md
           if git diff --staged --quiet; then
             echo "No changes to commit (version already up to date)"
           else
@@ -159,10 +191,10 @@ jobs:
             
             if [ "$SYNCED" = "true" ]; then
               git commit -m "chore: auto-increment version from $OLD_VERSION to $NEW_VERSION" \
-                         -m "Synced config files and incremented patch version"
+                         -m "Synced config files, incremented patch version, and updated CHANGELOG.md"
             else
               git commit -m "chore: auto-increment version from $OLD_VERSION to $NEW_VERSION" \
-                         -m "Automatically incremented patch version in config files"
+                         -m "Automatically incremented patch version in config files and updated CHANGELOG.md"
             fi
             
             git push origin main || {

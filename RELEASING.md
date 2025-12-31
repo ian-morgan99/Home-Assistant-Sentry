@@ -17,8 +17,9 @@ When code is pushed to the main branch (including when a Pull Request is merged)
 5. It updates the version in both configuration files:
    - `ha_sentry/config.json`
    - `ha_sentry/config.yaml`
-6. The changes are committed and pushed back to the `main` branch
-7. The workflow includes safeguards to prevent infinite loops (skips if commit is from the bot or is version-related)
+6. **It adds a new entry to CHANGELOG.md** with the new version number
+7. The changes are committed and pushed back to the `main` branch
+8. The workflow includes safeguards to prevent infinite loops (skips if commit is from the bot or is version-related)
 
 ### Automatic Version Increment
 
@@ -57,12 +58,13 @@ If you need to manually set a specific version (e.g., for a minor or major versi
 
 Since versions are automatically incremented on every commit, creating a release is simplified:
 
-1. **Update the CHANGELOG.md**
-   - Add release notes for the new version
-   - Change the version from "TBD" to the actual release date
+1. **Update the CHANGELOG.md** (if needed)
+   - The workflow automatically adds a basic entry for each new version
+   - You can manually edit CHANGELOG.md to add more detailed release notes
    - Follow Home Assistant Add-on changelog format
-   - Example: `## 1.2.0 - 2024-12-30`
+   - Example: `## 1.2.0` (version number only, no date)
    - Use simple bullet points for changes (no need for subsections like "Added", "Changed", though they are acceptable)
+   - **Important**: Do not add dates or other suffixes to version headings
 
 2. **Create a Git Tag** (optional, for marking specific releases)
    ```bash

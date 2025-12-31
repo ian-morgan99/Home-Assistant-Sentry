@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.3.08
+- Fixed CHANGELOG.md format to match Home Assistant expectations (simple ## X.Y.Z headings)
+- Added automatic CHANGELOG.md updates to version increment workflow
+- Updated documentation with correct CHANGELOG.md format requirements
+
 ## 1.3.07
 - Configuration Documentation Enhancement: Added comprehensive inline parameter documentation to config.yaml
 - Image Asset Improvements: Converted icon.png and logo.png to RGBA format with transparent backgrounds for better appearance on different colored backgrounds
