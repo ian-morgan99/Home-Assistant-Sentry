@@ -60,7 +60,7 @@ Since versions are automatically incremented on every commit, creating a release
 
 1. **Update the CHANGELOG.md** (if needed)
    - The workflow automatically adds a basic entry for each new version
-   - You can manually edit CHANGELOG.md to add more detailed release notes
+   - You can manually edit ha_sentry/CHANGELOG.md to add more detailed release notes
    - Follow Home Assistant Add-on changelog format
    - Example: `## 1.2.0` (version number only, no date)
    - Use simple bullet points for changes (no need for subsections like "Added", "Changed", though they are acceptable)
@@ -117,7 +117,7 @@ If you need to manually adjust the version (e.g., for a minor or major version b
 
 Before merging to main (which will trigger auto-increment), ensure:
 
-- [ ] All changes are documented in CHANGELOG.md
+- [ ] All changes are documented in ha_sentry/CHANGELOG.md
 - [ ] All tests pass
 - [ ] Documentation is up to date
 - [ ] Consider if the change warrants a minor or major version bump (manually adjust if needed)
@@ -128,7 +128,7 @@ Before merging to main (which will trigger auto-increment), ensure:
 
 ## Changelog Format
 
-The CHANGELOG.md follows the Home Assistant Add-on standard format:
+The ha_sentry/CHANGELOG.md follows the Home Assistant Add-on standard format:
 
 - **Version heading**: Use `## X.Y.Z` (version number only, no date suffix)
   - Example: `## 1.2.0`
@@ -158,7 +158,7 @@ Example:
 
 Home Assistant Supervisor:
 1. Reads config.yaml → gets version (e.g., "1.2.0")
-2. Looks for CHANGELOG.md
+2. Looks for ha_sentry/CHANGELOG.md (in the add-on directory)
 3. Parses markdown headings looking for exact match: `## 1.2.0`
 4. Displays the content under that heading
 

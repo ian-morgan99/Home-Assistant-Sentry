@@ -23,6 +23,7 @@ Home-Assistant-Sentry/
 │   ├── config.json              # Add-on configuration (JSON format)
 │   ├── build.json               # Build configuration for multi-arch
 │   ├── Dockerfile               # Container image definition
+│   ├── CHANGELOG.md             # Version history (add-on directory)
 │   └── requirements.txt         # Python dependencies
 ├── tests/                       # Test files
 │   ├── test_basic.py            # Basic module tests
@@ -32,7 +33,6 @@ Home-Assistant-Sentry/
 ├── DOCS.md                      # Detailed user documentation
 ├── QUICKSTART.md                # Quick start guide
 ├── EXAMPLES.md                  # Configuration examples
-├── CHANGELOG.md                 # Version history
 ├── STRUCTURE.md                 # This file
 ├── LICENSE                      # MIT License
 └── .gitignore                   # Git ignore rules
@@ -66,7 +66,7 @@ Home-Assistant-Sentry/
 - **README.md**: Overview, features, quick start
 - **DOCS.md**: Comprehensive user documentation
 - **EXAMPLES.md**: Configuration examples
-- **CHANGELOG.md**: Version history and changes
+- **CHANGELOG.md**: Version history and changes (in `ha_sentry/`)
 
 ## Data Flow
 
