@@ -531,6 +531,20 @@ No updates are currently available for:
         
         Returns:
             str: The full ingress URL
+            
+        Note:
+            This uses the standard Home Assistant ingress URL format: /api/hassio_ingress/<slug>
+            
+            If the links in notifications don't work:
+            1. Check your Home Assistant version (ingress format changed in HA 2021.x+)
+            2. Try accessing the Web UI via: Settings → Add-ons → Home Assistant Sentry → Open Web UI
+            3. Look for the "Sentry" panel in your Home Assistant sidebar
+            4. Check the add-on logs for the actual ingress URL being used
+            
+            The ingress URL format may vary based on:
+            - Home Assistant version
+            - How the add-on was installed (built-in vs. custom repository)
+            - Reverse proxy configuration
         """
         base_url = f"/api/hassio_ingress/{self.ADDON_SLUG}"
         if path:
@@ -700,10 +714,13 @@ No updates are currently available for:
                 components_param = ','.join(changed_components[:10])  # Limit to avoid URL length issues
                 impact_url = self._get_ingress_url() + f"#impact:{components_param}"
                 notification_message += f"- [⚡ Change Impact Report]({impact_url}) - View {len(changed_components)} changed components and their affected dependencies\n"
+                logger.debug(f"Generated impact report URL: {impact_url}")
             
             # Always add link to main web UI (ingress panel)
             web_ui_url = self._get_ingress_url()
-            notification_message += f"- [🛡️ Web UI - Dependency Visualization]({web_ui_url}) - Explore all component dependencies via Sentry sidebar panel\n"
+            notification_message += f"- [🛡️ Web UI - Dependency Visualization]({web_ui_url}) - Explore all component dependencies\n"
+            logger.debug(f"Generated web UI URL: {web_ui_url}")
+            notification_message += "\n*Tip: If links don't work, access via Settings → Add-ons → Home Assistant Sentry → Open Web UI, or look for the 'Sentry' panel in your sidebar.*\n"
         
         notification_message += f"\n*Analysis powered by: {'AI' if analysis.get('ai_analysis') else 'Heuristics'}*"
         notification_message += f"\n*Last check: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}*"

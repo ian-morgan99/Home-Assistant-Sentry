@@ -80,7 +80,8 @@ class DependencyTreeWebServer:
             
             logger.info(f"✅ Dependency tree visualization started successfully")
             logger.info(f"   Available at http://localhost:{self.port}")
-            logger.info(f"   Or via Home Assistant ingress panel (Sentry in sidebar)")
+            logger.info(f"   Or via Home Assistant ingress: /api/hassio_ingress/ha_sentry")
+            logger.info(f"   Also accessible from the 'Sentry' panel in your Home Assistant sidebar")
             logger.info(f"   Total integrations: {len(self.dependency_graph_builder.integrations)}")
         except Exception as e:
             logger.error(f"❌ Failed to start web server: {e}", exc_info=True)
