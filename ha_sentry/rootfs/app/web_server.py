@@ -31,7 +31,7 @@ class DependencyTreeWebServer:
         'integration': 'Integration'
     }
     
-    def __init__(self, dependency_graph_builder, config_manager, port=8099):
+    def __init__(self, dependency_graph_builder, config_manager, port=8099, sentry_service=None):
         """
         Initialize the web server
         
@@ -39,10 +39,12 @@ class DependencyTreeWebServer:
             dependency_graph_builder: DependencyGraphBuilder instance
             config_manager: ConfigManager instance
             port: Port to run the server on
+            sentry_service: Optional reference to SentryService for status checking
         """
         self.dependency_graph_builder = dependency_graph_builder
         self.config = config_manager
         self.port = port
+        self.sentry_service = sentry_service  # Reference to get build status
         self.app = None
         self.runner = None
         self.site = None
@@ -259,13 +261,44 @@ class DependencyTreeWebServer:
                 })
             
             components_count = len(self.dependency_graph_builder.integrations)
-            is_ready = components_count > 0
+            
+            # Get build status from sentry service if available
+            build_status = 'unknown'
+            build_error = None
+            if self.sentry_service:
+                build_status = getattr(self.sentry_service, '_graph_build_status', 'unknown')
+                build_error = getattr(self.sentry_service, '_graph_build_error', None)
+            
+            # Determine overall status
+            if build_status == 'disabled':
+                status = 'unavailable'
+                message = 'Dependency graph is disabled in configuration'
+                is_ready = False
+            elif build_status == 'failed':
+                status = 'error'
+                message = f'Dependency graph build failed: {build_error or "Unknown error"}'
+                is_ready = False
+            elif build_status == 'building':
+                status = 'building'
+                message = f'Building dependency graph... ({components_count} components loaded so far)'
+                is_ready = False
+            elif components_count > 0:
+                status = 'ready'
+                message = f'{components_count} components loaded'
+                is_ready = True
+            else:
+                # No components but status is not explicitly failed
+                status = 'building'
+                message = 'Dependency graph is building... (this may take up to 60 seconds)'
+                is_ready = False
             
             return web.json_response({
-                'status': 'ready' if is_ready else 'building',
-                'message': f'{components_count} components loaded' if is_ready else 'Dependency graph is building...',
+                'status': status,
+                'build_status': build_status,
+                'message': message,
                 'components_count': components_count,
-                'ready': is_ready
+                'ready': is_ready,
+                'error': build_error
             })
         except Exception as e:
             logger.error(f"Error getting status: {e}", exc_info=True)
@@ -1034,6 +1067,34 @@ class DependencyTreeWebServer:
         
         async function loadComponents() {
             try {
+                // First check the status to see if the graph is still building
+                let statusResponse;
+                try {
+                    statusResponse = await fetch('./api/status', {
+                        credentials: 'same-origin'
+                    });
+                    
+                    if (statusResponse.ok) {
+                        const statusData = await statusResponse.json();
+                        console.log('Status check:', statusData);
+                        
+                        // If status indicates error or unavailable, show error immediately
+                        if (statusData.status === 'error' || statusData.status === 'unavailable') {
+                            const select = document.getElementById('component-select');
+                            select.innerHTML = '<option value="">Service unavailable</option>';
+                            showConfigError({
+                                error: 'Dependency graph not available',
+                                message: statusData.message || 'The dependency graph service is not available.',
+                                fix: 'Check add-on logs for errors, or enable "enable_dependency_graph: true" in configuration.'
+                            });
+                            return;
+                        }
+                    }
+                } catch (statusError) {
+                    // Status check failed, continue with component loading anyway
+                    console.warn('Status check failed:', statusError);
+                }
+                
                 const response = await fetch('./api/components', {
                     credentials: 'same-origin'
                 });
