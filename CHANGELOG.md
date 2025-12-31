@@ -1,7 +1,6 @@
 # Changelog
 
-## 1.3.06
-
+## 1.3.07
 - Configuration Documentation Enhancement: Added comprehensive inline parameter documentation to config.yaml
 - Image Asset Improvements: Converted icon.png and logo.png to RGBA format with transparent backgrounds for better appearance on different colored backgrounds
 - Performance Review: Verified all code uses async/await properly with no blocking operations
@@ -10,11 +9,9 @@
 - Documentation Polish: Enhanced configuration guidance explaining when to use each parameter
 
 ## 1.2.11
-
 - Production Readiness Improvements: Configuration, image assets, performance, security, and documentation enhancements
 
 ## 1.1.0
-
 - Comprehensive Update Checking: Now checks ALL update entities from Settings > Updates section
   - Home Assistant Core updates
   - Supervisor updates
@@ -34,7 +31,6 @@
 - Legacy check_addons and check_hacs options maintained for backward compatibility
 
 ## 1.0.0
-
 - Initial release of Home Assistant Sentry
 - Daily automated checks for add-on updates via Supervisor API
 - Daily automated checks for HACS integration updates
