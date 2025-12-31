@@ -243,38 +243,45 @@ Follow semantic versioning (MAJOR.MINOR.PATCH):
 
 ### Automated Version Updates
 
-Versions are automatically updated via GitHub Actions when a release is created. The workflow:
+Versions are automatically updated via GitHub Actions when code is pushed to main. The workflow:
 1. Validates the version is properly incremented
 2. Updates both config.json and config.yaml
-3. Commits changes to the main branch
+3. Adds a new entry to CHANGELOG.md
+4. Commits changes to the main branch
 
 ### Changelog Format
 
 The CHANGELOG.md follows Home Assistant Add-on standards:
 
 **Format Requirements:**
-- Version heading: `## X.Y.Z - YYYY-MM-DD` (without brackets)
-- Use `TBD` for unreleased versions: `## 1.2.0 - TBD`
+- Version heading: `## X.Y.Z` (version number only, **no dates or suffixes**)
 - List changes as bullet points with `-`
 - Newest version at the top
 - Keep entries clear and concise
+- **CRITICAL**: Do NOT add dates, "TBD", or any other text after the version number
 
 **Example:**
 ```markdown
-## 1.2.0 - 2024-12-30
+## 1.2.0
 - Added new feature X
 - Fixed bug in Y component
 - Improved performance of Z operation
 
-## 1.1.0 - 2024-12-15
+## 1.1.0
 - Added support for Home Assistant 2024.12
 ```
 
 **Why This Matters:**
-Home Assistant's add-on manager displays the changelog to users. Following the standard format ensures:
-- Users can clearly see what changed in each version
-- The reason for each change is evident from within Home Assistant
-- Version history is properly displayed in the add-on manager
+Home Assistant Supervisor parses CHANGELOG.md to match the version in config.yaml:
+1. Reads config.yaml → gets version (e.g., "1.2.0")
+2. Looks for CHANGELOG.md
+3. Parses markdown headings looking for exact match: `## 1.2.0`
+4. Displays the content under that heading
+
+If the version heading includes dates or other suffixes (e.g., `## 1.2.0 - 2024-12-30` or `## 1.2.0 - TBD`), Home Assistant will not find a match and will show "No changelog found".
+
+**Automated Updates:**
+The GitHub Actions workflow automatically adds a new CHANGELOG.md entry when versions are incremented. You can manually edit these entries to add more detailed release notes.
 
 When making changes, always update CHANGELOG.md with clear, user-friendly descriptions.
 
