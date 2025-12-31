@@ -12,7 +12,6 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'ha_sentry', 'r
 def test_status_tracking():
     """Test that status tracking fields exist and are properly initialized"""
     from sentry_service import SentryService
-    from config_manager import ConfigManager
     
     # Create a minimal config
     class MockConfig:

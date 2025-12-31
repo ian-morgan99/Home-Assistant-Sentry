@@ -132,7 +132,7 @@ class SentryService:
             logger.error(f"Failed to build dependency graph: {e}", exc_info=True)
             logger.error("")
             logger.error("This means:")
-            logger.error("  - The web UI will show 'loading components...' indefinitely")
+            logger.error("  - The web UI will show an error message indicating the dependency graph is unavailable")
             logger.error("  - Dependency analysis features will be limited")
             logger.error("")
             logger.error("Common causes:")
