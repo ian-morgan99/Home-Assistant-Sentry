@@ -52,6 +52,16 @@ Home Assistant Sentry is an add-on that helps you safely manage updates to your 
    - Enable "Start on boot" if desired
    - Check the logs to ensure it's running correctly
 
+5. **Access the Web UI (Optional)**
+   - After the add-on starts, a "Sentry" panel will appear in your Home Assistant sidebar
+   - Click on "Sentry" in the sidebar to access the dependency visualization web interface
+   - The web UI allows you to:
+     - Explore component dependencies
+     - View "where used" analysis for any component
+     - Analyze the impact of multiple component changes
+   - The web UI is accessible via the ingress URL: `/api/hassio_ingress/ha_sentry`
+   - Note: It may take up to 60 seconds for the dependency graph to build on first load
+
 ## Configuration Guide
 
 ### Basic Setup (No AI)

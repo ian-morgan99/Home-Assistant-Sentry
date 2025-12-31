@@ -139,6 +139,7 @@ class DependencyTreeWebServer:
     def _setup_routes(self):
         """Setup HTTP routes"""
         self.app.router.add_get('/', self._handle_index)
+        self.app.router.add_get('/api/status', self._handle_status)
         self.app.router.add_get('/api/components', self._handle_get_components)
         self.app.router.add_get('/api/dependency-tree/{component}', self._handle_dependency_tree)
         self.app.router.add_get('/api/where-used/{component}', self._handle_where_used)
@@ -245,6 +246,35 @@ class DependencyTreeWebServer:
             # Return error page using shared template
             error_html = self._generate_error_html(str(e), "Error Loading Web UI")
             return web.Response(text=error_html, content_type='text/html', status=500)
+    
+    async def _handle_status(self, request):
+        """Get the status of the dependency graph building process"""
+        try:
+            if not self.dependency_graph_builder:
+                return web.json_response({
+                    'status': 'unavailable',
+                    'message': 'Dependency graph builder not initialized',
+                    'components_count': 0,
+                    'ready': False
+                })
+            
+            components_count = len(self.dependency_graph_builder.integrations)
+            is_ready = components_count > 0
+            
+            return web.json_response({
+                'status': 'ready' if is_ready else 'building',
+                'message': f'{components_count} components loaded' if is_ready else 'Dependency graph is building...',
+                'components_count': components_count,
+                'ready': is_ready
+            })
+        except Exception as e:
+            logger.error(f"Error getting status: {e}", exc_info=True)
+            return web.json_response({
+                'status': 'error',
+                'message': str(e),
+                'components_count': 0,
+                'ready': False
+            }, status=500)
         
     async def _handle_get_components(self, request):
         """Get list of all components"""
@@ -824,7 +854,7 @@ class DependencyTreeWebServer:
         let components = [];
         let componentLoadIntervalId = null;  // Track interval to prevent memory leaks
         let componentLoadAttempts = 0;  // Track retry attempts
-        const MAX_COMPONENT_LOAD_RETRIES = 15;  // Maximum 15 retries (30 seconds total)
+        const MAX_COMPONENT_LOAD_RETRIES = 30;  // Maximum 30 retries (60 seconds total)
         
         // Constants for component loading timeout
         const COMPONENT_LOAD_TIMEOUT_MS = 5000;  // 5 seconds max wait
@@ -1040,8 +1070,10 @@ class DependencyTreeWebServer:
                     
                     if (componentLoadAttempts < MAX_COMPONENT_LOAD_RETRIES) {
                         // Still loading, retry after 2 seconds
-                        console.log(`Components still loading, retry ${componentLoadAttempts}/${MAX_COMPONENT_LOAD_RETRIES} in 2 seconds...`);
-                        select.innerHTML = '<option value="">Loading components (building dependency graph)...</option>';
+                        const elapsed = componentLoadAttempts * 2;
+                        const remaining = (MAX_COMPONENT_LOAD_RETRIES - componentLoadAttempts) * 2;
+                        console.log(`Components still loading, retry ${componentLoadAttempts}/${MAX_COMPONENT_LOAD_RETRIES} in 2 seconds... (elapsed: ${elapsed}s, max wait: ${remaining}s more)`);
+                        select.innerHTML = `<option value="">Loading components (${elapsed}s elapsed, building dependency graph)...</option>`;
                         setTimeout(loadComponents, 2000);
                         return;
                     }
@@ -1051,11 +1083,12 @@ class DependencyTreeWebServer:
                     select.innerHTML = '<option value="">No integrations found</option>';
                     showError(`No integrations found in the dependency graph after waiting ${waitTime} seconds.\\n\\n` +
                              'This could mean:\\n' +
-                             '1. The dependency graph is still building (check logs)\\n' +
+                             '1. The dependency graph is still building (check add-on logs)\\n' +
                              '2. No integrations are installed (unlikely)\\n' +
                              '3. Integration paths are not accessible\\n' +
                              '4. The dependency graph failed to build\\n\\n' +
-                             'Check the add-on logs for more details or try refreshing the page.');
+                             'Check the add-on logs for more details or try refreshing the page.\\n' +
+                             'Tip: Look for "Dependency graph built successfully" in the logs.');
                     return;
                 }
                 
