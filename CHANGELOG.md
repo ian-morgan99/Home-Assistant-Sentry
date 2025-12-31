@@ -1,7 +1,9 @@
 # Changelog
 
 ## 1.3.08
-- Automatic version increments and changelog updates via GitHub Actions workflow
+- Fixed CHANGELOG.md format to match Home Assistant expectations (simple ## X.Y.Z headings)
+- Added automatic CHANGELOG.md updates to version increment workflow
+- Updated documentation with correct CHANGELOG.md format requirements
 
 ## 1.3.07
 - Configuration Documentation Enhancement: Added comprehensive inline parameter documentation to config.yaml

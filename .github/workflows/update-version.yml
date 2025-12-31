@@ -154,7 +154,8 @@ jobs:
                 print $0
                 print ""
                 print "## " version
-                print "- Automatic version increment"
+                print "- Version automatically incremented"
+                print "- Manual update recommended: Add detailed release notes here"
                 print ""
                 next
               }
