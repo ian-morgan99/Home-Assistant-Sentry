@@ -1,38 +1,39 @@
 # Changelog
 
-All notable changes to Home Assistant Sentry will be documented in this file.
+## 1.3.06
 
-## 1.2.11 - TBD
+- Configuration Documentation Enhancement: Added comprehensive inline parameter documentation to config.yaml
+- Image Asset Improvements: Converted icon.png and logo.png to RGBA format with transparent backgrounds for better appearance on different colored backgrounds
+- Performance Review: Verified all code uses async/await properly with no blocking operations
+- Security Review: Verified no vulnerabilities in dependencies and proper authentication handling
+- Code Quality: Confirmed error handling is robust with graceful degradation
+- Documentation Polish: Enhanced configuration guidance explaining when to use each parameter
 
-### Production Readiness Improvements
-- **Configuration Documentation Enhancement**: Added comprehensive inline parameter documentation to config.yaml
-- **Image Asset Improvements**: Converted icon.png and logo.png to RGBA format with transparent backgrounds for better appearance on different colored backgrounds
-- **Performance Review**: Verified all code uses async/await properly with no blocking operations
-- **Security Review**: Verified no vulnerabilities in dependencies and proper authentication handling
-- **Code Quality**: Confirmed error handling is robust with graceful degradation
-- **Documentation Polish**: Enhanced configuration guidance explaining when to use each parameter
+## 1.2.11
 
-## 1.1.0 - TBD
+- Production Readiness Improvements: Configuration, image assets, performance, security, and documentation enhancements
 
-- **Comprehensive Update Checking**: Now checks ALL update entities from Settings > Updates section
+## 1.1.0
+
+- Comprehensive Update Checking: Now checks ALL update entities from Settings > Updates section
   - Home Assistant Core updates
   - Supervisor updates
   - Operating System updates
   - All add-on updates
   - All integration updates (including HACS)
-- New `check_all_updates` configuration option (default: true) for comprehensive update monitoring
+- New check_all_updates configuration option (default: true) for comprehensive update monitoring
 - Enhanced update categorization with breakdown by type (Core/System, Add-ons, HACS/Integrations)
-- Auto-update support: Add-on now supports Home Assistant's auto-update feature via `auto_update` configuration flag
-- Auto-create dashboard feature: New `auto_create_dashboard` option to automatically create a Lovelace dashboard with Sentry widgets
-- Dashboard will be created on add-on startup when `auto_create_dashboard` is enabled
+- Auto-update support: Add-on now supports Home Assistant's auto-update feature via auto_update configuration flag
+- Auto-create dashboard feature: New auto_create_dashboard option to automatically create a Lovelace dashboard with Sentry widgets
+- Dashboard will be created on add-on startup when auto_create_dashboard is enabled
 - Pre-configured Sentry dashboard includes all monitoring widgets and conditional alerts
 - Enhanced documentation with comprehensive update checking capabilities
 - Updated notification format to show breakdown by update type
 - Improved update detection using Home Assistant's native update entities
 - Updated all example configurations to include new options
-- Legacy `check_addons` and `check_hacs` options maintained for backward compatibility
+- Legacy check_addons and check_hacs options maintained for backward compatibility
 
-## 1.0.0 - 2024-12-26
+## 1.0.0
 
 - Initial release of Home Assistant Sentry
 - Daily automated checks for add-on updates via Supervisor API

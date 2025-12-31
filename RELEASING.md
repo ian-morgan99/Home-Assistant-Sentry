@@ -128,9 +128,10 @@ Before merging to main (which will trigger auto-increment), ensure:
 
 The CHANGELOG.md follows the Home Assistant Add-on standard format:
 
-- **Version heading**: Use `## X.Y.Z - YYYY-MM-DD` (without square brackets)
-  - Example: `## 1.2.0 - 2024-12-30`
-  - Use `TBD` for unreleased versions: `## 1.2.0 - TBD`
+- **Version heading**: Use `## X.Y.Z` (version number only, no date suffix)
+  - Example: `## 1.2.0`
+  - Home Assistant Supervisor parses these headings to match the version in config.yaml
+  - **Important**: Do NOT add dates or "TBD" suffixes as Home Assistant expects exact version matches
 - **Changes**: List changes as simple bullet points with `-`
   - Keep entries clear and concise
   - Group related changes together
@@ -140,16 +141,26 @@ The CHANGELOG.md follows the Home Assistant Add-on standard format:
 
 Example:
 ```markdown
-## 1.2.0 - 2024-12-30
+## 1.2.0
 - Added new feature X
 - Fixed bug in Y component
 - Improved performance of Z operation
 - Updated documentation for clarity
 
-## 1.1.0 - 2024-12-15
+## 1.1.0
 - Added support for Home Assistant 2024.12
 - Fixed dashboard creation issue
 ```
+
+**Why this format?**
+
+Home Assistant Supervisor:
+1. Reads config.yaml → gets version (e.g., "1.2.0")
+2. Looks for CHANGELOG.md
+3. Parses markdown headings looking for exact match: `## 1.2.0`
+4. Displays the content under that heading
+
+If the version heading includes dates or other suffixes, Home Assistant will not find a match and will show "No changelog found".
 
 ## Post-Release
 
