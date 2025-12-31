@@ -1,8 +1,11 @@
-name: Update Version on Release
+name: Auto-Increment Version on Main Push
 
 on:
-  release:
-    types: [published]
+  push:
+    branches:
+      - main
+    paths-ignore:
+      - '.github/workflows/**'
 
 jobs:
   update-version:
@@ -17,15 +20,26 @@ jobs:
           ref: main
           token: ${{ secrets.GITHUB_TOKEN }}
       
-      - name: Get release version
+      - name: Check if commit is from bot
+        id: check_bot
+        run: |
+          # Get the commit author
+          COMMIT_AUTHOR=$(git log -1 --pretty=format:'%an')
+          echo "Commit author: $COMMIT_AUTHOR"
+          
+          # Skip if the commit was made by the bot itself (prevent infinite loop)
+          if [[ "$COMMIT_AUTHOR" == "github-actions[bot]" ]]; then
+            echo "skip=true" >> $GITHUB_OUTPUT
+            echo "Skipping version increment - commit was made by github-actions bot"
+          else
+            echo "skip=false" >> $GITHUB_OUTPUT
+            echo "Proceeding with version increment"
+          fi
+      
+      - name: Get current version and calculate new version
+        if: steps.check_bot.outputs.skip != 'true'
         id: get_version
         run: |
-          # Extract version from tag (e.g., v1.2.0 -> 1.2.0)
-          VERSION="${GITHUB_REF#refs/tags/}"
-          VERSION="${VERSION#v}"
-          echo "version=$VERSION" >> $GITHUB_OUTPUT
-          echo "Extracted version: $VERSION"
-          
           # Get current version from config.json using jq
           if ! command -v jq &> /dev/null; then
             echo "jq not found, using grep as fallback"
@@ -35,81 +49,38 @@ jobs:
           fi
           echo "current_version=$CURRENT_VERSION" >> $GITHUB_OUTPUT
           echo "Current version: $CURRENT_VERSION"
-      
-      - name: Validate version increment
-        run: |
-          NEW_VERSION="${{ steps.get_version.outputs.version }}"
-          CURRENT_VERSION="${{ steps.get_version.outputs.current_version }}"
           
-          echo "Validating version update from $CURRENT_VERSION to $NEW_VERSION"
-          
-          # Validate version format (should be X.Y.Z)
-          if ! [[ "$NEW_VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
-            echo "::error::Invalid version format: $NEW_VERSION"
+          # Validate version format (should be X.Y.Z or X.Y.ZZ)
+          if ! [[ "$CURRENT_VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "::error::Invalid current version format: $CURRENT_VERSION"
             echo "Version must follow semantic versioning (X.Y.Z) where X, Y, and Z are numbers"
             exit 1
           fi
           
-          if ! [[ "$CURRENT_VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
-            echo "::error::Invalid current version format: $CURRENT_VERSION"
-            exit 1
-          fi
+          # Parse version and increment patch version
+          IFS='.' read -r MAJOR MINOR PATCH <<< "$CURRENT_VERSION"
+          NEW_PATCH=$((PATCH + 1))
+          NEW_VERSION="$MAJOR.$MINOR.$NEW_PATCH"
           
-          # Check if versions are the same
-          if [ "$NEW_VERSION" == "$CURRENT_VERSION" ]; then
-            echo "::error::Version $NEW_VERSION is the same as current version."
-            echo "Please ensure you increment the version for each release:"
-            echo "  - Patch version (x.y.Z) for bug fixes and minor changes (increment by 0.0.1)"
-            echo "  - Minor version (x.Y.0) for new features or larger changes (increment by 0.1.0)"
-            echo "  - Major version (X.0.0) for breaking changes (increment by 1.0.0)"
-            exit 1
-          fi
-          
-          # Parse versions (simple semver check)
-          IFS='.' read -r NEW_MAJOR NEW_MINOR NEW_PATCH <<< "$NEW_VERSION"
-          IFS='.' read -r CUR_MAJOR CUR_MINOR CUR_PATCH <<< "$CURRENT_VERSION"
-          
-          # Validate it's a proper increment
-          VERSION_OK=false
-          if [ "$NEW_MAJOR" -gt "$CUR_MAJOR" ]; then
-            VERSION_OK=true
-            echo "✓ Major version increment detected: $CURRENT_VERSION -> $NEW_VERSION"
-          elif [ "$NEW_MAJOR" -eq "$CUR_MAJOR" ] && [ "$NEW_MINOR" -gt "$CUR_MINOR" ]; then
-            VERSION_OK=true
-            echo "✓ Minor version increment detected: $CURRENT_VERSION -> $NEW_VERSION"
-          elif [ "$NEW_MAJOR" -eq "$CUR_MAJOR" ] && [ "$NEW_MINOR" -eq "$CUR_MINOR" ] && [ "$NEW_PATCH" -gt "$CUR_PATCH" ]; then
-            VERSION_OK=true
-            echo "✓ Patch version increment detected: $CURRENT_VERSION -> $NEW_VERSION"
-          fi
-          
-          if [ "$VERSION_OK" = false ]; then
-            echo "::error::Invalid version increment from $CURRENT_VERSION to $NEW_VERSION"
-            echo "Version must be incremented following semantic versioning:"
-            echo "  - Current: $CURRENT_VERSION"
-            echo "  - New: $NEW_VERSION"
-            echo ""
-            echo "Suggested increments:"
-            echo "  - Bug fixes/minor changes: $CUR_MAJOR.$CUR_MINOR.$((CUR_PATCH + 1))"
-            echo "  - New features: $CUR_MAJOR.$((CUR_MINOR + 1)).0"
-            echo "  - Breaking changes: $((CUR_MAJOR + 1)).0.0"
-            exit 1
-          fi
-          
-          echo "Version validation passed!"
+          echo "version=$NEW_VERSION" >> $GITHUB_OUTPUT
+          echo "New version: $NEW_VERSION (incremented patch from $CURRENT_VERSION)"
       
       - name: Update config.json
+        if: steps.check_bot.outputs.skip != 'true'
         run: |
           VERSION="${{ steps.get_version.outputs.version }}"
           sed -i "s/\"version\": \"[^\"]*\"/\"version\": \"$VERSION\"/" ha_sentry/config.json
           echo "Updated config.json to version $VERSION"
       
       - name: Update config.yaml
+        if: steps.check_bot.outputs.skip != 'true'
         run: |
           VERSION="${{ steps.get_version.outputs.version }}"
           sed -i "s/version: \"[^\"]*\"/version: \"$VERSION\"/" ha_sentry/config.yaml
           echo "Updated config.yaml to version $VERSION"
       
       - name: Verify changes
+        if: steps.check_bot.outputs.skip != 'true'
         run: |
           echo "=== config.json ==="
           grep '"version":' ha_sentry/config.json
@@ -117,6 +88,7 @@ jobs:
           grep 'version:' ha_sentry/config.yaml
       
       - name: Commit and push changes
+        if: steps.check_bot.outputs.skip != 'true'
         run: |
           git config --global user.name 'github-actions[bot]'
           git config --global user.email 'github-actions[bot]@users.noreply.github.com'
@@ -126,8 +98,8 @@ jobs:
           else
             NEW_VERSION="${{ steps.get_version.outputs.version }}"
             OLD_VERSION="${{ steps.get_version.outputs.current_version }}"
-            git commit -m "chore: bump version from $OLD_VERSION to $NEW_VERSION" \
-                       -m "Automatically updated version in config files for release $NEW_VERSION"
+            git commit -m "chore: auto-increment version from $OLD_VERSION to $NEW_VERSION" \
+                       -m "Automatically incremented patch version in config files"
             git push origin main || { echo "Failed to push changes"; exit 1; }
             echo "✓ Version successfully updated and pushed to main branch"
             echo "  Previous version: $OLD_VERSION"
