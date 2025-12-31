@@ -7,6 +7,7 @@ import logging
 import re
 from typing import Dict, List, Tuple, Optional
 from packaging import version
+from itertools import chain
 
 logger = logging.getLogger(__name__)
 
@@ -19,6 +20,9 @@ class DependencyAnalyzer:
         'aiohttp', 'cryptography', 'numpy', 'pyjwt', 
         'sqlalchemy', 'protobuf', 'requests', 'urllib3'
     }
+    
+    # Maximum number of components to display in recommendations
+    MAX_DISPLAYED_COMPONENTS = 5
     
     # Known problematic combinations
     CONFLICT_PATTERNS = {
@@ -110,7 +114,7 @@ class DependencyAnalyzer:
         # Determine if safe to update
         safe = critical_count == 0 and high_count == 0
         
-        # Generate summary with detailed component information
+        # Generate enhanced summary with component breakdown and dependency information
         summary = self._generate_summary(
             total_updates, issues, safe, addon_updates, hacs_updates
         )
@@ -511,9 +515,9 @@ class DependencyAnalyzer:
         dependency_map = self.dependency_graph.get('dependency_map', {})
         integrations = self.dependency_graph.get('integrations', {})
         
-        # Get list of components being updated
+        # Get list of components being updated (using itertools.chain for efficiency)
         updating_components = set()
-        for update in addon_updates + hacs_updates:
+        for update in chain(addon_updates, hacs_updates):
             slug = update.get('slug', '').lower()
             name = update.get('name', '').lower()
             if slug:
@@ -539,6 +543,26 @@ class DependencyAnalyzer:
         
         return shared_count
     
+    def _format_component_names(self, updates: List[Dict], component_type: str) -> str:
+        """
+        Format component names for display in recommendations
+        
+        Args:
+            updates: List of update dictionaries
+            component_type: Type label (e.g., "Add-ons/System", "HACS/Integration")
+        
+        Returns:
+            Formatted string listing component names
+        """
+        if not updates:
+            return None
+        
+        names = [u.get('name', 'Unknown') for u in updates[:self.MAX_DISPLAYED_COMPONENTS]]
+        if len(updates) > self.MAX_DISPLAYED_COMPONENTS:
+            names.append(f"and {len(updates) - self.MAX_DISPLAYED_COMPONENTS} more")
+        
+        return f"{component_type} updates: {', '.join(names)}"
+    
     def _generate_detailed_recommendations(self, addon_updates: List[Dict], 
                                           hacs_updates: List[Dict], safe: bool) -> List[str]:
         """
@@ -549,22 +573,14 @@ class DependencyAnalyzer:
         """
         recommendations = []
         
-        # List the components being updated
-        if addon_updates:
-            addon_names = [u.get('name', 'Unknown') for u in addon_updates[:5]]
-            if len(addon_updates) > 5:
-                addon_names.append(f"and {len(addon_updates) - 5} more")
-            recommendations.append(
-                f"Add-ons/System updates: {', '.join(addon_names)}"
-            )
+        # List the components being updated using helper method
+        addon_rec = self._format_component_names(addon_updates, "Add-ons/System")
+        if addon_rec:
+            recommendations.append(addon_rec)
         
-        if hacs_updates:
-            hacs_names = [u.get('name', 'Unknown') for u in hacs_updates[:5]]
-            if len(hacs_updates) > 5:
-                hacs_names.append(f"and {len(hacs_updates) - 5} more")
-            recommendations.append(
-                f"HACS/Integration updates: {', '.join(hacs_names)}"
-            )
+        hacs_rec = self._format_component_names(hacs_updates, "HACS/Integration")
+        if hacs_rec:
+            recommendations.append(hacs_rec)
         
         # Add dependency analysis info if available
         if self.dependency_graph:
