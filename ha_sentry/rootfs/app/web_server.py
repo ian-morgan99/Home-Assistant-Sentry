@@ -823,6 +823,8 @@ class DependencyTreeWebServer:
         let currentMode = 'dependency';
         let components = [];
         let componentLoadIntervalId = null;  // Track interval to prevent memory leaks
+        let componentLoadAttempts = 0;  // Track retry attempts
+        const MAX_COMPONENT_LOAD_RETRIES = 15;  // Maximum 15 retries (30 seconds total)
         
         // Constants for component loading timeout
         const COMPONENT_LOAD_TIMEOUT_MS = 5000;  // 5 seconds max wait
@@ -1033,17 +1035,32 @@ class DependencyTreeWebServer:
                 const select = document.getElementById('component-select');
                 
                 if (components.length === 0) {
-                    // No components found - show helpful message
+                    // Components still loading - retry after a delay with max retry limit
+                    componentLoadAttempts++;
+                    
+                    if (componentLoadAttempts < MAX_COMPONENT_LOAD_RETRIES) {
+                        // Still loading, retry after 2 seconds
+                        console.log(`Components still loading, retry ${componentLoadAttempts}/${MAX_COMPONENT_LOAD_RETRIES} in 2 seconds...`);
+                        select.innerHTML = '<option value="">Loading components (building dependency graph)...</option>';
+                        setTimeout(loadComponents, 2000);
+                        return;
+                    }
+                    
+                    // After max retries, show error message
+                    const waitTime = MAX_COMPONENT_LOAD_RETRIES * 2;  // Calculate actual wait time
                     select.innerHTML = '<option value="">No integrations found</option>';
-                    showError('No integrations found in the dependency graph.\\n\\n' +
+                    showError(`No integrations found in the dependency graph after waiting ${waitTime} seconds.\\n\\n` +
                              'This could mean:\\n' +
-                             '1. No integrations are installed (unlikely)\\n' +
-                             '2. Integration paths are not accessible\\n' +
-                             '3. The dependency graph failed to build\\n\\n' +
-                             'Check the add-on logs for more details.');
+                             '1. The dependency graph is still building (check logs)\\n' +
+                             '2. No integrations are installed (unlikely)\\n' +
+                             '3. Integration paths are not accessible\\n' +
+                             '4. The dependency graph failed to build\\n\\n' +
+                             'Check the add-on logs for more details or try refreshing the page.');
                     return;
                 }
                 
+                // Successfully loaded components, reset retry counter
+                componentLoadAttempts = 0;
                 select.innerHTML = '<option value="">-- Select a component --</option>';
                 
                 components.forEach(comp => {
