@@ -126,7 +126,7 @@ Deep analysis: 5 updates available. Review required: 0 critical, 3 high-priority
 ---
 **📊 Detailed Analysis:**
 - [⚡ Change Impact Report](/api/hassio_ingress/ha_sentry#impact:home_assistant_core,mosquitto,custom_integration) - View 3 changed components and their affected dependencies
-- [🛡️ Dependency Dashboard](/api/hassio_ingress/ha_sentry) - Explore all component dependencies
+- [🛡️ Web UI - Dependency Visualization](/api/hassio_ingress/ha_sentry) - Explore all component dependencies via Sentry sidebar panel
 
 *Analysis powered by: Heuristics*
 *Last check: 2025-12-29 20:45:00*

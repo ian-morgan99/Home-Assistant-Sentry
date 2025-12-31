@@ -83,7 +83,7 @@ def test_notification_message_structure():
     expected_patterns = [
         "View Impact",  # Individual component links
         "Change Impact Report",  # Full impact report link
-        "Dependency Dashboard",  # Dashboard link
+        "Web UI",  # Web UI link (not "Dashboard" to avoid confusion with Lovelace dashboards)
         "#whereused:",  # Hash fragment for where-used
         "#impact:",  # Hash fragment for impact
         "/api/hassio_ingress/ha_sentry"  # Base ingress URL

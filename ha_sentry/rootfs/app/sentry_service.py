@@ -668,9 +668,9 @@ No updates are currently available for:
                 impact_url = self._get_ingress_url() + f"#impact:{components_param}"
                 notification_message += f"- [⚡ Change Impact Report]({impact_url}) - View {len(changed_components)} changed components and their affected dependencies\n"
             
-            # Always add link to main dashboard
-            dashboard_url = self._get_ingress_url()
-            notification_message += f"- [🛡️ Dependency Dashboard]({dashboard_url}) - Explore all component dependencies\n"
+            # Always add link to main web UI (ingress panel)
+            web_ui_url = self._get_ingress_url()
+            notification_message += f"- [🛡️ Web UI - Dependency Visualization]({web_ui_url}) - Explore all component dependencies via Sentry sidebar panel\n"
         
         notification_message += f"\n*Analysis powered by: {'AI' if analysis.get('ai_analysis') else 'Heuristics'}*"
         notification_message += f"\n*Last check: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}*"
