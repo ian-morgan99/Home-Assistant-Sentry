@@ -100,10 +100,11 @@ def test_changelog_format():
         with open(changelog_path, 'r') as f:
             content = f.read()
         
-        # Check for Home Assistant Add-on format (without square brackets)
-        # Format should be: ## X.Y.Z - YYYY-MM-DD (or TBD)
+        # Check for Home Assistant Add-on format (without square brackets or dates)
+        # Format should be: ## X.Y.Z (version only, no date suffix)
+        # Home Assistant Supervisor parses these headings to match the version in config.yaml
         # Allow flexible version format (X.Y.Z or X.Y.ZZ)
-        version_entries = re.findall(r'^## ([0-9.]+)\s*-\s*(.+)$', content, re.MULTILINE)
+        version_entries = re.findall(r'^## ([0-9.]+)$', content, re.MULTILINE)
         
         assert len(version_entries) > 0, "CHANGELOG.md should have at least one version entry"
         
@@ -112,10 +113,15 @@ def test_changelog_format():
         assert len(bracket_entries) == 0, \
             "CHANGELOG.md should not use square brackets around version numbers (use '## X.Y.Z' not '## [X.Y.Z]')"
         
+        # Check that version entries don't have date suffixes
+        date_suffix_entries = re.findall(r'^## [0-9.]+ -', content, re.MULTILINE)
+        assert len(date_suffix_entries) == 0, \
+            "CHANGELOG.md should not have date suffixes (use '## X.Y.Z' not '## X.Y.Z - DATE'). Home Assistant parses version-only headings."
+        
         print(f"✓ CHANGELOG.md follows Home Assistant Add-on format")
         print(f"  Found {len(version_entries)} version entries")
-        for version, date in version_entries[:3]:  # Show first 3
-            print(f"    - {version} ({date})")
+        for version in version_entries[:3]:  # Show first 3
+            print(f"    - {version}")
         
         return True
     except Exception as e:
