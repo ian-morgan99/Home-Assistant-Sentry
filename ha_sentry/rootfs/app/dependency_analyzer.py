@@ -516,6 +516,10 @@ class DependencyAnalyzer:
         integrations = self.dependency_graph.get('integrations', {})
         
         # Get list of components being updated (using itertools.chain for efficiency)
+        # We check both slug and name to handle different update source formats:
+        # - slug: typically from add-on updates (e.g., 'mosquitto')
+        # - name: typically from HACS/integration updates (e.g., 'Mosquitto Broker')
+        # Both are added to the set to maximize matching against integration domains
         updating_components = set()
         for update in chain(addon_updates, hacs_updates):
             slug = update.get('slug', '').lower()
@@ -552,12 +556,20 @@ class DependencyAnalyzer:
             component_type: Type label (e.g., "Add-ons/System", "HACS/Integration")
         
         Returns:
-            Formatted string listing component names
+            Formatted string listing component names, or None if no updates
         """
         if not updates:
             return None
         
-        names = [u.get('name', 'Unknown') for u in updates[:self.MAX_DISPLAYED_COMPONENTS]]
+        # Use component name if available, otherwise use slug as fallback
+        names = []
+        for u in updates[:self.MAX_DISPLAYED_COMPONENTS]:
+            name = u.get('name')
+            if not name:
+                # Fallback to slug if name is missing
+                name = u.get('slug', 'Unnamed Component')
+            names.append(name)
+        
         if len(updates) > self.MAX_DISPLAYED_COMPONENTS:
             names.append(f"and {len(updates) - self.MAX_DISPLAYED_COMPONENTS} more")
         
