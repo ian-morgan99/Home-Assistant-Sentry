@@ -1,5 +1,8 @@
 # Changelog
 
+## 1.3.08
+- Automatic version increments and changelog updates via GitHub Actions workflow
+
 ## 1.3.07
 - Configuration Documentation Enhancement: Added comprehensive inline parameter documentation to config.yaml
 - Image Asset Improvements: Converted icon.png and logo.png to RGBA format with transparent backgrounds for better appearance on different colored backgrounds
