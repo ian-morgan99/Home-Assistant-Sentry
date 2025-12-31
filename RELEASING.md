@@ -11,21 +11,31 @@ Starting from version 1.3.04, version numbers in configuration files are **autom
 When code is pushed to the main branch:
 
 1. A GitHub Actions workflow (`.github/workflows/update-version.yml`) automatically triggers
-2. The workflow reads the current version from `ha_sentry/config.json`
-3. **It automatically increments the patch version by 0.0.1**
-4. It updates the version in both configuration files:
+2. **First, it syncs version between config files** if they're out of sync (config.yaml matches config.json)
+3. Then it reads the current version from `ha_sentry/config.json`
+4. **It automatically increments the patch version by 1** (preserving 2-character formatting when present)
+5. It updates the version in both configuration files:
    - `ha_sentry/config.json`
    - `ha_sentry/config.yaml`
-5. The changes are committed and pushed back to the `main` branch
-6. The workflow includes safeguards to prevent infinite loops (skips if commit is from the bot)
+6. The changes are committed and pushed back to the `main` branch
+7. The workflow includes safeguards to prevent infinite loops (skips if commit is from the bot or is version-related)
 
 ### Automatic Version Increment
 
 The workflow automatically increments the **patch version** (smallest digit) on every push to main:
 
-- **Automatic increment**: `+0.0.1` for every commit to main
-  - Example: `1.3.04` → `1.3.5` → `1.3.6` → `1.3.7`
+- **Automatic increment**: `+1` for every commit to main
+  - Example: `1.3.04` → `1.3.05` → `1.3.06` → `1.3.07`
+  - Example: `1.3.09` → `1.3.10` → `1.3.11`
   - Example: `2.5.99` → `2.5.100` → `2.5.101`
+- **Format preservation**: 2-character formatting is preserved (e.g., `04` → `05`, not `5`)
+
+### Version Synchronization
+
+If config.json and config.yaml ever get out of sync:
+- The workflow automatically syncs config.yaml to match config.json **before** incrementing
+- This ensures both files always have the same version
+- The sync happens in the same commit as the version increment
 
 ### Manual Version Management
 
@@ -38,8 +48,10 @@ If you need to manually set a specific version (e.g., for a minor or major versi
 
 **Important Notes**:
 - The workflow automatically skips if the commit author is `github-actions[bot]` to prevent infinite loops
+- The workflow also skips if the commit message starts with version-related prefixes (e.g., "chore: auto-increment version", "chore: sync config.yaml version")
 - The workflow ignores changes to `.github/workflows/**` files
-- Both config files are kept in sync automatically
+- Both config files are automatically synced and kept in sync
+- Version format with 2-character numbers (e.g., `1.3.04`) is preserved throughout increments
 
 ### Creating a New Release
 
