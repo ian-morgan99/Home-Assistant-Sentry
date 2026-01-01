@@ -152,16 +152,17 @@ jobs:
             # This captures the actual changes that triggered this version increment
             RECENT_COMMITS=$(git log --format="%s" --no-merges -10 | \
               grep -v "^chore: auto-increment version" | \
-              grep -v "^chore: sync config")
+              grep -v "^chore: sync config" || true)
             
             # Take the most recent meaningful commit (the one that triggered this version bump)
             LATEST_CHANGE=$(echo "$RECENT_COMMITS" | head -1)
             
-            if [ -z "$LATEST_CHANGE" ]; then
+            # Check if we have any meaningful commits
+            if [ -z "$LATEST_CHANGE" ] || [ -z "$RECENT_COMMITS" ]; then
               CHANGELOG_ENTRIES="- Version automatically incremented"
             else
-              # Check if there are multiple recent commits (batch merge)
-              COMMIT_COUNT=$(echo "$RECENT_COMMITS" | wc -l)
+              # Count non-empty lines in RECENT_COMMITS
+              COMMIT_COUNT=$(echo "$RECENT_COMMITS" | grep -c . || echo "0")
               if [ $COMMIT_COUNT -gt 1 ] && [ $COMMIT_COUNT -le 5 ]; then
                 # Multiple commits - include all of them
                 CHANGELOG_ENTRIES=$(echo "$RECENT_COMMITS" | sed 's/^/- /')

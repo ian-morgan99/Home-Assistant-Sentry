@@ -11,12 +11,16 @@ import os
 
 def run_shell_command(command):
     """Execute a shell command and return the output."""
+    # Use the directory where this test file is located to find the repo root
+    test_dir = os.path.dirname(os.path.abspath(__file__))
+    repo_root = os.path.dirname(test_dir)
+    
     result = subprocess.run(
         command,
         shell=True,
         capture_output=True,
         text=True,
-        cwd="/home/runner/work/Home-Assistant-Sentry/Home-Assistant-Sentry"
+        cwd=repo_root
     )
     return result.stdout.strip(), result.returncode
 
@@ -28,15 +32,15 @@ def test_changelog_generation_single_commit():
     # Simulate single commit
     recent_commits = "Initial plan"
     
-    # Run the logic
+    # Run the improved logic
     cmd = f'''
     RECENT_COMMITS="{recent_commits}"
     LATEST_CHANGE=$(echo "$RECENT_COMMITS" | head -1)
-    COMMIT_COUNT=$(echo "$RECENT_COMMITS" | wc -l)
     
-    if [ -z "$LATEST_CHANGE" ]; then
+    if [ -z "$LATEST_CHANGE" ] || [ -z "$RECENT_COMMITS" ]; then
         echo "- Version automatically incremented"
     else
+        COMMIT_COUNT=$(echo "$RECENT_COMMITS" | grep -c . || echo "0")
         if [ $COMMIT_COUNT -gt 1 ] && [ $COMMIT_COUNT -le 5 ]; then
             echo "$RECENT_COMMITS" | sed 's/^/- /'
         else
@@ -62,11 +66,11 @@ def test_changelog_generation_multiple_commits():
 fix: Resolve sensor update issue
 docs: Update configuration guide"
     LATEST_CHANGE=$(echo "$RECENT_COMMITS" | head -1)
-    COMMIT_COUNT=$(echo "$RECENT_COMMITS" | wc -l)
     
-    if [ -z "$LATEST_CHANGE" ]; then
+    if [ -z "$LATEST_CHANGE" ] || [ -z "$RECENT_COMMITS" ]; then
         echo "- Version automatically incremented"
     else
+        COMMIT_COUNT=$(echo "$RECENT_COMMITS" | grep -c . || echo "0")
         if [ $COMMIT_COUNT -gt 1 ] && [ $COMMIT_COUNT -le 5 ]; then
             echo "$RECENT_COMMITS" | sed 's/^/- /'
         else
@@ -97,11 +101,11 @@ fix: Fix bug 2
 docs: Update docs 1
 docs: Update docs 2"
     LATEST_CHANGE=$(echo "$RECENT_COMMITS" | head -1)
-    COMMIT_COUNT=$(echo "$RECENT_COMMITS" | wc -l)
     
-    if [ -z "$LATEST_CHANGE" ]; then
+    if [ -z "$LATEST_CHANGE" ] || [ -z "$RECENT_COMMITS" ]; then
         echo "- Version automatically incremented"
     else
+        COMMIT_COUNT=$(echo "$RECENT_COMMITS" | grep -c . || echo "0")
         if [ $COMMIT_COUNT -gt 1 ] && [ $COMMIT_COUNT -le 5 ]; then
             echo "$RECENT_COMMITS" | sed 's/^/- /'
         else
@@ -125,10 +129,10 @@ def test_changelog_generation_empty():
     RECENT_COMMITS=""
     LATEST_CHANGE=$(echo "$RECENT_COMMITS" | head -1)
     
-    if [ -z "$LATEST_CHANGE" ]; then
+    if [ -z "$LATEST_CHANGE" ] || [ -z "$RECENT_COMMITS" ]; then
         echo "- Version automatically incremented"
     else
-        COMMIT_COUNT=$(echo "$RECENT_COMMITS" | wc -l)
+        COMMIT_COUNT=$(echo "$RECENT_COMMITS" | grep -c . || echo "0")
         if [ $COMMIT_COUNT -gt 1 ] && [ $COMMIT_COUNT -le 5 ]; then
             echo "$RECENT_COMMITS" | sed 's/^/- /'
         else
@@ -149,8 +153,12 @@ def test_actual_git_log_filtering():
     """Test the actual git log filtering used in the workflow."""
     print("\n=== Test: Actual Git Log Filtering ===")
     
-    cmd = '''
-    cd /home/runner/work/Home-Assistant-Sentry/Home-Assistant-Sentry
+    # Get repo root dynamically
+    test_dir = os.path.dirname(os.path.abspath(__file__))
+    repo_root = os.path.dirname(test_dir)
+    
+    cmd = f'''
+    cd {repo_root}
     RECENT_COMMITS=$(git log --format="%s" --no-merges -10 | \
         grep -v "^chore: auto-increment version" | \
         grep -v "^chore: sync config")
