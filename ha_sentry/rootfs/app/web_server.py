@@ -800,6 +800,98 @@ class DependencyTreeWebServer:
             margin-bottom: 10px;
         }
         
+        .diagnostic-panel {
+            background: #21262d;
+            border: 1px solid #30363d;
+            border-radius: 8px;
+            padding: 15px;
+            margin-bottom: 20px;
+            display: none;
+        }
+        
+        .diagnostic-panel.visible {
+            display: block;
+        }
+        
+        .diagnostic-panel h3 {
+            color: #f85149;
+            margin-bottom: 10px;
+            font-size: 16px;
+        }
+        
+        .diagnostic-log {
+            background: #0d1117;
+            border: 1px solid #30363d;
+            border-radius: 4px;
+            padding: 10px;
+            max-height: 200px;
+            overflow-y: auto;
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+            color: #8b949e;
+        }
+        
+        .diagnostic-log .log-entry {
+            margin-bottom: 5px;
+            padding: 3px 0;
+            border-bottom: 1px solid #161b22;
+        }
+        
+        .diagnostic-log .log-entry:last-child {
+            border-bottom: none;
+        }
+        
+        .diagnostic-log .log-error {
+            color: #f85149;
+        }
+        
+        .diagnostic-log .log-warning {
+            color: #d29922;
+        }
+        
+        .diagnostic-log .log-info {
+            color: #58a6ff;
+        }
+        
+        .loading-spinner {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid #30363d;
+            border-top: 3px solid #58a6ff;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        .status-indicator {
+            display: inline-block;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 12px;
+            font-weight: 600;
+            margin-left: 10px;
+        }
+        
+        .status-indicator.loading {
+            background: #1f6feb;
+            color: white;
+        }
+        
+        .status-indicator.error {
+            background: #da3633;
+            color: white;
+        }
+        
+        .status-indicator.success {
+            background: #238636;
+            color: white;
+        }
+        
         .impact-summary {
             background: #21262d;
             padding: 15px;
@@ -822,7 +914,26 @@ class DependencyTreeWebServer:
         <header>
             <h1>🛡️ Home Assistant Sentry</h1>
             <p class="subtitle">Dependency Tree Visualization & Impact Analysis</p>
+            <span id="status-indicator" class="status-indicator loading">
+                <span class="loading-spinner"></span> Initializing...
+            </span>
         </header>
+        
+        <noscript>
+            <div class="error" style="margin-bottom: 20px;">
+                <h3>⚠️ JavaScript Required</h3>
+                <p>The Home Assistant Sentry Web UI requires JavaScript to function.</p>
+                <p>Please enable JavaScript in your browser and refresh the page.</p>
+            </div>
+        </noscript>
+        
+        <div id="diagnostic-panel" class="diagnostic-panel">
+            <h3>🔍 Diagnostic Information</h3>
+            <div id="diagnostic-log" class="diagnostic-log">
+                <!-- Diagnostic logs will appear here -->
+            </div>
+            <button onclick="toggleDiagnostics()" style="margin-top: 10px;">Hide Diagnostics</button>
+        </div>
         
         <div class="stats" id="stats">
             <div class="stat-card">
@@ -895,6 +1006,93 @@ class DependencyTreeWebServer:
         const COMPONENT_LOAD_INTERVAL_MS = 100;   // Check every 100ms
         const MAX_COMPONENT_LOAD_ATTEMPTS = Math.floor(COMPONENT_LOAD_TIMEOUT_MS / COMPONENT_LOAD_INTERVAL_MS);
         
+        // Global initialization timeout (failsafe)
+        const GLOBAL_INIT_TIMEOUT_MS = 15000;  // 15 seconds total timeout
+        let globalInitTimeoutId = null;
+        let initializationComplete = false;
+        
+        // Diagnostic logging
+        const diagnosticLogs = [];
+        
+        function addDiagnosticLog(message, level = 'info') {
+            const timestamp = new Date().toISOString().substring(11, 23);
+            const logEntry = { timestamp, message, level };
+            diagnosticLogs.push(logEntry);
+            
+            // Also log to console
+            const consoleMethod = level === 'error' ? 'error' : level === 'warning' ? 'warn' : 'log';
+            console[consoleMethod](`[${timestamp}] ${message}`);
+            
+            // Update diagnostic panel if visible
+            updateDiagnosticPanel();
+        }
+        
+        function updateDiagnosticPanel() {
+            const panel = document.getElementById('diagnostic-log');
+            if (!panel) return;
+            
+            const html = diagnosticLogs.slice(-20).map(log => {
+                const levelClass = `log-${log.level}`;
+                return `<div class="log-entry ${levelClass}">[${log.timestamp}] ${escapeHtml(log.message)}</div>`;
+            }).join('');
+            
+            panel.innerHTML = html || '<div class="log-entry">No diagnostic logs yet</div>';
+        }
+        
+        function showDiagnosticPanel() {
+            const panel = document.getElementById('diagnostic-panel');
+            if (panel) {
+                panel.classList.add('visible');
+                updateDiagnosticPanel();
+            }
+        }
+        
+        function toggleDiagnostics() {
+            const panel = document.getElementById('diagnostic-panel');
+            if (panel) {
+                panel.classList.toggle('visible');
+            }
+        }
+        
+        function updateStatusIndicator(status, message) {
+            const indicator = document.getElementById('status-indicator');
+            if (!indicator) return;
+            
+            // Remove all status classes
+            indicator.classList.remove('loading', 'error', 'success');
+            
+            // Add new status class
+            indicator.classList.add(status);
+            
+            // Update message
+            if (status === 'loading') {
+                indicator.innerHTML = `<span class="loading-spinner"></span> ${escapeHtml(message)}`;
+            } else if (status === 'error') {
+                indicator.innerHTML = `❌ ${escapeHtml(message)}`;
+            } else if (status === 'success') {
+                indicator.innerHTML = `✅ ${escapeHtml(message)}`;
+            }
+        }
+        
+        function handleGlobalInitTimeout() {
+            if (!initializationComplete) {
+                addDiagnosticLog('Global initialization timeout reached (15s)', 'error');
+                updateStatusIndicator('error', 'Initialization timeout');
+                showDiagnosticPanel();
+                
+                const select = document.getElementById('component-select');
+                select.innerHTML = '<option value="">Initialization timeout</option>';
+                
+                showError('The Web UI failed to initialize within 15 seconds.\\n\\n' +
+                         'This usually indicates:\\n' +
+                         '1. The dependency graph is still building (check add-on logs)\\n' +
+                         '2. The add-on is not responding\\n' +
+                         '3. Network/proxy issues preventing API access\\n\\n' +
+                         'Check the diagnostic panel and add-on logs for details.\\n' +
+                         'Try refreshing the page or restarting the add-on.');
+            }
+        }
+        
         // NOTE: All API fetch() calls use relative URLs with './' prefix (e.g., './api/components')
         // This ensures the URLs resolve correctly both when accessed directly at the server root
         // and when accessed through Home Assistant's ingress proxy at /api/hassio_ingress/ha_sentry/
@@ -941,10 +1139,27 @@ class DependencyTreeWebServer:
         
         // Initialize
         document.addEventListener('DOMContentLoaded', () => {
-            loadComponents();
-            loadStats();
-            setupModeButtons();
-            handleUrlFragment();  // Handle URL fragment for deep linking
+            addDiagnosticLog('DOM Content Loaded', 'info');
+            addDiagnosticLog('Current URL: ' + window.location.href, 'info');
+            addDiagnosticLog('User Agent: ' + navigator.userAgent.substring(0, 100), 'info');
+            
+            updateStatusIndicator('loading', 'Loading components...');
+            
+            // Set global timeout failsafe
+            globalInitTimeoutId = setTimeout(handleGlobalInitTimeout, GLOBAL_INIT_TIMEOUT_MS);
+            
+            // Start loading
+            try {
+                loadComponents();
+                loadStats();
+                setupModeButtons();
+                handleUrlFragment();  // Handle URL fragment for deep linking
+            } catch (error) {
+                addDiagnosticLog('Error during initialization: ' + error.message, 'error');
+                updateStatusIndicator('error', 'Initialization failed');
+                showDiagnosticPanel();
+                showError('Failed to initialize Web UI: ' + error.message);
+            }
             
             // Log current URL for debugging
             console.log('Web UI loaded');
@@ -1067,20 +1282,26 @@ class DependencyTreeWebServer:
         }
         
         async function loadComponents() {
+            addDiagnosticLog('Starting component loading', 'info');
+            
             try {
                 // First check the status to see if the graph is still building
                 let statusResponse;
                 try {
+                    addDiagnosticLog('Fetching status from ./api/status', 'info');
                     statusResponse = await fetch('./api/status', {
                         credentials: 'same-origin'
                     });
                     
                     if (statusResponse.ok) {
                         const statusData = await statusResponse.json();
+                        addDiagnosticLog('Status check result: ' + JSON.stringify(statusData), 'info');
                         console.log('Status check:', statusData);
                         
                         // If status indicates error or unavailable, show error immediately
                         if (statusData.status === 'error' || statusData.status === 'unavailable') {
+                            addDiagnosticLog('Service unavailable: ' + statusData.message, 'error');
+                            updateStatusIndicator('error', 'Service unavailable');
                             const select = document.getElementById('component-select');
                             select.innerHTML = '<option value="">Service unavailable</option>';
                             showConfigError({
@@ -1088,20 +1309,30 @@ class DependencyTreeWebServer:
                                 message: statusData.message || 'The dependency graph service is not available.',
                                 fix: 'Check add-on logs for errors, or enable "enable_dependency_graph: true" in configuration.'
                             });
+                            showDiagnosticPanel();
                             return;
                         }
+                    } else {
+                        addDiagnosticLog('Status check failed: HTTP ' + statusResponse.status, 'warning');
                     }
                 } catch (statusError) {
                     // Status check failed, continue with component loading anyway
+                    addDiagnosticLog('Status check exception: ' + statusError.message, 'warning');
                     console.warn('Status check failed:', statusError);
                 }
                 
+                addDiagnosticLog('Fetching components from ./api/components', 'info');
                 const response = await fetch('./api/components', {
                     credentials: 'same-origin'
                 });
                 
+                addDiagnosticLog('Components fetch response: HTTP ' + response.status, 'info');
+                
                 if (response.status === 503) {
                     // Service unavailable - show detailed configuration error
+                    addDiagnosticLog('Service unavailable (503)', 'error');
+                    updateStatusIndicator('error', 'Service unavailable');
+                    showDiagnosticPanel();
                     try {
                         const data = await response.json();
                         showConfigError(data);
@@ -1112,13 +1343,20 @@ class DependencyTreeWebServer:
                 }
                 
                 if (!response.ok) {
+                    addDiagnosticLog(`HTTP error: ${response.status} ${response.statusText}`, 'error');
+                    updateStatusIndicator('error', 'Failed to load');
+                    showDiagnosticPanel();
                     showError(`Failed to load components: HTTP ${response.status} ${response.statusText}`);
                     return;
                 }
                 
                 const data = await response.json();
+                addDiagnosticLog('Components data received, count: ' + (data.components ? data.components.length : 'unknown'), 'info');
                 
                 if (data.error) {
+                    addDiagnosticLog('API returned error: ' + data.error, 'error');
+                    updateStatusIndicator('error', 'API error');
+                    showDiagnosticPanel();
                     showError(data.error);
                     return;
                 }
@@ -1134,14 +1372,19 @@ class DependencyTreeWebServer:
                         // Still loading, retry after 2 seconds
                         const elapsed = componentLoadAttempts * 2;
                         const remaining = (MAX_COMPONENT_LOAD_RETRIES - componentLoadAttempts) * 2;
+                        addDiagnosticLog(`Components empty, retry ${componentLoadAttempts}/${MAX_COMPONENT_LOAD_RETRIES} (elapsed: ${elapsed}s)`, 'warning');
                         console.log(`Components still loading, retry ${componentLoadAttempts}/${MAX_COMPONENT_LOAD_RETRIES} in 2 seconds... (elapsed: ${elapsed}s, max wait: ${remaining}s more)`);
                         select.innerHTML = `<option value="">Loading components (${elapsed}s elapsed, building dependency graph)...</option>`;
+                        updateStatusIndicator('loading', `Loading... (${elapsed}s)`);
                         setTimeout(loadComponents, 2000);
                         return;
                     }
                     
                     // After max retries, show error message
                     const waitTime = MAX_COMPONENT_LOAD_RETRIES * 2;  // Calculate actual wait time
+                    addDiagnosticLog(`No components after ${waitTime}s, giving up`, 'error');
+                    updateStatusIndicator('error', 'No components found');
+                    showDiagnosticPanel();
                     select.innerHTML = '<option value="">No integrations found</option>';
                     showError(`No integrations found in the dependency graph after waiting ${waitTime} seconds.\\n\\n` +
                              'This could mean:\\n' +
@@ -1156,6 +1399,14 @@ class DependencyTreeWebServer:
                 
                 // Successfully loaded components, reset retry counter
                 componentLoadAttempts = 0;
+                initializationComplete = true;
+                
+                // Clear global timeout
+                if (globalInitTimeoutId) {
+                    clearTimeout(globalInitTimeoutId);
+                    globalInitTimeoutId = null;
+                }
+                
                 select.innerHTML = '<option value="">-- Select a component --</option>';
                 
                 components.forEach(comp => {
@@ -1167,8 +1418,14 @@ class DependencyTreeWebServer:
                 });
                 
                 // Log success for debugging
+                addDiagnosticLog(`Successfully loaded ${components.length} components`, 'info');
+                updateStatusIndicator('success', `${components.length} components loaded`);
                 console.log(`Loaded ${components.length} components successfully`);
             } catch (error) {
+                addDiagnosticLog('Component loading exception: ' + error.message, 'error');
+                addDiagnosticLog('Error stack: ' + (error.stack || 'no stack trace'), 'error');
+                updateStatusIndicator('error', 'Load failed');
+                showDiagnosticPanel();
                 showError('Failed to load components: ' + error.message);
                 console.error('Component loading error:', error);
             }
@@ -1176,15 +1433,18 @@ class DependencyTreeWebServer:
         
         async function loadStats() {
             try {
+                addDiagnosticLog('Loading statistics', 'info');
                 const response = await fetch('./api/graph-data', {
                     credentials: 'same-origin'
                 });
                 
                 if (response.status === 503) {
+                    addDiagnosticLog('Stats unavailable (503)', 'warning');
                     return; // Don't show stats if service unavailable
                 }
                 
                 if (!response.ok) {
+                    addDiagnosticLog(`Failed to load stats: HTTP ${response.status}`, 'warning');
                     console.error(`Failed to load stats: HTTP ${response.status} ${response.statusText}`);
                     return;
                 }
@@ -1192,13 +1452,16 @@ class DependencyTreeWebServer:
                 const data = await response.json();
                 
                 if (data.error) {
+                    addDiagnosticLog('Stats API error: ' + data.error, 'warning');
                     return;
                 }
                 
                 document.getElementById('stat-integrations').textContent = data.statistics.total_integrations;
                 document.getElementById('stat-dependencies').textContent = data.statistics.total_dependencies;
                 document.getElementById('stat-highrisk').textContent = data.statistics.high_risk_count;
+                addDiagnosticLog('Statistics loaded successfully', 'info');
             } catch (error) {
+                addDiagnosticLog('Stats loading exception: ' + error.message, 'warning');
                 console.error('Failed to load stats:', error);
             }
         }
@@ -1408,6 +1671,9 @@ class DependencyTreeWebServer:
             const escapedMessage = escapeHtml(message);
             const htmlMessage = escapedMessage.replace(/\n/g, '<br>');
             viz.innerHTML = `<div class="error">❌ Error: ${htmlMessage}</div>`;
+            
+            // Add button to show diagnostics
+            viz.innerHTML += '<button onclick="toggleDiagnostics()" style="margin-top: 15px;">Show Diagnostic Logs</button>';
         }
         
         function showConfigError(data) {
@@ -1418,7 +1684,7 @@ class DependencyTreeWebServer:
             viz.innerHTML = `
                 <div class="error">
                     <h3 style="margin-bottom: 15px;">⚙️ Configuration Required</h3>
-                    <p style="margin-bottom: 10px;"><strong>Issue:</strong> ${message}</p>
+                    <p style="margin-bottom: 10px;"><strong>Issue:</strong> ${escapeHtml(message)}</p>
                     <p style="margin-bottom: 15px;"><strong>How to fix:</strong></p>
                     <ol style="margin-left: 20px; margin-bottom: 15px;">
                         <li style="margin-bottom: 8px;">Go to <strong>Settings → Add-ons → Home Assistant Sentry</strong></li>
@@ -1430,6 +1696,7 @@ class DependencyTreeWebServer:
                         💡 <strong>Note:</strong> The Web UI requires the dependency graph feature to be enabled. 
                         Check the add-on logs for more detailed information.
                     </p>
+                    <button onclick="toggleDiagnostics()" style="margin-top: 15px;">Show Diagnostic Logs</button>
                 </div>`;
             
             // Also update stats to show error state
