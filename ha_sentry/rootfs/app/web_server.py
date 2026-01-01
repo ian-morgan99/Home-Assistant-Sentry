@@ -1015,7 +1015,7 @@ class DependencyTreeWebServer:
         const diagnosticLogs = [];
         
         function addDiagnosticLog(message, level = 'info') {
-            const timestamp = new Date().toISOString().substr(11, 12);
+            const timestamp = new Date().toISOString().substring(11, 23);
             const logEntry = { timestamp, message, level };
             diagnosticLogs.push(logEntry);
             

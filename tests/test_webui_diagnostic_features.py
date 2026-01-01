@@ -117,7 +117,11 @@ def test_html_enhanced_error_logging():
     html = server._generate_html()
     
     # Check for enhanced logging in loadComponents
-    assert html.count('addDiagnosticLog') > 10, "Not enough diagnostic logging calls"
+    # We expect at least 10 diagnostic log calls throughout the loading process
+    # (DOM load, URL info, status checks, API calls, responses, success/error states)
+    MIN_EXPECTED_LOG_CALLS = 10
+    assert html.count('addDiagnosticLog') > MIN_EXPECTED_LOG_CALLS, \
+        f"Not enough diagnostic logging calls (expected > {MIN_EXPECTED_LOG_CALLS})"
     
     # Check for specific log points
     assert 'Starting component loading' in html, "Missing component loading start log"
