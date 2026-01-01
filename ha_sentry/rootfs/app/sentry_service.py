@@ -43,6 +43,8 @@ class SentryService:
         self.dependency_graph_builder = None
         self.web_server = None
         self._graph_build_task = None
+        self._graph_build_status = 'not_started'  # Track graph build status: not_started, building, completed, failed
+        self._graph_build_error = None  # Store error message if build fails
         
         # Note: Dependency graph will be built asynchronously after service starts
         # This ensures the web server starts quickly without blocking
@@ -50,6 +52,7 @@ class SentryService:
             logger.info("Dependency graph building is disabled in configuration")
             logger.info("  enable_dependency_graph: false")
             logger.info("  Note: Web UI will not be available without dependency graph")
+            self._graph_build_status = 'disabled'
         
         # Initialize AI client with dependency graph (will be None initially)
         self.ai_client = AIClient(config, dependency_graph=self.dependency_graph)
@@ -59,6 +62,7 @@ class SentryService:
     async def _build_dependency_graph_async(self):
         """Build dependency graph asynchronously in background"""
         try:
+            self._graph_build_status = 'building'
             logger.info("=" * 60)
             logger.info("DEPENDENCY GRAPH INITIALIZATION (Background)")
             logger.info("=" * 60)
@@ -88,21 +92,47 @@ class SentryService:
             self.ai_client.dependency_graph = graph_data
             
             stats = graph_data.get('machine_readable', {}).get('statistics', {})
-            logger.info(f"✅ Dependency graph built successfully")
-            logger.info(f"   Total integrations: {stats.get('total_integrations', 0)}")
-            logger.info(f"   Total dependencies: {stats.get('total_dependencies', 0)}")
-            if stats.get('high_risk_dependencies', 0) > 0:
-                logger.info(f"   High-risk dependencies: {stats.get('high_risk_dependencies', 0)}")
-            logger.info("=" * 60)
+            
+            # Check if we actually found any integrations
+            if stats.get('total_integrations', 0) == 0:
+                self._graph_build_status = 'failed'
+                self._graph_build_error = 'No integrations found - check add-on logs for path scanning details'
+                logger.warning("=" * 60)
+                logger.warning("DEPENDENCY GRAPH BUILD COMPLETED BUT EMPTY")
+                logger.warning("=" * 60)
+                logger.warning("The dependency graph was built successfully, but no integrations were found.")
+                logger.warning("")
+                logger.warning("This means:")
+                logger.warning("  - The web UI will show 'No integrations found'")
+                logger.warning("  - Dependency analysis features will be limited")
+                logger.warning("")
+                logger.warning("Common causes:")
+                logger.warning("  1. Integration paths are incorrect or not accessible")
+                logger.warning("  2. Home Assistant is installed in a non-standard location")
+                logger.warning("  3. File system permissions prevent reading integration directories")
+                logger.warning("")
+                logger.warning("The add-on will continue to run with limited functionality.")
+                logger.warning("Check the logs above for path scanning details and suggestions.")
+                logger.warning("=" * 60)
+            else:
+                self._graph_build_status = 'completed'
+                logger.info(f"✅ Dependency graph built successfully")
+                logger.info(f"   Total integrations: {stats.get('total_integrations', 0)}")
+                logger.info(f"   Total dependencies: {stats.get('total_dependencies', 0)}")
+                if stats.get('high_risk_dependencies', 0) > 0:
+                    logger.info(f"   High-risk dependencies: {stats.get('high_risk_dependencies', 0)}")
+                logger.info("=" * 60)
             
         except Exception as e:
+            self._graph_build_status = 'failed'
+            self._graph_build_error = str(e)
             logger.error("=" * 60)
             logger.error("DEPENDENCY GRAPH BUILD FAILED")
             logger.error("=" * 60)
             logger.error(f"Failed to build dependency graph: {e}", exc_info=True)
             logger.error("")
             logger.error("This means:")
-            logger.error("  - The web UI will show 'loading components...' indefinitely")
+            logger.error("  - The web UI will show an error message indicating the dependency graph is unavailable")
             logger.error("  - Dependency analysis features will be limited")
             logger.error("")
             logger.error("Common causes:")
@@ -157,6 +187,8 @@ class SentryService:
                 self.dependency_graph_builder = DependencyGraphBuilder()
             logger.info("Starting dependency graph build in background...")
             self._graph_build_task = asyncio.create_task(self._build_dependency_graph_async())
+        else:
+            self._graph_build_status = 'disabled'
         
         # Start web server for dependency visualization if enabled
         # Note: Web server will start immediately, even before graph is built
@@ -173,7 +205,8 @@ class SentryService:
                 self.web_server = DependencyTreeWebServer(
                     self.dependency_graph_builder,
                     self.config,
-                    port=self.WEB_UI_PORT
+                    port=self.WEB_UI_PORT,
+                    sentry_service=self  # Pass self for status checking
                 )
                 await self.web_server.start()
             except Exception as e:
@@ -498,6 +531,20 @@ No updates are currently available for:
         
         Returns:
             str: The full ingress URL
+            
+        Note:
+            This uses the standard Home Assistant ingress URL format: /api/hassio_ingress/<slug>
+            
+            If the links in notifications don't work:
+            1. Check your Home Assistant version (ingress format changed in HA 2021.x+)
+            2. Try accessing the Web UI via: Settings → Add-ons → Home Assistant Sentry → Open Web UI
+            3. Look for the "Sentry" panel in your Home Assistant sidebar
+            4. Check the add-on logs for the actual ingress URL being used
+            
+            The ingress URL format may vary based on:
+            - Home Assistant version
+            - How the add-on was installed (built-in vs. custom repository)
+            - Reverse proxy configuration
         """
         base_url = f"/api/hassio_ingress/{self.ADDON_SLUG}"
         if path:
@@ -667,10 +714,13 @@ No updates are currently available for:
                 components_param = ','.join(changed_components[:10])  # Limit to avoid URL length issues
                 impact_url = self._get_ingress_url() + f"#impact:{components_param}"
                 notification_message += f"- [⚡ Change Impact Report]({impact_url}) - View {len(changed_components)} changed components and their affected dependencies\n"
+                logger.debug(f"Generated impact report URL: {impact_url}")
             
             # Always add link to main web UI (ingress panel)
             web_ui_url = self._get_ingress_url()
-            notification_message += f"- [🛡️ Web UI - Dependency Visualization]({web_ui_url}) - Explore all component dependencies via Sentry sidebar panel\n"
+            notification_message += f"- [🛡️ Web UI - Dependency Visualization]({web_ui_url}) - Explore all component dependencies\n"
+            logger.debug(f"Generated web UI URL: {web_ui_url}")
+            notification_message += "\n*Tip: If links don't work, access via Settings → Add-ons → Home Assistant Sentry → Open Web UI, or look for the 'Sentry' panel in your sidebar.*\n"
         
         notification_message += f"\n*Analysis powered by: {'AI' if analysis.get('ai_analysis') else 'Heuristics'}*"
         notification_message += f"\n*Last check: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}*"
