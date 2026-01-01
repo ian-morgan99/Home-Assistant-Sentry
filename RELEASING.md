@@ -17,7 +17,10 @@ When code is pushed to the main branch (including when a Pull Request is merged)
 5. It updates the version in both configuration files:
    - `ha_sentry/config.json`
    - `ha_sentry/config.yaml`
-6. **It adds a new entry to CHANGELOG.md** with the new version number
+6. **It generates a meaningful CHANGELOG.md entry** by extracting commit message(s) that triggered this version bump
+   - For single commits: Uses the commit message directly
+   - For batch merges (2-5 commits): Includes all commit messages
+   - For large batches (6+ commits): Uses the most recent commit message
 7. The changes are committed and pushed back to the `main` branch
 8. The workflow includes safeguards to prevent infinite loops (skips if commit is from the bot or is version-related)
 
@@ -58,13 +61,17 @@ If you need to manually set a specific version (e.g., for a minor or major versi
 
 Since versions are automatically incremented on every commit, creating a release is simplified:
 
-1. **Update the CHANGELOG.md** (if needed)
-   - The workflow automatically adds a basic entry for each new version
-   - You can manually edit ha_sentry/CHANGELOG.md to add more detailed release notes
+1. **CHANGELOG.md is automatically updated**
+   - The workflow automatically generates changelog entries from commit messages
+   - Each version entry includes the commit message(s) that triggered the version bump
+   - For batch merges (2-5 commits), all commit messages are included
+   - For single commits or large batches, only the most recent commit message is used
+   - You can manually edit ha_sentry/CHANGELOG.md to refine or enhance the auto-generated entries
    - Follow Home Assistant Add-on changelog format
    - Example: `## 1.2.0` (version number only, no date)
    - Use simple bullet points for changes (no need for subsections like "Added", "Changed", though they are acceptable)
    - **Important**: Do not add dates or other suffixes to version headings
+   - **Tip**: Write clear, descriptive commit messages as they will appear in the CHANGELOG
 
 2. **Create a Git Tag** (optional, for marking specific releases)
    ```bash
@@ -113,11 +120,38 @@ If you need to manually adjust the version (e.g., for a minor or major version b
 
 **Note**: To skip auto-increment on a specific commit, you cannot prevent it. However, you can always manually adjust the version in a subsequent commit if needed.
 
+## Writing Good Commit Messages
+
+Since commit messages are now automatically included in the CHANGELOG, follow these best practices:
+
+- **Be descriptive**: Write clear, user-friendly commit messages that explain what changed and why
+- **Use conventional commit format** (optional but recommended):
+  - `feat: Add new dashboard feature` - New features
+  - `fix: Resolve issue with sensor updates` - Bug fixes
+  - `docs: Update configuration examples` - Documentation changes
+  - `refactor: Improve dependency analysis performance` - Code improvements
+  - `chore: Update dependencies` - Maintenance tasks
+- **Focus on what, not how**: Describe the change from a user's perspective
+- **Be concise but complete**: One-line messages are fine if they're clear
+- **Avoid vague messages**: Instead of "Fix bug", write "Fix issue with HACS integration detection"
+
+**Good examples:**
+- `feat: Add support for auto-update configuration`
+- `fix: Resolve dashboard creation failure on startup`
+- `docs: Add troubleshooting guide for AI providers`
+
+**Poor examples:**
+- `Update files` (too vague)
+- `WIP` (not descriptive)
+- `Fix` (what was fixed?)
+
+Remember: Your commit message will appear in the CHANGELOG and be visible to all users!
+
 ## Pre-Release Checklist
 
 Before merging to main (which will trigger auto-increment), ensure:
 
-- [ ] All changes are documented in ha_sentry/CHANGELOG.md
+- [ ] Commit message is clear and descriptive (it will appear in CHANGELOG.md automatically)
 - [ ] All tests pass
 - [ ] Documentation is up to date
 - [ ] Consider if the change warrants a minor or major version bump (manually adjust if needed)

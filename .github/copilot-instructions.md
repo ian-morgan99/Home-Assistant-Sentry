@@ -281,7 +281,12 @@ Home Assistant Supervisor parses CHANGELOG.md to match the version in config.yam
 If the version heading includes dates or other suffixes (e.g., `## 1.2.0 - 2024-12-30` or `## 1.2.0 - TBD`), Home Assistant will not find a match and will show "No changelog found".
 
 **Automated Updates:**
-The GitHub Actions workflow automatically adds a new CHANGELOG.md entry when versions are incremented. You can manually edit these entries to add more detailed release notes.
+The GitHub Actions workflow automatically adds a new CHANGELOG.md entry when versions are incremented. The workflow extracts commit messages and generates meaningful changelog entries:
+- Single commits: Uses the commit message as the changelog entry
+- Batch merges (2-5 commits): Includes all commit messages
+- Large batches (6+ commits): Uses only the most recent commit message
+
+You can manually edit these entries to add more detailed release notes if needed. Write clear, descriptive commit messages as they will automatically appear in the CHANGELOG.
 
 When making changes, always update CHANGELOG.md with clear, user-friendly descriptions.
 
