@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.3.13
+- Version automatically incremented
+- Manual update recommended: Add detailed release notes here
+
+
 ## 1.3.12
 - Version automatically incremented
 - Manual update recommended: Add detailed release notes here
