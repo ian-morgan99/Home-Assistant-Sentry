@@ -175,10 +175,13 @@ jobs:
             # Create a temporary file with the new version entry
             # Insert after the "# Changelog" line
             {
+              # Print everything up to and including the "# Changelog" header
               awk '/^# Changelog$/ {print; print ""; exit} {print}' ha_sentry/CHANGELOG.md
+              # Add the new version section
               echo "## $VERSION"
               echo "$CHANGELOG_ENTRIES"
               echo ""
+              # Print everything after the "# Changelog" header (skip the header itself)
               awk 'BEGIN{skip=1} /^# Changelog$/{skip=0; next} !skip' ha_sentry/CHANGELOG.md
             } > ha_sentry/CHANGELOG.md.tmp
             

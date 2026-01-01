@@ -207,12 +207,19 @@ def test_changelog_file_update():
         version = "1.3.15"
         changelog_entries = "- feat: Auto-generate meaningful changelog entries"
         
+        # This command recreates the changelog insertion logic:
+        # 1. First awk: Print header and everything before it, then stop
+        # 2. Echo new version section
+        # 3. Second awk: Print everything after the header (excluding header)
         cmd = f'''
         {{
+            # Print up to and including "# Changelog" header
             awk '/^# Changelog$/ {{print; print ""; exit}} {{print}}' {temp_file}
+            # Add new version entry
             echo "## {version}"
             echo "{changelog_entries}"
             echo ""
+            # Print everything after the header (skip=1 means skip until we see the header)
             awk 'BEGIN{{skip=1}} /^# Changelog$/{{skip=0; next}} !skip' {temp_file}
         }} > {temp_file}.tmp && cat {temp_file}.tmp
         '''
