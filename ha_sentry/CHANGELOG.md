@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.3.15
+- Merge pull request #92 from ian-morgan99/copilot/update-changelog-commentary
+
+
 ## 1.3.14
 - Version automatically incremented
 - Manual update recommended: Add detailed release notes here
