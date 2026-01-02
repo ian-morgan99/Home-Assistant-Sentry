@@ -1386,14 +1386,67 @@ class DependencyTreeWebServer:
                     updateStatusIndicator('error', 'No components found');
                     showDiagnosticPanel();
                     select.innerHTML = '<option value="">No integrations found</option>';
-                    showError(`No integrations found in the dependency graph after waiting ${waitTime} seconds.\\n\\n` +
-                             'This could mean:\\n' +
-                             '1. The dependency graph is still building (check add-on logs)\\n' +
-                             '2. No integrations are installed (unlikely)\\n' +
-                             '3. Integration paths are not accessible\\n' +
-                             '4. The dependency graph failed to build\\n\\n' +
-                             'Check the add-on logs for more details or try refreshing the page.\\n' +
-                             'Tip: Look for "Dependency graph built successfully" in the logs.');
+                    
+                    // Show detailed error with troubleshooting steps
+                    const viz = document.getElementById('visualization');
+                    viz.innerHTML = `
+                        <div class="error">
+                            <h3 style="margin-bottom: 15px;">⚠️ No Integrations Found</h3>
+                            <p style="margin-bottom: 15px;">
+                                The dependency graph was built but found <strong>0 integrations</strong> after waiting ${waitTime} seconds.
+                            </p>
+                            
+                            <p style="margin-bottom: 10px;"><strong>This usually means:</strong></p>
+                            <ol style="margin-left: 20px; margin-bottom: 15px;">
+                                <li style="margin-bottom: 8px;">
+                                    <strong>Integration paths are incorrect or inaccessible</strong><br>
+                                    <span style="font-size: 0.9em; color: #ffb3b3;">
+                                        The add-on can't find your Home Assistant integrations.
+                                    </span>
+                                </li>
+                                <li style="margin-bottom: 8px;">
+                                    <strong>The dependency graph build failed</strong><br>
+                                    <span style="font-size: 0.9em; color: #ffb3b3;">
+                                        Check the add-on logs for error messages during graph building.
+                                    </span>
+                                </li>
+                            </ol>
+                            
+                            <p style="margin-bottom: 10px;"><strong>How to fix:</strong></p>
+                            <ol style="margin-left: 20px; margin-bottom: 15px;">
+                                <li style="margin-bottom: 8px;">
+                                    Check the <strong>add-on logs</strong> for details:
+                                    <ul style="margin-left: 20px; margin-top: 5px;">
+                                        <li>Go to Settings → Add-ons → Home Assistant Sentry</li>
+                                        <li>Click the "Log" tab</li>
+                                        <li>Look for messages starting with "BUILDING DEPENDENCY GRAPH"</li>
+                                        <li>Look for "FOUND ALTERNATIVE INTEGRATION PATHS" suggestions</li>
+                                    </ul>
+                                </li>
+                                <li style="margin-bottom: 8px;">
+                                    If logs show path errors, <strong>configure custom paths</strong>:
+                                    <ul style="margin-left: 20px; margin-top: 5px;">
+                                        <li>Go to Configuration tab</li>
+                                        <li>Add the paths shown in the logs to 'custom_integration_paths'</li>
+                                        <li>Save and restart the add-on</li>
+                                    </ul>
+                                </li>
+                                <li style="margin-bottom: 8px;">
+                                    Try <strong>refreshing this page</strong> after checking the logs
+                                </li>
+                            </ol>
+                            
+                            <p style="font-size: 0.9em; color: #ffb3b3; margin-top: 15px;">
+                                💡 <strong>Tip:</strong> The add-on automatically scans common paths and suggests alternatives in the logs.
+                            </p>
+                            
+                            <button onclick="window.location.reload()" style="margin-top: 15px; margin-right: 10px;">
+                                🔄 Refresh Page
+                            </button>
+                            <button onclick="toggleDiagnostics()" style="margin-top: 15px;">
+                                📋 Hide Diagnostic Logs
+                            </button>
+                        </div>`;
                     return;
                 }
                 

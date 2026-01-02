@@ -7,6 +7,7 @@ import json
 import logging
 import os
 import re
+import glob
 from pathlib import Path
 from typing import Dict, List, Optional, Set, Tuple
 from packaging.requirements import Requirement, InvalidRequirement
@@ -25,10 +26,16 @@ class DependencyGraphBuilder:
     }
     
     # Common paths for Home Assistant integrations
+    # Multiple potential paths to handle different HA installation types
     CORE_INTEGRATION_PATHS = [
-        '/usr/src/homeassistant/homeassistant/components',
-        '/config/custom_components'
+        '/usr/src/homeassistant/homeassistant/components',  # HA OS/Container (most common)
+        '/config/custom_components',  # Custom components (HACS)
+        '/usr/local/lib/python*/site-packages/homeassistant/components',  # Python site-packages (glob pattern)
+        '/homeassistant/homeassistant/components',  # Core installation
     ]
+    
+    # Display limit for log messages
+    MAX_PATHS_TO_DISPLAY = 5
     
     def __init__(self):
         """Initialize the dependency graph builder"""
@@ -48,45 +55,112 @@ class DependencyGraphBuilder:
         """
         if paths is None:
             paths = self.CORE_INTEGRATION_PATHS
+        
+        # Expand glob patterns in paths
+        expanded_paths = []
+        unmatched_patterns = []
+        for path in paths:
+            if '*' in path:
+                # Expand glob pattern
+                matches = glob.glob(path)
+                if matches:
+                    expanded_paths.extend(matches)
+                else:
+                    # Track patterns that didn't match anything
+                    unmatched_patterns.append(path)
+            else:
+                expanded_paths.append(path)
+        
+        # Remove duplicates while preserving order
+        seen = set()
+        unique_paths = []
+        for path in expanded_paths:
+            if path not in seen:
+                seen.add(path)
+                unique_paths.append(path)
+        
+        paths = unique_paths
             
-        logger.info("Building dependency graph from integration manifests")
-        logger.debug(f"Scanning paths: {paths}")
+        logger.info("=" * 70)
+        logger.info("BUILDING DEPENDENCY GRAPH")
+        logger.info("=" * 70)
+        logger.info(f"Checking {len(paths)} potential integration path(s)...")
         
         # Track which paths exist and which don't
         existing_paths = []
-        missing_paths = []
+        empty_paths = []  # Paths that exist but contain no integrations
+        non_existent_paths = []  # Paths that don't exist
         
         # Scan all paths for integrations
         for path in paths:
             if os.path.exists(path):
-                existing_paths.append(path)
-                self._scan_integration_path(path)
+                # Count manifests before scanning
+                manifest_count = self._count_manifests(path)
+                if manifest_count > 0:
+                    existing_paths.append(path)
+                    logger.info(f"✓ Found path: {path}")
+                    logger.info(f"  ({manifest_count} integration manifests detected)")
+                    self._scan_integration_path(path)
+                else:
+                    empty_paths.append(path)
+                    logger.debug(f"  Path exists but contains no integrations: {path}")
             else:
-                missing_paths.append(path)
-                logger.debug(f"Path does not exist: {path}")
-                # Suggest alternatives
-                parent = os.path.dirname(path)
-                if os.path.exists(parent):
-                    logger.debug(f"  Parent directory exists: {parent}")
-                    try:
-                        contents = os.listdir(parent)[:10]
-                        logger.debug(f"  Parent contains: {contents}")
-                    except Exception as e:
-                        logger.debug(f"  Cannot list parent: {e}")
+                non_existent_paths.append(path)
+                logger.debug(f"✗ Path does not exist: {path}")
         
         # Log summary of path scanning
-        if missing_paths:
-            logger.warning(f"Missing {len(missing_paths)} path(s): {', '.join(missing_paths)}")
-            logger.info("Tip: You can specify custom paths using 'custom_integration_paths' in add-on configuration")
+        if (empty_paths or non_existent_paths or unmatched_patterns) and not existing_paths:
+            logger.warning("=" * 70)
+            logger.warning("⚠️  NO INTEGRATION PATHS FOUND!")
+            logger.warning("=" * 70)
+            total_checked = len(paths) + len(unmatched_patterns)
+            logger.warning(f"Checked {total_checked} path(s)/pattern(s), none contain integrations:")
+            
+            # Log non-existent paths
+            if non_existent_paths:
+                logger.warning("")
+                logger.warning("  Paths that don't exist:")
+                for path in non_existent_paths[:self.MAX_PATHS_TO_DISPLAY]:
+                    logger.warning(f"    ✗ {path}")
+                if len(non_existent_paths) > self.MAX_PATHS_TO_DISPLAY:
+                    logger.warning(f"    ... and {len(non_existent_paths) - self.MAX_PATHS_TO_DISPLAY} more")
+            
+            # Log empty paths
+            if empty_paths:
+                logger.warning("")
+                logger.warning("  Paths that exist but are empty:")
+                for path in empty_paths[:self.MAX_PATHS_TO_DISPLAY]:
+                    logger.warning(f"    ○ {path}")
+                if len(empty_paths) > self.MAX_PATHS_TO_DISPLAY:
+                    logger.warning(f"    ... and {len(empty_paths) - self.MAX_PATHS_TO_DISPLAY} more")
+            
+            # Log unmatched glob patterns
+            if unmatched_patterns:
+                logger.warning("")
+                logger.warning("  Glob patterns that didn't match anything:")
+                for pattern in unmatched_patterns[:self.MAX_PATHS_TO_DISPLAY]:
+                    logger.warning(f"    ~ {pattern}")
+                if len(unmatched_patterns) > self.MAX_PATHS_TO_DISPLAY:
+                    logger.warning(f"    ... and {len(unmatched_patterns) - self.MAX_PATHS_TO_DISPLAY} more")
+            logger.warning("")
+            logger.warning("This means the dependency graph will be EMPTY and the WebUI")
+            logger.warning("will show 'No integrations found' or stay on 'Loading...'")
+            logger.warning("")
+            logger.warning("SOLUTION:")
+            logger.warning("  1. Go to Settings → Add-ons → Home Assistant Sentry → Configuration")
+            logger.warning("  2. Set 'custom_integration_paths' to the correct paths")
+            logger.warning("  3. Restart the add-on")
+            logger.warning("")
             
             # Try to find alternative paths and suggest them
-            self._suggest_alternative_paths(missing_paths)
-        
-        if not existing_paths:
-            logger.error("No valid integration paths found! Dependency graph will be empty.")
-            logger.error("Please configure 'custom_integration_paths' in the add-on settings.")
-        else:
-            logger.info(f"Successfully scanned {len(existing_paths)} path(s)")
+            logger.warning("Searching for alternative paths...")
+            self._suggest_alternative_paths(non_existent_paths)
+            logger.warning("=" * 70)
+        elif existing_paths:
+            logger.info(f"✓ Successfully found {len(existing_paths)} path(s) with integrations")
+            if empty_paths or non_existent_paths:
+                skipped_count = len(empty_paths) + len(non_existent_paths)
+                logger.debug(f"  (Skipped {skipped_count} paths that don't exist or are empty)")
         
         # Build the dependency map
         self._build_dependency_map()
@@ -94,8 +168,36 @@ class DependencyGraphBuilder:
         # Generate the graph structure
         graph_data = self._generate_graph_structure()
         
-        logger.info(f"Dependency graph built: {len(self.integrations)} integrations, "
-                   f"{len(self.dependency_map)} unique dependencies")
+        # Log final summary
+        integration_count = len(self.integrations)
+        dependency_count = len(self.dependency_map)
+        
+        if integration_count == 0:
+            logger.warning("=" * 70)
+            logger.warning("⚠️  DEPENDENCY GRAPH IS EMPTY!")
+            logger.warning("=" * 70)
+            logger.warning("The graph was built but contains 0 integrations.")
+            logger.warning("This will cause the WebUI to show 'No integrations found'")
+            logger.warning("")
+            logger.warning("Possible causes:")
+            logger.warning("  1. Integration paths are incorrect or inaccessible")
+            logger.warning("  2. No integrations are installed (unlikely)")
+            logger.warning("  3. Permission denied to read integration directories")
+            logger.warning("")
+            logger.warning("Check the path scanning logs above for details.")
+            logger.warning("=" * 70)
+        else:
+            logger.info("=" * 70)
+            logger.info("✅ DEPENDENCY GRAPH BUILD COMPLETE")
+            logger.info("=" * 70)
+            logger.info(f"  Total integrations: {integration_count}")
+            logger.info(f"  Unique dependencies: {dependency_count}")
+            # Show sample of what was found
+            sample_domains = list(self.integrations.keys())[:self.MAX_PATHS_TO_DISPLAY]
+            logger.info(f"  Sample integrations: {', '.join(sample_domains)}")
+            if integration_count > self.MAX_PATHS_TO_DISPLAY:
+                logger.info(f"  ... and {integration_count - self.MAX_PATHS_TO_DISPLAY} more")
+            logger.info("=" * 70)
         
         return graph_data
     
@@ -135,10 +237,11 @@ class DependencyGraphBuilder:
             '/config',
             '/homeassistant',
             '/usr/share/hassio/homeassistant',
+            '/usr/src',
+            '/usr/local',
             '/data',
         ]
         
-        logger.info("Searching for alternative integration paths...")
         found_alternatives = []
         
         for base_path in alternative_checks:
@@ -153,21 +256,43 @@ class DependencyGraphBuilder:
                         full_path = os.path.join(base_path, subdir)
                         
                         # Check if it looks like an integration directory
-                        if subdir in ['custom_components', 'components', 'homeassistant']:
+                        # For 'homeassistant' directories, prefer the components subdirectory
+                        if subdir == 'homeassistant':
+                            ha_components = os.path.join(full_path, 'components')
+                            if os.path.exists(ha_components):
+                                manifest_count = self._count_manifests(ha_components)
+                                if manifest_count > 0:
+                                    found_alternatives.append(f"{ha_components} ({manifest_count} integrations)")
+                            # Only add the parent if components subdirectory doesn't exist
+                            elif self._count_manifests(full_path) > 0:
+                                manifest_count = self._count_manifests(full_path)
+                                found_alternatives.append(f"{full_path} ({manifest_count} integrations)")
+                        elif subdir in ['custom_components', 'components']:
                             manifest_count = self._count_manifests(full_path)
                             if manifest_count > 0:
                                 found_alternatives.append(f"{full_path} ({manifest_count} integrations)")
-                                
+                                    
                 except (PermissionError, OSError) as e:
                     logger.debug(f"Cannot access {base_path}: {e}")
                     
         if found_alternatives:
-            logger.info("Found potential integration paths:")
+            logger.warning("✓ FOUND ALTERNATIVE INTEGRATION PATHS:")
             for alt_path in found_alternatives:
-                logger.info(f"  - {alt_path}")
-            logger.info("Add these to 'custom_integration_paths' in your add-on configuration")
+                logger.warning(f"  → {alt_path}")
+            logger.warning("")
+            logger.warning("TO USE THESE PATHS:")
+            logger.warning("  1. Go to Settings → Add-ons → Home Assistant Sentry → Configuration")
+            logger.warning("  2. Add 'custom_integration_paths' with these values:")
+            logger.warning("     custom_integration_paths:")
+            for alt_path in found_alternatives:
+                # Extract just the path (remove the count)
+                path_only = alt_path.split(' (')[0]
+                logger.warning(f"       - {path_only}")
+            logger.warning("  3. Save and restart the add-on")
         else:
-            logger.info("No alternative integration paths found in common locations")
+            logger.warning("✗ No alternative integration paths found in common locations")
+            logger.warning("  The add-on may be running in an unusual environment")
+            logger.warning("  or Home Assistant may not be installed yet.")
     
     def _count_manifests(self, path: str) -> int:
         """
