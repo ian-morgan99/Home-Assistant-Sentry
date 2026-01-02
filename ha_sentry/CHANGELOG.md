@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.3.17
+- Merge pull request #95 from ian-morgan99/copilot/fix-webui-functionality-issue
+
+
 ## 1.3.16
 - Merge pull request #94 from ian-morgan99/copilot/fix-webui-loading-issues
 
