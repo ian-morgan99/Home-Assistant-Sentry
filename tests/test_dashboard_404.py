@@ -1,5 +1,5 @@
 """
-Test for dashboard creation 404 error handling
+Test for configuration loading without auto_create_dashboard
 """
 import sys
 import os
@@ -7,8 +7,8 @@ import os
 # Add the app directory to Python path
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'ha_sentry', 'rootfs', 'app'))
 
-def test_dashboard_404_handling():
-    """Test that 404 errors are properly handled during dashboard creation"""
+def test_config_without_dashboard_option():
+    """Test that config loads properly without auto_create_dashboard option"""
     try:
         from config_manager import ConfigManager
         
@@ -20,18 +20,18 @@ def test_dashboard_404_handling():
         os.environ['CHECK_SCHEDULE'] = '02:00'
         os.environ['LOG_LEVEL'] = 'standard'
         os.environ['SUPERVISOR_TOKEN'] = 'test_token'
-        os.environ['AUTO_CREATE_DASHBOARD'] = 'false'
         
         config = ConfigManager()
         
         # Verify config loaded properly
         assert config.supervisor_token == 'test_token'
-        assert config.auto_create_dashboard is False
+        # Verify auto_create_dashboard attribute does not exist
+        assert not hasattr(config, 'auto_create_dashboard'), "auto_create_dashboard should be removed"
         
-        print("✓ Dashboard 404 handling test setup passed")
+        print("✓ Configuration test passed (auto_create_dashboard removed)")
         return True
     except Exception as e:
-        print(f"✗ Dashboard 404 handling test failed: {e}")
+        print(f"✗ Configuration test failed: {e}")
         import traceback
         traceback.print_exc()
         return False
@@ -55,10 +55,10 @@ def test_log_methods_exist():
         return False
 
 if __name__ == '__main__':
-    print("Running dashboard 404 error handling tests...\n")
+    print("Running configuration tests without dashboard option...\n")
     
     tests = [
-        test_dashboard_404_handling,
+        test_config_without_dashboard_option,
         test_log_methods_exist
     ]
     

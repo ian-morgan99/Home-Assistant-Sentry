@@ -103,12 +103,6 @@ ports_description:
 #   WHEN TO USE: Enable if you want to see update status in dashboards. Disable if
 #                you only want notifications and don't need dashboard integration.
 #
-# auto_create_dashboard: Automatically create a Lovelace dashboard
-#   - true: Attempts to create a pre-configured dashboard (has API limitations)
-#   - false: You manually add sensors to your dashboard (RECOMMENDED)
-#   WHEN TO USE: Keep false (recommended). The auto-creation has API permission
-#                limitations. Manually adding sensors to your dashboard is more reliable.
-#
 # ANALYSIS CONFIGURATION
 # ----------------------
 # safety_threshold: Confidence threshold for marking updates as safe
@@ -169,7 +163,6 @@ options:
   api_key: ""
   check_schedule: "02:00"
   create_dashboard_entities: true
-  auto_create_dashboard: false
   check_all_updates: true
   check_addons: true
   check_hacs: true
@@ -187,7 +180,6 @@ schema:
   api_key: password?
   check_schedule: str
   create_dashboard_entities: bool
-  auto_create_dashboard: bool
   check_all_updates: bool
   check_addons: bool
   check_hacs: bool

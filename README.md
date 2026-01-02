@@ -55,8 +55,8 @@ A Home Assistant add-on that performs daily reviews of **all available updates**
 - 🤖 **AI-Powered Analysis**: Uses configurable AI endpoints to analyze update conflicts and dependencies
 - 🔬 **Deep Dependency Analysis**: Advanced heuristic analysis without AI, checking version changes, pre-releases, and known conflicts
 - 🛡️ **Safety Assessment**: Provides confidence scores and safety recommendations
+- 🎨 **WebUI Visualization**: Interactive web interface accessible via Home Assistant sidebar panel
 - 📊 **Dashboard Integration**: Creates Home Assistant sensors for easy monitoring
-- 🎨 **Auto-Dashboard Creation**: Optionally auto-creates a pre-configured Lovelace dashboard
 - 🔄 **Auto-Update Support**: Supports Home Assistant's auto-update feature
 - 🔔 **Notification System**: Sends persistent notifications with analysis results
 - ⚙️ **Flexible Configuration**: Supports multiple AI providers (OpenAI, Ollama, LMStudio, OpenWebUI)
@@ -140,7 +140,6 @@ ai_endpoint: "http://localhost:11434"
 ai_model: "llama2"
 check_schedule: "02:00"
 create_dashboard_entities: true
-auto_create_dashboard: false
 check_all_updates: true
 check_addons: true
 check_hacs: true
@@ -162,7 +161,6 @@ enable_web_ui: true
 | `api_key` | API key (required for OpenAI) | `""` |
 | `check_schedule` | Daily check time in HH:MM format (24h) | `02:00` |
 | `create_dashboard_entities` | Create sensor entities for dashboard | `true` |
-| `auto_create_dashboard` | Automatically create a Sentry dashboard in Lovelace | `false` |
 | `check_all_updates` | Check all update entities (Core, Supervisor, OS, Add-ons, Integrations) | `true` |
 | `check_addons` | Check add-on updates (legacy, use `check_all_updates` instead) | `true` |
 | `check_hacs` | Check HACS updates (legacy, use `check_all_updates` instead) | `true` |
