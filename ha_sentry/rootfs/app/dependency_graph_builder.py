@@ -7,6 +7,7 @@ import json
 import logging
 import os
 import re
+import glob
 from pathlib import Path
 from typing import Dict, List, Optional, Set, Tuple
 from packaging.requirements import Requirement, InvalidRequirement
@@ -27,12 +28,14 @@ class DependencyGraphBuilder:
     # Common paths for Home Assistant integrations
     # Multiple potential paths to handle different HA installation types
     CORE_INTEGRATION_PATHS = [
-        '/usr/src/homeassistant/homeassistant/components',  # HA OS/Container
+        '/usr/src/homeassistant/homeassistant/components',  # HA OS/Container (most common)
         '/config/custom_components',  # Custom components (HACS)
-        '/usr/local/lib/python3.11/site-packages/homeassistant/components',  # Alternative Python path
-        '/usr/local/lib/python3.12/site-packages/homeassistant/components',  # Python 3.12
+        '/usr/local/lib/python*/site-packages/homeassistant/components',  # Python site-packages (glob pattern)
         '/homeassistant/homeassistant/components',  # Core installation
     ]
+    
+    # Display limit for log messages
+    MAX_PATHS_TO_DISPLAY = 5
     
     def __init__(self):
         """Initialize the dependency graph builder"""
@@ -52,6 +55,26 @@ class DependencyGraphBuilder:
         """
         if paths is None:
             paths = self.CORE_INTEGRATION_PATHS
+        
+        # Expand glob patterns in paths
+        expanded_paths = []
+        for path in paths:
+            if '*' in path:
+                # Expand glob pattern
+                matches = glob.glob(path)
+                expanded_paths.extend(matches)
+            else:
+                expanded_paths.append(path)
+        
+        # Remove duplicates while preserving order
+        seen = set()
+        unique_paths = []
+        for path in expanded_paths:
+            if path not in seen:
+                seen.add(path)
+                unique_paths.append(path)
+        
+        paths = unique_paths
             
         logger.info("=" * 70)
         logger.info("BUILDING DEPENDENCY GRAPH")
@@ -85,10 +108,10 @@ class DependencyGraphBuilder:
             logger.warning("⚠️  NO INTEGRATION PATHS FOUND!")
             logger.warning("=" * 70)
             logger.warning(f"Checked {len(paths)} path(s), none exist or contain integrations:")
-            for path in missing_paths[:5]:  # Show first 5
+            for path in missing_paths[:self.MAX_PATHS_TO_DISPLAY]:
                 logger.warning(f"  ✗ {path}")
-            if len(missing_paths) > 5:
-                logger.warning(f"  ... and {len(missing_paths) - 5} more")
+            if len(missing_paths) > self.MAX_PATHS_TO_DISPLAY:
+                logger.warning(f"  ... and {len(missing_paths) - self.MAX_PATHS_TO_DISPLAY} more")
             logger.warning("")
             logger.warning("This means the dependency graph will be EMPTY and the WebUI")
             logger.warning("will show 'No integrations found' or stay on 'Loading...'")
@@ -140,10 +163,10 @@ class DependencyGraphBuilder:
             logger.info(f"  Unique dependencies: {dependency_count}")
             if integration_count > 0:
                 # Show sample of what was found
-                sample_domains = list(self.integrations.keys())[:5]
+                sample_domains = list(self.integrations.keys())[:self.MAX_PATHS_TO_DISPLAY]
                 logger.info(f"  Sample integrations: {', '.join(sample_domains)}")
-                if integration_count > 5:
-                    logger.info(f"  ... and {integration_count - 5} more")
+                if integration_count > self.MAX_PATHS_TO_DISPLAY:
+                    logger.info(f"  ... and {integration_count - self.MAX_PATHS_TO_DISPLAY} more")
             logger.info("=" * 70)
         
         return graph_data
