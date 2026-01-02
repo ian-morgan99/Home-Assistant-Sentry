@@ -488,45 +488,74 @@ card:
 - Check Developer Tools → States for update.* entities to verify they exist
 #### 7. Dependency Graph Issues
 
-**Problem**: Logs show "Path does not exist" and "Zero integrations found when building dependency graph"
+**Problem**: WebUI shows "Loading components..." forever or "No integrations found", and/or logs show "NO INTEGRATION PATHS FOUND"
 
-**Root Cause**: The add-on container doesn't have access to Home Assistant's integration directories.
+**Root Cause**: The add-on can't find your Home Assistant integration directories because:
+- Default paths don't exist in your environment
+- Permissions issue preventing access
+- Non-standard Home Assistant installation
 
 **Symptoms**:
-- Log messages: "Path does not exist: /usr/src/homeassistant/homeassistant/components"
-- Log messages: "Path does not exist: /config/custom_components"
+- WebUI stuck on "Loading components..."
+- WebUI shows error: "No integrations found"
+- Log messages: "⚠️  NO INTEGRATION PATHS FOUND!"
+- Log messages: "⚠️  DEPENDENCY GRAPH IS EMPTY!"
 - "Dependency graph built: 0 integrations, 0 dependencies"
 
-**Solutions**:
+**Solution (Step-by-Step)**:
 
-1. **Check the logs for suggested paths**: The add-on will automatically scan for alternative integration paths and suggest them in the logs.
+1. **Check the add-on logs** (Settings → Add-ons → Home Assistant Sentry → Log tab)
+   - Look for the section: "BUILDING DEPENDENCY GRAPH"
+   - The logs will show which paths were checked and which ones don't exist
+   - **Important**: Look for "✓ FOUND ALTERNATIVE INTEGRATION PATHS" - the add-on automatically scans and suggests working paths!
 
-2. **Configure custom paths**: Add the suggested paths to your add-on configuration:
+2. **Use the auto-detected paths**: If the logs show alternative paths (most common case):
+   ```yaml
+   custom_integration_paths:
+     - "/path/shown/in/logs"
+     - "/another/path/from/logs"
+   ```
+   Example from real logs:
    ```yaml
    custom_integration_paths:
      - "/config/custom_components"
-     - "/usr/share/hassio/homeassistant/custom_components"
+     - "/usr/src/homeassistant/homeassistant/components"
    ```
 
-3. **Disable dependency graph** (if you don't need it):
+3. **Restart the add-on** after configuring custom paths
+
+4. **Refresh the WebUI** - Click the "🔄 Refresh Page" button or reload your browser
+
+5. **Verify it works**: Check the logs for:
+   ```
+   ✅ DEPENDENCY GRAPH BUILD COMPLETE
+     Total integrations: [number]
+   ```
+
+**Alternative: Disable dependency graph** (if you don't need the WebUI):
    ```yaml
    enable_dependency_graph: false
+   enable_web_ui: false
    ```
-   Note: The add-on will still work without the dependency graph, but won't be able to analyze shared dependency conflicts.
+   Note: The add-on will still work for update analysis without the dependency graph, but you won't have the visual dependency tree and impact analysis features.
 
-4. **Manual path discovery**: If the automatic suggestion doesn't work, you can manually explore your container:
+**Manual path discovery** (only if auto-detection fails):
    - Enable SSH access to your Home Assistant
-   - Run: `docker exec -it addon_SLUG sh` (replace SLUG with the add-on slug)
-   - Look for directories containing `manifest.json` files
-   - Add those paths to `custom_integration_paths`
+   - Run: `docker exec -it addon_ha_sentry sh`
+   - Run: `find / -name "manifest.json" -type f 2>/dev/null | head -20`
+   - Look for paths containing many manifest.json files
+   - Add the parent directory to `custom_integration_paths`
 
 **What the dependency graph provides**:
+- 📊 Visual dependency tree in the WebUI
+- 🔍 "Where used" analysis for any package or component
+- ⚡ Change impact analysis for updates
 - Detection of shared dependencies between integrations
 - Identification of version conflicts in dependencies
 - Highlighting of high-risk dependencies (e.g., aiohttp, cryptography)
 - Enhanced analysis of update impacts
 
-**Note**: The dependency graph is an optional feature. The add-on will continue to function normally without it, using update metadata analysis instead.
+**Note**: The dependency graph and WebUI are optional features. The add-on will continue to function normally for update monitoring and analysis even without them.
 
 ### Checking Logs
 
