@@ -362,12 +362,21 @@ class HomeAssistantClient:
     async def create_lovelace_dashboard(self, dashboard_config: Dict) -> bool:
         """Create a Lovelace dashboard in Home Assistant
         
-        Note: This feature has limited support. Home Assistant add-ons may not have 
-        sufficient permissions to create Lovelace dashboards via the API.
-        Consider disabling auto_create_dashboard and manually creating dashboards instead.
+        DEPRECATED: This feature is deprecated and does not work for Home Assistant add-ons.
+        The Lovelace dashboard API endpoint is not accessible to add-ons due to permission
+        restrictions. Users should use the built-in WebUI for visualization instead.
+        
+        This method is kept for backward compatibility but will always fail.
         
         Compatible with Home Assistant versions: {HA_COMPATIBILITY_VERSIONS}
         """
+        logger.warning("=" * 60)
+        logger.warning("ATTEMPTING DEPRECATED DASHBOARD CREATION")
+        logger.warning("=" * 60)
+        logger.warning("This will fail due to Home Assistant API restrictions.")
+        logger.warning("Please use the WebUI instead (accessible via Sentry sidebar panel).")
+        logger.warning("=" * 60)
+        
         try:
             url = f"{self.config.ha_url}/api/lovelace/dashboards"
             logger.info("Attempting to create Sentry dashboard in Lovelace")

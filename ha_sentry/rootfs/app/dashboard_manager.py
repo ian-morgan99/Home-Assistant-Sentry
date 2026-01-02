@@ -125,7 +125,16 @@ class DashboardManager:
         logger.info("📊 View your sensors at: Developer Tools > States > Search 'sensor.ha_sentry'")
     
     async def create_sentry_dashboard(self):
-        """Create the default Sentry dashboard in Lovelace"""
+        """Create the default Sentry dashboard in Lovelace
+        
+        DEPRECATED: This functionality is deprecated and will likely fail.
+        Home Assistant add-ons do not have permission to create Lovelace dashboards.
+        Users should use the built-in WebUI instead.
+        """
+        logger.warning("Dashboard creation via Lovelace API is deprecated and not supported")
+        logger.warning("This will likely fail - please use the WebUI instead")
+        logger.info("Attempting dashboard creation anyway (for backward compatibility)...")
+        
         dashboard_config = {
             "url_path": "ha-sentry",
             "title": "Home Assistant Sentry",

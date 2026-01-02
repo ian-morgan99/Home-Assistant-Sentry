@@ -223,15 +223,32 @@ class SentryService:
         # Send startup notification to help users find sensors
         await self._send_startup_notification()
         
-        # Create dashboard if auto_create_dashboard is enabled
+        # Create dashboard if auto_create_dashboard is enabled (DEPRECATED)
         if self.config.auto_create_dashboard:
-            logger.info("Auto-create dashboard is enabled, creating Sentry dashboard")
+            logger.warning("=" * 60)
+            logger.warning("DASHBOARD AUTO-CREATION IS DEPRECATED")
+            logger.warning("=" * 60)
+            logger.warning("The 'auto_create_dashboard' setting is enabled, but dashboard")
+            logger.warning("creation via the Lovelace API is not supported for Home Assistant add-ons.")
+            logger.warning("")
+            logger.warning("WHAT YOU SHOULD DO:")
+            logger.warning("1. Set 'auto_create_dashboard: false' in the add-on configuration")
+            logger.warning("2. Use the built-in WebUI instead:")
+            logger.warning("   - Access via the 'Sentry' panel in your Home Assistant sidebar")
+            logger.warning("   - Or: Settings → Add-ons → Home Assistant Sentry → Open Web UI")
+            logger.warning("3. The WebUI provides full dependency visualization and analysis")
+            logger.warning("")
+            logger.warning("The add-on will still attempt to create the dashboard, but it will")
+            logger.warning("likely fail with a 404 error. This is expected and can be safely ignored.")
+            logger.warning("=" * 60)
+            
             try:
                 async with HomeAssistantClient(self.config) as ha_client:
                     dashboard_mgr = DashboardManager(ha_client)
                     await dashboard_mgr.create_sentry_dashboard()
             except Exception as e:
-                logger.error(f"Error creating dashboard: {e}", exc_info=True)
+                logger.error(f"Dashboard creation failed (expected): {e}")
+                logger.info("This failure is expected - please use the WebUI instead (see warning above)")
         
         # Run initial check as a background task to avoid blocking the web server
         # This allows the web UI to be responsive even if the AI provider is slow/unavailable
@@ -251,10 +268,18 @@ class SentryService:
                 web_ui_info = ""
                 if self.config.enable_web_ui and self.web_server:
                     web_ui_info = """
-**📊 Dependency Tree Visualization:**
+**📊 WebUI - Dependency Tree Visualization:**
 
-View dependency trees and impact analysis via the Sentry panel in your sidebar, or visit:
-- Settings → Add-ons → Home Assistant Sentry → Open Web UI
+Access the interactive WebUI for dependency analysis and impact visualization:
+1. **Via Sidebar Panel**: Look for the 'Sentry' panel in your Home Assistant sidebar (preferred method)
+2. **Via Add-on Settings**: Settings → Add-ons → Home Assistant Sentry → Open Web UI
+3. **Direct Ingress URL**: `/api/hassio_ingress/ha_sentry`
+
+The WebUI provides:
+- Interactive dependency graphs
+- "Where Used" analysis for any integration
+- Change impact reports
+- Full system dependency visualization
 
 """
                 
@@ -707,7 +732,7 @@ No updates are currently available for:
         
         # Add web UI links section if enabled
         if self.config.enable_web_ui:
-            notification_message += "\n---\n**📊 Detailed Analysis:**\n"
+            notification_message += "\n---\n**📊 Interactive WebUI - Detailed Analysis:**\n"
             
             # For review required case with changed components, add impact report link
             if not safe and changed_components:
@@ -718,9 +743,11 @@ No updates are currently available for:
             
             # Always add link to main web UI (ingress panel)
             web_ui_url = self._get_ingress_url()
-            notification_message += f"- [🛡️ Web UI - Dependency Visualization]({web_ui_url}) - Explore all component dependencies\n"
+            notification_message += f"- [🛡️ Open WebUI]({web_ui_url}) - Full dependency visualization and analysis\n"
             logger.debug(f"Generated web UI URL: {web_ui_url}")
-            notification_message += "\n*Tip: If links don't work, access via Settings → Add-ons → Home Assistant Sentry → Open Web UI, or look for the 'Sentry' panel in your sidebar.*\n"
+            notification_message += "\n**Alternative Access Methods:**\n"
+            notification_message += "- Look for the '**Sentry**' panel in your Home Assistant sidebar (easiest)\n"
+            notification_message += "- Or: Settings → Add-ons → Home Assistant Sentry → Open Web UI\n"
         
         notification_message += f"\n*Analysis powered by: {'AI' if analysis.get('ai_analysis') else 'Heuristics'}*"
         notification_message += f"\n*Last check: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}*"

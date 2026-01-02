@@ -104,10 +104,13 @@ ports_description:
 #                you only want notifications and don't need dashboard integration.
 #
 # auto_create_dashboard: Automatically create a Lovelace dashboard
-#   - true: Attempts to create a pre-configured dashboard (has API limitations)
-#   - false: You manually add sensors to your dashboard (RECOMMENDED)
-#   WHEN TO USE: Keep false (recommended). The auto-creation has API permission
-#                limitations. Manually adding sensors to your dashboard is more reliable.
+#   - true: Attempts to create a pre-configured dashboard (DEPRECATED - WILL FAIL)
+#   - false: You manually add sensors to your dashboard (REQUIRED)
+#   IMPORTANT: Dashboard auto-creation is DEPRECATED and does not work due to Home Assistant
+#              API limitations. The Lovelace dashboard API endpoint is not accessible to add-ons.
+#              Keep this setting FALSE and use the WebUI instead (accessible via the Sentry panel
+#              in your sidebar or Settings → Add-ons → Home Assistant Sentry → Open Web UI).
+#   WHEN TO USE: ALWAYS keep false. Use the built-in WebUI for visualization instead.
 #
 # ANALYSIS CONFIGURATION
 # ----------------------
