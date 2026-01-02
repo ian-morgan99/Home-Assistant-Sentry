@@ -488,7 +488,7 @@ card:
 - Check Developer Tools → States for update.* entities to verify they exist
 #### 7. Dependency Graph Issues
 
-**Problem**: WebUI shows "Loading components..." forever or "No integrations found", and/or logs show "NO INTEGRATION PATHS FOUND"
+**Problem**: WebUI shows "Loading components..." forever or "No integrations found", or logs show "NO INTEGRATION PATHS FOUND"
 
 **Root Cause**: The add-on can't find your Home Assistant integration directories because:
 - Default paths don't exist in your environment

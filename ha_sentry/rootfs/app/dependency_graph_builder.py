@@ -58,11 +58,16 @@ class DependencyGraphBuilder:
         
         # Expand glob patterns in paths
         expanded_paths = []
+        unmatched_patterns = []
         for path in paths:
             if '*' in path:
                 # Expand glob pattern
                 matches = glob.glob(path)
-                expanded_paths.extend(matches)
+                if matches:
+                    expanded_paths.extend(matches)
+                else:
+                    # Track patterns that didn't match anything
+                    unmatched_patterns.append(path)
             else:
                 expanded_paths.append(path)
         
@@ -83,7 +88,8 @@ class DependencyGraphBuilder:
         
         # Track which paths exist and which don't
         existing_paths = []
-        missing_paths = []
+        empty_paths = []  # Paths that exist but contain no integrations
+        non_existent_paths = []  # Paths that don't exist
         
         # Scan all paths for integrations
         for path in paths:
@@ -96,22 +102,46 @@ class DependencyGraphBuilder:
                     logger.info(f"  ({manifest_count} integration manifests detected)")
                     self._scan_integration_path(path)
                 else:
+                    empty_paths.append(path)
                     logger.debug(f"  Path exists but contains no integrations: {path}")
-                    missing_paths.append(path)
             else:
-                missing_paths.append(path)
+                non_existent_paths.append(path)
                 logger.debug(f"✗ Path does not exist: {path}")
         
         # Log summary of path scanning
-        if missing_paths and not existing_paths:
+        if (empty_paths or non_existent_paths or unmatched_patterns) and not existing_paths:
             logger.warning("=" * 70)
             logger.warning("⚠️  NO INTEGRATION PATHS FOUND!")
             logger.warning("=" * 70)
-            logger.warning(f"Checked {len(paths)} path(s), none exist or contain integrations:")
-            for path in missing_paths[:self.MAX_PATHS_TO_DISPLAY]:
-                logger.warning(f"  ✗ {path}")
-            if len(missing_paths) > self.MAX_PATHS_TO_DISPLAY:
-                logger.warning(f"  ... and {len(missing_paths) - self.MAX_PATHS_TO_DISPLAY} more")
+            total_checked = len(paths) + len(unmatched_patterns)
+            logger.warning(f"Checked {total_checked} path(s)/pattern(s), none contain integrations:")
+            
+            # Log non-existent paths
+            if non_existent_paths:
+                logger.warning("")
+                logger.warning("  Paths that don't exist:")
+                for path in non_existent_paths[:self.MAX_PATHS_TO_DISPLAY]:
+                    logger.warning(f"    ✗ {path}")
+                if len(non_existent_paths) > self.MAX_PATHS_TO_DISPLAY:
+                    logger.warning(f"    ... and {len(non_existent_paths) - self.MAX_PATHS_TO_DISPLAY} more")
+            
+            # Log empty paths
+            if empty_paths:
+                logger.warning("")
+                logger.warning("  Paths that exist but are empty:")
+                for path in empty_paths[:self.MAX_PATHS_TO_DISPLAY]:
+                    logger.warning(f"    ○ {path}")
+                if len(empty_paths) > self.MAX_PATHS_TO_DISPLAY:
+                    logger.warning(f"    ... and {len(empty_paths) - self.MAX_PATHS_TO_DISPLAY} more")
+            
+            # Log unmatched glob patterns
+            if unmatched_patterns:
+                logger.warning("")
+                logger.warning("  Glob patterns that didn't match anything:")
+                for pattern in unmatched_patterns[:self.MAX_PATHS_TO_DISPLAY]:
+                    logger.warning(f"    ~ {pattern}")
+                if len(unmatched_patterns) > self.MAX_PATHS_TO_DISPLAY:
+                    logger.warning(f"    ... and {len(unmatched_patterns) - self.MAX_PATHS_TO_DISPLAY} more")
             logger.warning("")
             logger.warning("This means the dependency graph will be EMPTY and the WebUI")
             logger.warning("will show 'No integrations found' or stay on 'Loading...'")
@@ -124,12 +154,13 @@ class DependencyGraphBuilder:
             
             # Try to find alternative paths and suggest them
             logger.warning("Searching for alternative paths...")
-            self._suggest_alternative_paths(missing_paths)
+            self._suggest_alternative_paths(non_existent_paths)
             logger.warning("=" * 70)
         elif existing_paths:
             logger.info(f"✓ Successfully found {len(existing_paths)} path(s) with integrations")
-            if missing_paths:
-                logger.debug(f"  (Skipped {len(missing_paths)} paths that don't exist or are empty)")
+            if empty_paths or non_existent_paths:
+                skipped_count = len(empty_paths) + len(non_existent_paths)
+                logger.debug(f"  (Skipped {skipped_count} paths that don't exist or are empty)")
         
         # Build the dependency map
         self._build_dependency_map()
@@ -161,12 +192,11 @@ class DependencyGraphBuilder:
             logger.info("=" * 70)
             logger.info(f"  Total integrations: {integration_count}")
             logger.info(f"  Unique dependencies: {dependency_count}")
-            if integration_count > 0:
-                # Show sample of what was found
-                sample_domains = list(self.integrations.keys())[:self.MAX_PATHS_TO_DISPLAY]
-                logger.info(f"  Sample integrations: {', '.join(sample_domains)}")
-                if integration_count > self.MAX_PATHS_TO_DISPLAY:
-                    logger.info(f"  ... and {integration_count - self.MAX_PATHS_TO_DISPLAY} more")
+            # Show sample of what was found
+            sample_domains = list(self.integrations.keys())[:self.MAX_PATHS_TO_DISPLAY]
+            logger.info(f"  Sample integrations: {', '.join(sample_domains)}")
+            if integration_count > self.MAX_PATHS_TO_DISPLAY:
+                logger.info(f"  ... and {integration_count - self.MAX_PATHS_TO_DISPLAY} more")
             logger.info("=" * 70)
         
         return graph_data
@@ -226,18 +256,21 @@ class DependencyGraphBuilder:
                         full_path = os.path.join(base_path, subdir)
                         
                         # Check if it looks like an integration directory
-                        if subdir in ['custom_components', 'components', 'homeassistant']:
-                            manifest_count = self._count_manifests(full_path)
-                            if manifest_count > 0:
-                                found_alternatives.append(f"{full_path} ({manifest_count} integrations)")
-                        
-                        # Also check subdirectories of homeassistant
+                        # For 'homeassistant' directories, prefer the components subdirectory
                         if subdir == 'homeassistant':
                             ha_components = os.path.join(full_path, 'components')
                             if os.path.exists(ha_components):
                                 manifest_count = self._count_manifests(ha_components)
                                 if manifest_count > 0:
                                     found_alternatives.append(f"{ha_components} ({manifest_count} integrations)")
+                            # Only add the parent if components subdirectory doesn't exist
+                            elif self._count_manifests(full_path) > 0:
+                                manifest_count = self._count_manifests(full_path)
+                                found_alternatives.append(f"{full_path} ({manifest_count} integrations)")
+                        elif subdir in ['custom_components', 'components']:
+                            manifest_count = self._count_manifests(full_path)
+                            if manifest_count > 0:
+                                found_alternatives.append(f"{full_path} ({manifest_count} integrations)")
                                     
                 except (PermissionError, OSError) as e:
                     logger.debug(f"Cannot access {base_path}: {e}")

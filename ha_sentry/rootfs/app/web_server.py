@@ -1444,7 +1444,7 @@ class DependencyTreeWebServer:
                                 🔄 Refresh Page
                             </button>
                             <button onclick="toggleDiagnostics()" style="margin-top: 15px;">
-                                📋 Show Diagnostic Logs
+                                📋 Hide Diagnostic Logs
                             </button>
                         </div>`;
                     return;
