@@ -63,12 +63,13 @@ Or click links in notifications that look like:
 
 ### Disable Dashboard Auto-Creation
 
-Edit your add-on configuration and set:
+The configuration is correct - no changes needed:
 
 ```yaml
-auto_create_dashboard: false  # REQUIRED - dashboard creation doesn't work
-enable_web_ui: true           # Keep enabled for WebUI access
+enable_web_ui: true  # Keep enabled for WebUI access
 ```
+
+Note: The `auto_create_dashboard` option has been removed as it never worked.
 
 ### Why Dashboard Creation Doesn't Work
 
@@ -130,13 +131,9 @@ Verify your `config.json` has:
 3. Check if you're using a reverse proxy that might interfere
 4. Verify the add-on is running and port 8099 is accessible
 
-### "I still see dashboard creation errors"
+### "I see dashboard creation errors in old logs"
 
-This is expected if you have `auto_create_dashboard: true`. To stop seeing these errors:
-
-1. Set `auto_create_dashboard: false` in add-on configuration
-2. Restart the add-on
-3. Use the WebUI instead
+The `auto_create_dashboard` option has been removed. If you're seeing these errors in old logs, they can be safely ignored. Update to the latest version and the errors will no longer occur.
 
 ## Technical Details
 
@@ -173,9 +170,9 @@ The addon slug `ha_sentry` is consistent across:
 ## Summary
 
 **Bottom Line**: 
-1. Set `auto_create_dashboard: false`
+1. The `auto_create_dashboard` option has been removed
 2. Access WebUI via sidebar panel labeled "Sentry"
 3. All functionality is available in the WebUI
-4. Dashboard creation is deprecated and will not work
+4. Dashboard auto-creation never worked and is no longer an option
 
-The WebUI provides all features and more than the dashboard would have provided.
+The WebUI provides all features and more than a dashboard would have provided.

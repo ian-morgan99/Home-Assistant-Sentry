@@ -73,7 +73,6 @@ For a setup without AI, using deep dependency analysis:
 ai_enabled: false
 check_schedule: "02:00"
 create_dashboard_entities: true
-auto_create_dashboard: false
 check_addons: true
 check_hacs: true
 ```
@@ -98,7 +97,6 @@ ai_endpoint: "http://homeassistant.local:11434"
 ai_model: "llama2"
 check_schedule: "02:00"
 create_dashboard_entities: true
-auto_create_dashboard: false
 check_addons: true
 check_hacs: true
 safety_threshold: 0.7
@@ -121,14 +119,6 @@ safety_threshold: 0.7
 - **create_dashboard_entities**: Create sensor entities
   - Set to `true` to enable dashboard integration
   - Set to `false` if you only want notifications
-
-- **auto_create_dashboard**: Automatically create Sentry dashboard
-  - **DEPRECATED**: This feature is deprecated and does not work due to Home Assistant API limitations
-  - **REQUIRED SETTING**: Set to `false` (default) - dashboard creation will always fail
-  - Reason: Home Assistant add-ons do not have permission to create Lovelace dashboards via the API
-  - **Alternative**: Use the built-in WebUI instead (accessible via "Sentry" panel in sidebar)
-  - If enabled, you will see 404 errors in logs - this is expected and can be safely ignored
-  - See [WebUI Access](#webui-access) section below for how to use the interactive WebUI
 
 #### AI Settings
 
@@ -482,23 +472,21 @@ card:
 - This is a limitation of Home Assistant's security architecture, not a bug
 
 **Solution**:
-1. **Set `auto_create_dashboard: false`** in the add-on configuration (this is the default)
+1. The option has been removed - dashboard auto-creation is no longer supported
 2. **Use the WebUI instead** - access via the "Sentry" panel in your sidebar
 3. The WebUI provides all features and more than a dashboard would have provided
 4. See the [WebUI Access](#webui-access) section for details
 
-**Note**: If you keep `auto_create_dashboard: true`, you will see 404 errors in logs. This is harmless but not useful. The add-on will continue to work normally and create/update sensor entities.
-
 #### 6. Dashboard Creation Failed (401 Unauthorized)
 
-**Problem**: "Failed to create dashboard: 401 - 401: Unauthorized" in logs
+**Problem**: "Failed to create dashboard: 401 - 401: Unauthorized" in logs (in older versions)
 
-**This is a known limitation**: Home Assistant add-ons do not have permission to create Lovelace dashboards via the API. This is by design for security reasons.
+**This is a known limitation**: Home Assistant add-ons do not have permission to create Lovelace dashboards via the API. This functionality has been removed.
 
 **Solution**:
-- Set `auto_create_dashboard: false` in the add-on configuration (this is the default)
-- Manually create your dashboard using the sensor entities
-- See the [Dashboard Examples](#dashboard-examples) section for configuration templates
+- The `auto_create_dashboard` option has been removed in current versions
+- Use the built-in WebUI instead (accessible via "Sentry" sidebar panel)
+- See the [WebUI Access](#webui-access) section for details
 - The add-on will continue to work normally and create/update sensor entities
 
 #### 7. AI Client Initialization Error

@@ -140,7 +140,6 @@ ai_endpoint: "http://localhost:11434"
 ai_model: "llama2"
 check_schedule: "02:00"
 create_dashboard_entities: true
-auto_create_dashboard: false
 check_all_updates: true
 check_addons: true
 check_hacs: true
@@ -162,7 +161,6 @@ enable_web_ui: true
 | `api_key` | API key (required for OpenAI) | `""` |
 | `check_schedule` | Daily check time in HH:MM format (24h) | `02:00` |
 | `create_dashboard_entities` | Create sensor entities for dashboard | `true` |
-| `auto_create_dashboard` | **DEPRECATED** - Does not work, use WebUI instead | `false` |
 | `check_all_updates` | Check all update entities (Core, Supervisor, OS, Add-ons, Integrations) | `true` |
 | `check_addons` | Check add-on updates (legacy, use `check_all_updates` instead) | `true` |
 | `check_hacs` | Check HACS updates (legacy, use `check_all_updates` instead) | `true` |

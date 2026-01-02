@@ -223,33 +223,6 @@ class SentryService:
         # Send startup notification to help users find sensors
         await self._send_startup_notification()
         
-        # Create dashboard if auto_create_dashboard is enabled (DEPRECATED)
-        if self.config.auto_create_dashboard:
-            logger.warning("=" * 60)
-            logger.warning("DASHBOARD AUTO-CREATION IS DEPRECATED")
-            logger.warning("=" * 60)
-            logger.warning("The 'auto_create_dashboard' setting is enabled, but dashboard")
-            logger.warning("creation via the Lovelace API is not supported for Home Assistant add-ons.")
-            logger.warning("")
-            logger.warning("WHAT YOU SHOULD DO:")
-            logger.warning("1. Set 'auto_create_dashboard: false' in the add-on configuration")
-            logger.warning("2. Use the built-in WebUI instead:")
-            logger.warning("   - Access via the 'Sentry' panel in your Home Assistant sidebar")
-            logger.warning("   - Or: Settings → Add-ons → Home Assistant Sentry → Open Web UI")
-            logger.warning("3. The WebUI provides full dependency visualization and analysis")
-            logger.warning("")
-            logger.warning("The add-on will still attempt to create the dashboard, but it will")
-            logger.warning("likely fail with a 404 error. This is expected and can be safely ignored.")
-            logger.warning("=" * 60)
-            
-            try:
-                async with HomeAssistantClient(self.config) as ha_client:
-                    dashboard_mgr = DashboardManager(ha_client)
-                    await dashboard_mgr.create_sentry_dashboard()
-            except Exception as e:
-                logger.error(f"Dashboard creation failed (expected): {e}")
-                logger.info("This failure is expected - please use the WebUI instead (see warning above)")
-        
         # Run initial check as a background task to avoid blocking the web server
         # This allows the web UI to be responsive even if the AI provider is slow/unavailable
         logger.info("Scheduling initial update check as background task...")

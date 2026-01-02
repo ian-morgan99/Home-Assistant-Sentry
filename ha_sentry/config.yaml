@@ -103,15 +103,6 @@ ports_description:
 #   WHEN TO USE: Enable if you want to see update status in dashboards. Disable if
 #                you only want notifications and don't need dashboard integration.
 #
-# auto_create_dashboard: Automatically create a Lovelace dashboard
-#   - true: Attempts to create a pre-configured dashboard (DEPRECATED - WILL FAIL)
-#   - false: You manually add sensors to your dashboard (REQUIRED)
-#   IMPORTANT: Dashboard auto-creation is DEPRECATED and does not work due to Home Assistant
-#              API limitations. The Lovelace dashboard API endpoint is not accessible to add-ons.
-#              Keep this setting FALSE and use the WebUI instead (accessible via the Sentry panel
-#              in your sidebar or Settings → Add-ons → Home Assistant Sentry → Open Web UI).
-#   WHEN TO USE: ALWAYS keep false. Use the built-in WebUI for visualization instead.
-#
 # ANALYSIS CONFIGURATION
 # ----------------------
 # safety_threshold: Confidence threshold for marking updates as safe
@@ -172,7 +163,6 @@ options:
   api_key: ""
   check_schedule: "02:00"
   create_dashboard_entities: true
-  auto_create_dashboard: false
   check_all_updates: true
   check_addons: true
   check_hacs: true
@@ -190,7 +180,6 @@ schema:
   api_key: password?
   check_schedule: str
   create_dashboard_entities: bool
-  auto_create_dashboard: bool
   check_all_updates: bool
   check_addons: bool
   check_hacs: bool
