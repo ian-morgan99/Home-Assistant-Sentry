@@ -1500,9 +1500,10 @@ class DependencyTreeWebServer:
                             // the component fetch to get the actual data.
                             if (statusData.components_count > 0) {
                                 // Status says there are components, but we got none
-                                // This is a race condition - retry immediately
+                                // This is a race condition - retry to fetch the actual components
+                                // (explicitly set shouldRetry even though it's already true, for clarity)
                                 shouldRetry = true;
-                                addDiagnosticLog(`Race condition detected: status reports ${statusData.components_count} components but fetch returned 0. Retrying immediately.`, 'warning');
+                                addDiagnosticLog(`Race condition detected: status reports ${statusData.components_count} components but fetch returned 0. Will retry.`, 'warning');
                             }
                             // If the graph building is complete (ready/error) with 0 components, 
                             // don't retry - show error immediately
