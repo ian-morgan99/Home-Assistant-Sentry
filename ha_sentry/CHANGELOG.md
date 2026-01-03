@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.3.24
+- Fix race condition in WebUI component loading during graph initialization WebUI shows "Initializing..." or "Loading..." and never displays components, even though the dependency graph successfully builds with integrations in the background.
+
+
 ## 1.3.23
 - Add configurable log obfuscation for sensitive data (IPs, API keys, tokens) Logs currently expose sensitive data including IP addresses, API keys, and authentication tokens. This adds automatic obfuscation enabled by default.
 
