@@ -27,8 +27,8 @@ ports_description:
 # Map Home Assistant directories for dependency graph building
 # This gives the add-on read-only access to integration manifests
 map:
-  - config:rw
-  - share:rw
+  - config:ro
+  - share:ro
   - homeassistant_config:ro
   
 # ==================================================================================

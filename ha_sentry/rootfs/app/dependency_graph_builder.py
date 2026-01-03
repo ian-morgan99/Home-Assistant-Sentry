@@ -160,7 +160,7 @@ class DependencyGraphBuilder:
             logger.warning("     - Restart the add-on")
             logger.warning("")
             logger.warning("NOTE:")
-            logger.warning("  Core/built-in integrations cannot be scanned (they're in the HA")
+            logger.warning("  Core/built-in integrations cannot be scanned (they are in the HA")
             logger.warning("  container). Only custom integrations (HACS) can be analyzed.")
             logger.warning("")
             
