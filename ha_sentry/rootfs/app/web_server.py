@@ -322,7 +322,7 @@ class DependencyTreeWebServer:
             }, status=500)
         
     async def _handle_get_components(self, request):
-        """Get list of all components"""
+        """Get list of all components (integrations and addons)"""
         try:
             if not self.dependency_graph_builder:
                 logger.error("API request failed: Dependency graph not available")
@@ -335,6 +335,8 @@ class DependencyTreeWebServer:
                 }, status=503)
                 
             components = []
+            
+            # Add integrations
             for domain, integration in self.dependency_graph_builder.integrations.items():
                 if 'error' not in integration:
                     # Determine component type based on domain and manifest
@@ -349,6 +351,21 @@ class DependencyTreeWebServer:
                         'type_label': self._get_type_label(component_type)
                     })
             
+            # Add addons
+            for slug, addon in self.dependency_graph_builder.addons.items():
+                # Addons show HA version requirement as their dependency
+                ha_version = addon.get('homeassistant', 'any')
+                dep_count = 1 if ha_version and ha_version != 'any' else 0
+                
+                components.append({
+                    'domain': slug,
+                    'name': addon.get('name', slug),
+                    'version': addon.get('version'),
+                    'dependency_count': dep_count,
+                    'type': 'addon',
+                    'type_label': self._get_type_label('addon')
+                })
+            
             # Sort by type (using sort order), then by name
             components.sort(key=lambda x: (self.TYPE_SORT_ORDER.get(x['type'], self.UNKNOWN_TYPE_SORT_ORDER), x['name'].lower()))
             
@@ -359,7 +376,6 @@ class DependencyTreeWebServer:
         except Exception as e:
             logger.error(f"Error getting components: {e}", exc_info=True)
             return web.json_response({'error': str(e)}, status=500)
-            
     async def _handle_dependency_tree(self, request):
         """Get dependency tree for a specific component (what it depends on)"""
         try:
@@ -373,38 +389,68 @@ class DependencyTreeWebServer:
                 }, status=503)
                 
             integrations = self.dependency_graph_builder.integrations
+            addons = self.dependency_graph_builder.addons
             
-            if component not in integrations:
-                return web.json_response({'error': 'Component not found'}, status=404)
+            # Check if it's an integration
+            if component in integrations:
+                integration = integrations[component]
                 
-            integration = integrations[component]
-            
-            if 'error' in integration:
-                return web.json_response({
-                    'error': 'Component has parsing errors',
-                    'details': integration.get('error')
-                }, status=400)
-            
-            # Build tree structure
-            tree = {
-                'component': component,
-                'name': integration.get('name', component),
-                'version': integration.get('version'),
-                'dependencies': []
-            }
-            
-            # Add direct dependencies
-            for req in integration.get('requirements', []):
-                dep_node = {
-                    'package': req['package'],
-                    'specifier': req['specifier'],
-                    'high_risk': req.get('high_risk', False),
-                    'shared': len(self.dependency_graph_builder.dependency_map.get(req['package'], [])) > 1,
-                    'shared_count': len(self.dependency_graph_builder.dependency_map.get(req['package'], []))
+                if 'error' in integration:
+                    return web.json_response({
+                        'error': 'Component has parsing errors',
+                        'details': integration.get('error')
+                    }, status=400)
+                
+                # Build tree structure for integration
+                tree = {
+                    'component': component,
+                    'name': integration.get('name', component),
+                    'version': integration.get('version'),
+                    'type': 'integration',
+                    'dependencies': []
                 }
-                tree['dependencies'].append(dep_node)
+                
+                # Add direct dependencies
+                for req in integration.get('requirements', []):
+                    dep_node = {
+                        'package': req['package'],
+                        'specifier': req['specifier'],
+                        'high_risk': req.get('high_risk', False),
+                        'shared': len(self.dependency_graph_builder.dependency_map.get(req['package'], [])) > 1,
+                        'shared_count': len(self.dependency_graph_builder.dependency_map.get(req['package'], []))
+                    }
+                    tree['dependencies'].append(dep_node)
+                
+                return web.json_response(tree)
             
-            return web.json_response(tree)
+            # Check if it's an addon
+            elif component in addons:
+                addon = addons[component]
+                
+                # Build tree structure for addon
+                tree = {
+                    'component': component,
+                    'name': addon.get('name', component),
+                    'version': addon.get('version'),
+                    'type': 'addon',
+                    'dependencies': []
+                }
+                
+                # Add HA version requirement as a dependency
+                ha_version = addon.get('homeassistant')
+                if ha_version:
+                    tree['dependencies'].append({
+                        'package': 'Home Assistant',
+                        'specifier': ha_version,
+                        'high_risk': False,
+                        'shared': True,  # HA version is shared by all addons
+                        'shared_count': len(addons)
+                    })
+                
+                return web.json_response(tree)
+            
+            else:
+                return web.json_response({'error': 'Component not found'}, status=404)
             
         except Exception as e:
             logger.error(f"Error getting dependency tree: {e}", exc_info=True)
@@ -424,6 +470,7 @@ class DependencyTreeWebServer:
             
             dependency_map = self.dependency_graph_builder.dependency_map
             integrations = self.dependency_graph_builder.integrations
+            addons = self.dependency_graph_builder.addons
             
             # Check if this is a package dependency
             if item in dependency_map:
@@ -447,6 +494,17 @@ class DependencyTreeWebServer:
                     'name': integrations[item].get('name', item),
                     'used_by': [],
                     'note': 'Integration dependencies are tracked at the package level'
+                }
+                return web.json_response(tree)
+            
+            # Check if this is an addon
+            if item in addons:
+                tree = {
+                    'type': 'addon',
+                    'component': item,
+                    'name': addons[item].get('name', item),
+                    'used_by': [],
+                    'note': 'Add-on dependencies are primarily Home Assistant version requirements'
                 }
                 return web.json_response(tree)
             
@@ -545,9 +603,11 @@ class DependencyTreeWebServer:
             # Return the machine-readable format
             graph_data = {
                 'integrations': self.dependency_graph_builder.integrations,
+                'addons': self.dependency_graph_builder.addons,
                 'dependency_map': self.dependency_graph_builder.dependency_map,
                 'statistics': {
                     'total_integrations': len(self.dependency_graph_builder.integrations),
+                    'total_addons': len(self.dependency_graph_builder.addons),
                     'total_dependencies': len(self.dependency_graph_builder.dependency_map),
                     'high_risk_count': len([
                         d for d in self.dependency_graph_builder.dependency_map.keys()
@@ -950,6 +1010,10 @@ class DependencyTreeWebServer:
             <div class="stat-card">
                 <div class="stat-value" id="stat-integrations">-</div>
                 <div class="stat-label">Integrations</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value" id="stat-addons">-</div>
+                <div class="stat-label">Add-ons</div>
             </div>
             <div class="stat-card">
                 <div class="stat-value" id="stat-dependencies">-</div>
@@ -1597,6 +1661,7 @@ class DependencyTreeWebServer:
                 }
                 
                 document.getElementById('stat-integrations').textContent = data.statistics.total_integrations;
+                document.getElementById('stat-addons').textContent = data.statistics.total_addons || 0;
                 document.getElementById('stat-dependencies').textContent = data.statistics.total_dependencies;
                 document.getElementById('stat-highrisk').textContent = data.statistics.high_risk_count;
                 addDiagnosticLog('Statistics loaded successfully', 'info');
@@ -1841,6 +1906,7 @@ class DependencyTreeWebServer:
             
             // Also update stats to show error state
             document.getElementById('stat-integrations').textContent = 'N/A';
+            document.getElementById('stat-addons').textContent = 'N/A';
             document.getElementById('stat-dependencies').textContent = 'N/A';
             document.getElementById('stat-highrisk').textContent = 'N/A';
             
