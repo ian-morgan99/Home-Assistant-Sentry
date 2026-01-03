@@ -160,7 +160,17 @@ jobs:
               echo "Found PR #$PR_NUMBER, attempting to fetch Copilot review..."
               
               # Fetch PR reviews using GitHub CLI
-              REVIEWS=$(gh pr view "$PR_NUMBER" --json reviews --jq '.reviews[] | select(.author.login == "copilot-pull-request-reviewer[bot]") | .body' 2>/dev/null || echo "")
+              # Redirect stderr to capture any errors for debugging
+              REVIEWS=$(gh pr view "$PR_NUMBER" --json reviews --jq '.reviews[] | select(.author.login == "copilot-pull-request-reviewer[bot]") | .body' 2>&1)
+              GH_EXIT_CODE=$?
+              
+              if [ $GH_EXIT_CODE -ne 0 ]; then
+                echo "Warning: Failed to fetch PR reviews (exit code: $GH_EXIT_CODE)"
+                echo "GitHub CLI output: $REVIEWS"
+                REVIEWS=""
+              elif [ -z "$REVIEWS" ]; then
+                echo "No Copilot review found for PR #$PR_NUMBER"
+              fi
               
               if [ -n "$REVIEWS" ]; then
                 echo "Found Copilot review, extracting summary..."

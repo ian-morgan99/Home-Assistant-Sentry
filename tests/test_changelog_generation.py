@@ -199,34 +199,43 @@ This pull request fixes a critical WebUI issue where the interface would hang fo
 
 Copilot reviewed 7 out of 7 changed files."""
     
-    # Test the extraction logic used in the workflow
-    cmd = f'''
-    REVIEWS='{copilot_review}'
+    # Create temporary file with review content to avoid shell injection
+    import tempfile
+    with tempfile.NamedTemporaryFile(mode='w', delete=False, suffix='.txt') as f:
+        f.write(copilot_review)
+        review_file = f.name
     
-    # Extract the first paragraph after "## Pull request overview"
-    SUMMARY=$(echo "$REVIEWS" | awk '
-      /## Pull request overview/ {{ in_section=1; next }}
-      in_section && /^$/ {{ next }}
-      in_section && NF {{ print; getline; while(NF && !/^\\*\\*/ && !/^##/ && !/^###/) {{ print; getline }} exit }}
-    ')
-    
-    # Format as changelog entry
-    if [ -n "$SUMMARY" ]; then
-      echo "$SUMMARY" | tr '\\n' ' ' | sed 's/  */ /g' | sed 's/^ *//; s/ *$//; s/^/- /'
-    else
-      echo "ERROR: No summary extracted"
-    fi
-    '''
-    
-    output, returncode = run_shell_command(cmd)
-    print(f"Output: {output}")
-    assert returncode == 0, "Command should succeed"
-    assert output.startswith("- This pull request"), f"Expected to start with '- This pull request', got '{output}'"
-    assert "WebUI issue" in output, "Should contain 'WebUI issue'"
-    assert "dependency graph" in output, "Should contain 'dependency graph'"
-    # Should be a single line
-    assert "\n" not in output, "Should be a single line"
-    print("✓ Test passed")
+    try:
+        # Test the extraction logic used in the workflow
+        cmd = f'''
+        REVIEWS=$(cat {review_file})
+        
+        # Extract the first paragraph after "## Pull request overview"
+        SUMMARY=$(echo "$REVIEWS" | awk '
+          /## Pull request overview/ {{ in_section=1; next }}
+          in_section && /^$/ {{ next }}
+          in_section && NF {{ print; getline; while(NF && !/^\\*\\*/ && !/^##/ && !/^###/) {{ print; getline }} exit }}
+        ')
+        
+        # Format as changelog entry
+        if [ -n "$SUMMARY" ]; then
+          echo "$SUMMARY" | tr '\\n' ' ' | sed 's/  */ /g' | sed 's/^ *//; s/ *$//; s/^/- /'
+        else
+          echo "ERROR: No summary extracted"
+        fi
+        '''
+        
+        output, returncode = run_shell_command(cmd)
+        print(f"Output: {output}")
+        assert returncode == 0, "Command should succeed"
+        assert output.startswith("- This pull request"), f"Expected to start with '- This pull request', got '{output}'"
+        assert "WebUI issue" in output, "Should contain 'WebUI issue'"
+        assert "dependency graph" in output, "Should contain 'dependency graph'"
+        # Should be a single line
+        assert "\n" not in output, "Should be a single line"
+        print("✓ Test passed")
+    finally:
+        os.unlink(review_file)
 
 
 def test_pr_number_extraction():
@@ -240,15 +249,22 @@ def test_pr_number_extraction():
     ]
     
     for commit_msg, expected_pr in test_cases:
-        cmd = f'''
-        COMMIT_MSG='{commit_msg}'
-        PR_NUMBER=$(echo "$COMMIT_MSG" | grep -oP 'Merge pull request #\\K\\d+' || echo "")
-        echo "$PR_NUMBER"
-        '''
+        # Use a temporary file to safely pass the commit message
+        with tempfile.NamedTemporaryFile(mode='w', delete=False, suffix='.txt') as f:
+            f.write(commit_msg)
+            msg_file = f.name
         
-        output, returncode = run_shell_command(cmd)
-        assert returncode == 0, f"Command should succeed for: {commit_msg}"
-        assert output == expected_pr, f"Expected PR '{expected_pr}' from '{commit_msg}', got '{output}'"
+        try:
+            cmd = f'''
+            PR_NUMBER=$(cat {msg_file} | grep -oP 'Merge pull request #\\K\\d+' || echo "")
+            echo "$PR_NUMBER"
+            '''
+            
+            output, returncode = run_shell_command(cmd)
+            assert returncode == 0, f"Command should succeed for: {commit_msg}"
+            assert output == expected_pr, f"Expected PR '{expected_pr}' from '{commit_msg}', got '{output}'"
+        finally:
+            os.unlink(msg_file)
     
     print("✓ Test passed")
 
