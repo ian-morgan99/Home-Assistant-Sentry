@@ -10,8 +10,9 @@ from datetime import datetime
 
 from sentry_service import SentryService
 from config_manager import ConfigManager
+from log_obfuscator import LogObfuscator, ObfuscatingFormatter
 
-# Initial logging configuration
+# Initial logging configuration (will be updated with obfuscation after config loads)
 logging.basicConfig(
     level=logging.INFO,
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
@@ -33,12 +34,26 @@ async def main():
         
         # Reconfigure logging based on user preference
         log_level = config.get_python_log_level()
-        logging.getLogger().setLevel(log_level)
+        
+        # Set up log obfuscation if enabled
+        obfuscator = LogObfuscator(enabled=config.obfuscate_logs)
+        
+        # Update all handlers with obfuscating formatter
+        root_logger = logging.getLogger()
+        root_logger.setLevel(log_level)
+        
+        for handler in root_logger.handlers:
+            formatter = ObfuscatingFormatter(
+                fmt='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+                obfuscator=obfuscator
+            )
+            handler.setFormatter(formatter)
         
         # Log configuration details based on log level
         if log_level <= logging.INFO:
             logger.info(f"Configuration loaded: AI Enabled={config.ai_enabled}, Provider={config.ai_provider}")
             logger.info(f"Log Level set to: {config.log_level} (Python level: {logging.getLevelName(log_level)})")
+            logger.info(f"Log Obfuscation: {'Enabled' if config.obfuscate_logs else 'Disabled'}")
         
         if log_level == logging.DEBUG:
             logger.debug("=" * 60)
