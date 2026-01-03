@@ -171,6 +171,22 @@ map:
 #     - Authorization headers: Bearer token123 becomes Bearer tok***23
 #     - URL parameters: ?token=secret becomes ?token=sec***et
 #
+# LOG MONITORING CONFIGURATION
+# ----------------------------
+# monitor_logs_after_update: Monitor Home Assistant logs for errors after updates
+#   - true: Check logs after components are updated and report unexpected failures
+#   - false: Don't monitor logs (default)
+#   WHEN TO USE: Enable if you want to be notified about new error messages that
+#                appear after updates. This helps catch issues early before they
+#                impact your system. In heuristics mode, changes are listed. In AI
+#                mode, errors are analyzed and summarized.
+#
+# log_check_lookback_hours: How many hours of logs to analyze
+#   - Default: 24 (last 24 hours)
+#   - Range: 1-168 (1 hour to 7 days)
+#   WHEN TO USE: Adjust based on your update frequency. If you update weekly,
+#                consider 48-72 hours. For daily updates, 24 hours is sufficient.
+#
 # ==================================================================================
 
 options:
@@ -191,6 +207,8 @@ options:
   save_reports: true
   enable_web_ui: true
   custom_integration_paths: []
+  monitor_logs_after_update: false
+  log_check_lookback_hours: 24
 schema:
   ai_enabled: bool
   ai_provider: list(openai|ollama|lmstudio|openwebui)
@@ -210,3 +228,5 @@ schema:
   enable_web_ui: bool
   custom_integration_paths:
     - str?
+  monitor_logs_after_update: bool
+  log_check_lookback_hours: int(1,168)
