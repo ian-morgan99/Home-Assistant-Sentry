@@ -67,24 +67,45 @@ class SentryService:
             logger.info("=" * 60)
             logger.info("DEPENDENCY GRAPH INITIALIZATION (Background)")
             logger.info("=" * 60)
-            logger.info("Building dependency graph from installed integrations...")
+            logger.info("Building dependency graph from installed integrations and addons...")
             
             # Reuse the existing builder instance that was passed to the web server
             # This ensures the web server sees the populated data when building completes
             graph_builder = self.dependency_graph_builder
             
-            # Use custom paths if provided, otherwise use defaults
-            integration_paths = None
-            if hasattr(self.config, 'custom_integration_paths') and self.config.custom_integration_paths:
-                logger.info(f"Using custom integration paths: {self.config.custom_integration_paths}")
-                integration_paths = self.config.custom_integration_paths
-            else:
-                logger.info("Using default integration paths")
-            
-            # Build the graph (runs in executor to avoid blocking)
-            graph_data = await asyncio.get_event_loop().run_in_executor(
-                None, graph_builder.build_graph_from_paths, integration_paths
-            )
+            # Create HA client for addon metadata fetching
+            async with HomeAssistantClient(self.config) as ha_client:
+                # Set the client on the builder for addon fetching
+                graph_builder.ha_client = ha_client
+                
+                # Use custom paths if provided, otherwise use defaults
+                integration_paths = None
+                if hasattr(self.config, 'custom_integration_paths') and self.config.custom_integration_paths:
+                    logger.info(f"Using custom integration paths: {self.config.custom_integration_paths}")
+                    integration_paths = self.config.custom_integration_paths
+                else:
+                    logger.info("Using default integration paths")
+                
+                # Build the graph (runs in executor to avoid blocking)
+                graph_data = await asyncio.get_event_loop().run_in_executor(
+                    None, graph_builder.build_graph_from_paths, integration_paths
+                )
+                
+                # Fetch addon dependencies
+                logger.info("Fetching addon dependencies from Supervisor API...")
+                try:
+                    await graph_builder.fetch_addon_dependencies()
+                    # Rebuild dependency map to include addon data
+                    await asyncio.get_event_loop().run_in_executor(
+                        None, graph_builder._build_dependency_map
+                    )
+                    # Regenerate graph structure with addon data
+                    graph_data = await asyncio.get_event_loop().run_in_executor(
+                        None, graph_builder._generate_graph_structure
+                    )
+                except Exception as e:
+                    logger.warning(f"Failed to fetch addon dependencies: {e}")
+                    logger.info("Continuing with integration dependencies only")
             
             self.dependency_graph = graph_data
             # No need to reassign self.dependency_graph_builder - we're using the same instance

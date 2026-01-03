@@ -17,7 +17,7 @@ logger = logging.getLogger(__name__)
 
 
 class DependencyGraphBuilder:
-    """Builds dependency graphs from integration manifests"""
+    """Builds dependency graphs from integration manifests and addon metadata"""
     
     # Known high-risk libraries to highlight
     HIGH_RISK_LIBRARIES = {
@@ -37,12 +37,108 @@ class DependencyGraphBuilder:
     # Display limit for log messages
     MAX_PATHS_TO_DISPLAY = 5
     
-    def __init__(self):
-        """Initialize the dependency graph builder"""
-        self.integrations = {}
-        self.dependency_map = {}  # Maps dependency name to list of integrations using it
-        self.graph = {}
+    def __init__(self, ha_client=None):
+        """Initialize the dependency graph builder
         
+        Args:
+            ha_client: Optional HomeAssistantClient instance for querying addon metadata
+        """
+        self.integrations = {}
+        self.addons = {}  # Maps addon slug to addon metadata
+        self.dependency_map = {}  # Maps dependency name to list of integrations/addons using it
+        self.graph = {}
+        self.ha_client = ha_client
+        
+    async def fetch_addon_dependencies(self) -> None:
+        """
+        Fetch addon metadata from Supervisor API and extract dependency information
+        
+        This method queries the Supervisor API for all addons and their dependencies.
+        Addon dependencies are stored in the self.addons dict and included in the dependency_map.
+        """
+        if not self.ha_client:
+            logger.debug("No HomeAssistantClient provided, skipping addon dependency fetching")
+            return
+        
+        try:
+            logger.info("Fetching addon dependencies from Supervisor API...")
+            
+            # Get list of all addons (including those without updates)
+            url = f"{self.ha_client.config.supervisor_url}/addons"
+            async with self.ha_client.session.get(url) as response:
+                if response.status != 200:
+                    logger.warning(f"Failed to fetch addons from Supervisor API: HTTP {response.status}")
+                    return
+                
+                data = await response.json()
+                addons_list = data.get('data', {}).get('addons', [])
+                logger.info(f"Found {len(addons_list)} total addons")
+                
+                # Fetch detailed info for each addon
+                for addon in addons_list:
+                    addon_slug = addon.get('slug')
+                    if not addon_slug:
+                        continue
+                    
+                    # Get detailed addon information including dependencies
+                    addon_details = await self.ha_client.get_addon_details(addon_slug)
+                    if not addon_details:
+                        continue
+                    
+                    # Parse addon metadata
+                    self._parse_addon_metadata(addon_slug, addon_details)
+                
+                logger.info(f"Parsed {len(self.addons)} addon dependency metadata")
+                
+        except Exception as e:
+            logger.error(f"Error fetching addon dependencies: {e}", exc_info=True)
+            logger.warning("Continuing without addon dependency data")
+    
+    def _parse_addon_metadata(self, addon_slug: str, addon_details: Dict):
+        """
+        Parse addon metadata and extract dependency information
+        
+        Args:
+            addon_slug: Addon slug identifier
+            addon_details: Addon metadata from Supervisor API
+        """
+        try:
+            name = addon_details.get('name', addon_slug)
+            version = addon_details.get('version', 'unknown')
+            
+            # Extract addon type
+            addon_type = 'addon'
+            if addon_details.get('repository') == 'core':
+                addon_type = 'core_addon'
+            elif addon_details.get('repository') == 'local':
+                addon_type = 'local_addon'
+            
+            # Parse dependencies from addon options/configuration
+            # Addons may declare dependencies in several ways:
+            # 1. homeassistant: minimum HA version required
+            # 2. Other addons they depend on (not commonly exposed in API)
+            # 3. Docker images they depend on (implicit)
+            
+            ha_min_version = addon_details.get('homeassistant')
+            
+            # Store addon data
+            self.addons[addon_slug] = {
+                'name': name,
+                'slug': addon_slug,
+                'version': version,
+                'type': addon_type,
+                'homeassistant': ha_min_version,
+                'repository': addon_details.get('repository', 'unknown'),
+                'description': addon_details.get('description', ''),
+                'installed': addon_details.get('installed', False),
+                'state': addon_details.get('state', 'unknown')
+            }
+            
+            logger.debug(f"Parsed addon: {name} ({addon_slug}) - type: {addon_type}")
+            
+        except Exception as e:
+            logger.warning(f"Error parsing addon metadata for {addon_slug}: {e}")
+    
     def build_graph_from_paths(self, paths: List[str] = None) -> Dict:
         """
         Build dependency graph by scanning integration paths
@@ -420,9 +516,10 @@ class DependencyGraphBuilder:
         return parsed
     
     def _build_dependency_map(self):
-        """Build a map of dependencies to integrations that use them"""
+        """Build a map of dependencies to integrations and addons that use them"""
         self.dependency_map = {}
         
+        # Add integration dependencies
         for domain, integration in self.integrations.items():
             if 'error' in integration:
                 continue
@@ -436,7 +533,27 @@ class DependencyGraphBuilder:
                     'integration': integration['name'],
                     'domain': domain,
                     'specifier': req['specifier'],
-                    'high_risk': req.get('high_risk', False)
+                    'high_risk': req.get('high_risk', False),
+                    'type': 'integration'
+                })
+        
+        # Add addon dependencies (Home Assistant version requirements)
+        # Note: Addons primarily declare HA version dependencies rather than Python packages
+        # We track these separately for visibility
+        for slug, addon in self.addons.items():
+            ha_version = addon.get('homeassistant')
+            if ha_version:
+                # Track HA version as a special dependency
+                dep_key = 'homeassistant_version'
+                if dep_key not in self.dependency_map:
+                    self.dependency_map[dep_key] = []
+                
+                self.dependency_map[dep_key].append({
+                    'integration': addon['name'],
+                    'domain': slug,
+                    'specifier': ha_version,
+                    'high_risk': False,
+                    'type': 'addon'
                 })
     
     def _generate_graph_structure(self) -> Dict:
@@ -444,14 +561,16 @@ class DependencyGraphBuilder:
         Generate the final graph structure with both machine-readable and human-readable formats
         
         Returns:
-            Dict with 'integrations', 'dependencies', 'summary', and 'json' keys
+            Dict with 'integrations', 'addons', 'dependencies', 'summary', and 'json' keys
         """
         # Machine-readable: full data structure
         machine_readable = {
             'integrations': self.integrations,
+            'addons': self.addons,
             'dependency_map': self.dependency_map,
             'statistics': {
                 'total_integrations': len(self.integrations),
+                'total_addons': len(self.addons),
                 'total_dependencies': len(self.dependency_map),
                 'integrations_with_errors': len([i for i in self.integrations.values() if 'error' in i]),
                 'high_risk_dependencies': len([d for d in self.dependency_map.keys() if d in self.HIGH_RISK_LIBRARIES])
@@ -465,6 +584,7 @@ class DependencyGraphBuilder:
             'machine_readable': machine_readable,
             'human_readable': human_readable,
             'integrations': self.integrations,
+            'addons': self.addons,
             'dependency_map': self.dependency_map
         }
     
@@ -478,14 +598,29 @@ class DependencyGraphBuilder:
         
         # Statistics
         total_integrations = len(self.integrations)
+        total_addons = len(self.addons)
         total_deps = len(self.dependency_map)
         errors = len([i for i in self.integrations.values() if 'error' in i])
         
         lines.append(f"Total Integrations: {total_integrations}")
+        if total_addons > 0:
+            lines.append(f"Total Add-ons: {total_addons}")
         lines.append(f"Unique Dependencies: {total_deps}")
         if errors > 0:
             lines.append(f"Integrations with Parse Errors: {errors}")
         lines.append("")
+        
+        # Add-on summary (if any addons tracked)
+        if total_addons > 0:
+            lines.append("ADD-ONS TRACKED:")
+            lines.append("-" * 60)
+            addon_sample = list(self.addons.values())[:5]
+            for addon in addon_sample:
+                ha_req = addon.get('homeassistant', 'any')
+                lines.append(f"  {addon['name']}: HA {ha_req}")
+            if total_addons > 5:
+                lines.append(f"  ... and {total_addons - 5} more")
+            lines.append("")
         
         # High-risk dependencies
         high_risk = {pkg: users for pkg, users in self.dependency_map.items() 
@@ -511,7 +646,7 @@ class DependencyGraphBuilder:
             lines.append("-" * 60)
             for pkg, users in top_deps:
                 risk_indicator = " ⚠️ HIGH RISK" if pkg in self.HIGH_RISK_LIBRARIES else ""
-                lines.append(f"  {pkg}: {len(users)} integration(s){risk_indicator}")
+                lines.append(f"  {pkg}: {len(users)} component(s){risk_indicator}")
             lines.append("")
         
         # Sample integration tree (show first 5)

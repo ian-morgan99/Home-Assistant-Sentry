@@ -206,11 +206,13 @@ Or click links in notifications that use this format.
 
 The WebUI provides:
 
-- **Dependency Visualization**: Interactive graphs showing component dependencies
-- **"Where Used" Analysis**: See which components depend on any integration
+- **Dependency Visualization**: Interactive graphs showing component dependencies (integrations and add-ons)
+- **Add-on Tracking**: View add-on metadata and Home Assistant version requirements
+- **"Where Used" Analysis**: See which components depend on any integration or package
 - **Change Impact Reports**: Understand the impact of updating specific components
-- **Component Explorer**: Browse all installed integrations and their requirements
+- **Component Explorer**: Browse all installed integrations, add-ons, and their requirements
 - **Interactive Navigation**: Click to explore dependency chains
+- **Real-time Statistics**: View counts for integrations, add-ons, dependencies, and high-risk packages
 
 ### Troubleshooting WebUI Access
 
