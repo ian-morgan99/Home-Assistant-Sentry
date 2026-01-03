@@ -101,8 +101,8 @@ def test_url_param_obfuscation():
     
     # Test multiple sensitive parameters
     result = obfuscator.obfuscate_url_params("?api_key=key123&token=tok456&normal=data")
-    assert "api_key=key***" in result or "api_key=***" in result
-    assert "token=tok***" in result
+    assert "api_key=key***" in result  # 6 chars: first 3 shown
+    assert "token=tok***" in result  # 6 chars: first 3 shown
     assert "normal=data" in result
     
     print("✓ URL parameter obfuscation tests passed")
@@ -118,8 +118,11 @@ def test_combined_obfuscation():
     result = obfuscator.obfuscate(message)
     
     assert "192.***.***.100" in result
-    assert "abc***ghi" in result or "abc***456" in result
-    assert "xyz***234" in result
+    assert "192.168.1.100" not in result  # Original IP should not be present
+    assert "abc***ghi" in result  # 18 chars: first 3 and last 3 shown
+    assert "abc123def456ghi" not in result  # Original key should not be present
+    assert "xyz***234" in result  # 18 chars: first 3 and last 3 shown
+    assert "xyz12345678901234" not in result  # Original token should not be present
     
     # Test URL with IP and token
     message = "Fetching from http://10.0.0.5:8080/api?token=secret123456"

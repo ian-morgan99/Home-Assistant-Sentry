@@ -51,8 +51,8 @@ class LogObfuscator:
         Obfuscate IP addresses by replacing middle two segments with ***
         
         Examples:
-            192.168.1.100 -> 192.***.***.**100
-            10.0.0.5 -> 10.***.***.**5
+            192.168.1.100 -> 192.***.***.100
+            10.0.0.5 -> 10.***.***.5
             
         Args:
             text: Text containing IP addresses
