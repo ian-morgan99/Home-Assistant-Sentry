@@ -138,6 +138,8 @@ jobs:
       
       - name: Update CHANGELOG.md
         if: steps.check_bot.outputs.skip != 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           VERSION="${{ steps.get_version.outputs.version }}"
           CURRENT_VERSION="${{ steps.get_version.outputs.current_version }}"
@@ -148,27 +150,63 @@ jobs:
           else
             echo "Adding version $VERSION to CHANGELOG.md"
             
-            # Get recent commits, excluding bot commits and version bumps
-            # This captures the actual changes that triggered this version increment
-            RECENT_COMMITS=$(git log --format="%s" --no-merges -10 | \
-              grep -v "^chore: auto-increment version" | \
-              grep -v "^chore: sync config" || true)
+            # Try to extract PR number from most recent merge commit
+            PR_NUMBER=$(git log --format="%s" -1 | grep -oP 'Merge pull request #\K\d+' || echo "")
             
-            # Take the most recent meaningful commit (the one that triggered this version bump)
-            LATEST_CHANGE=$(echo "$RECENT_COMMITS" | head -1)
+            CHANGELOG_ENTRIES=""
             
-            # Check if we have any meaningful commits
-            if [ -z "$LATEST_CHANGE" ] || [ -z "$RECENT_COMMITS" ]; then
-              CHANGELOG_ENTRIES="- Version automatically incremented"
-            else
-              # Count non-empty lines in RECENT_COMMITS
-              COMMIT_COUNT=$(echo "$RECENT_COMMITS" | grep -c . || echo "0")
-              if [ $COMMIT_COUNT -gt 1 ] && [ $COMMIT_COUNT -le 5 ]; then
-                # Multiple commits - include all of them
-                CHANGELOG_ENTRIES=$(echo "$RECENT_COMMITS" | sed 's/^/- /')
+            # If we found a PR number, try to get Copilot review comments
+            if [ -n "$PR_NUMBER" ]; then
+              echo "Found PR #$PR_NUMBER, attempting to fetch Copilot review..."
+              
+              # Fetch PR reviews using GitHub CLI
+              REVIEWS=$(gh pr view "$PR_NUMBER" --json reviews --jq '.reviews[] | select(.author.login == "copilot-pull-request-reviewer[bot]") | .body' 2>/dev/null || echo "")
+              
+              if [ -n "$REVIEWS" ]; then
+                echo "Found Copilot review, extracting summary..."
+                
+                # Extract the first paragraph after "## Pull request overview"
+                # This typically contains the concise summary of the PR
+                SUMMARY=$(echo "$REVIEWS" | awk '
+                  /## Pull request overview/ { in_section=1; next }
+                  in_section && /^$/ { next }
+                  in_section && NF { print; getline; while(NF && !/^\*\*/ && !/^##/ && !/^###/) { print; getline } exit }
+                ')
+                
+                # If we got a good summary, format it for changelog
+                if [ -n "$SUMMARY" ]; then
+                  # Format as a single line changelog entry
+                  CHANGELOG_ENTRIES=$(echo "$SUMMARY" | tr '\n' ' ' | sed 's/  */ /g' | sed 's/^ *//; s/ *$//; s/^/- /')
+                  echo "✓ Using Copilot review summary for changelog"
+                fi
+              fi
+            fi
+            
+            # Fall back to commit messages if no Copilot review was found
+            if [ -z "$CHANGELOG_ENTRIES" ]; then
+              echo "No Copilot review found, using commit messages..."
+              
+              # Get recent commits, excluding bot commits and version bumps
+              RECENT_COMMITS=$(git log --format="%s" --no-merges -10 | \
+                grep -v "^chore: auto-increment version" | \
+                grep -v "^chore: sync config" || true)
+              
+              # Take the most recent meaningful commit
+              LATEST_CHANGE=$(echo "$RECENT_COMMITS" | head -1)
+              
+              # Check if we have any meaningful commits
+              if [ -z "$LATEST_CHANGE" ] || [ -z "$RECENT_COMMITS" ]; then
+                CHANGELOG_ENTRIES="- Version automatically incremented"
               else
-                # Single commit or too many - just use the most recent
-                CHANGELOG_ENTRIES="- $LATEST_CHANGE"
+                # Count non-empty lines in RECENT_COMMITS
+                COMMIT_COUNT=$(echo "$RECENT_COMMITS" | grep -c . || echo "0")
+                if [ $COMMIT_COUNT -gt 1 ] && [ $COMMIT_COUNT -le 5 ]; then
+                  # Multiple commits - include all of them
+                  CHANGELOG_ENTRIES=$(echo "$RECENT_COMMITS" | sed 's/^/- /')
+                else
+                  # Single commit or too many - just use the most recent
+                  CHANGELOG_ENTRIES="- $LATEST_CHANGE"
+                fi
               fi
             fi
             
