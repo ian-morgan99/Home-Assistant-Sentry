@@ -17,10 +17,13 @@ When code is pushed to the main branch (including when a Pull Request is merged)
 5. It updates the version in both configuration files:
    - `ha_sentry/config.json`
    - `ha_sentry/config.yaml`
-6. **It generates a meaningful CHANGELOG.md entry** by extracting commit message(s) that triggered this version bump
-   - For single commits: Uses the commit message directly
-   - For batch merges (2-5 commits): Includes all commit messages
-   - For large batches (6+ commits): Uses the most recent commit message
+6. **It generates a meaningful CHANGELOG.md entry** using a smart three-tier approach:
+   - **First priority**: Extracts Copilot PR review summary (from "## Pull request overview" section)
+   - **Second priority**: Uses PR title and body summary if available
+   - **Third priority**: Falls back to commit message(s) that triggered this version bump
+     - For single commits: Uses the commit message directly
+     - For batch merges (2-5 commits): Includes all commit messages
+     - For large batches (6+ commits): Uses the most recent commit message
 7. The changes are committed and pushed back to the `main` branch
 8. The workflow includes safeguards to prevent infinite loops (skips if commit is from the bot or is version-related)
 
@@ -62,8 +65,10 @@ If you need to manually set a specific version (e.g., for a minor or major versi
 Since versions are automatically incremented on every commit, creating a release is simplified:
 
 1. **CHANGELOG.md is automatically updated**
-   - The workflow automatically generates changelog entries from commit messages
-   - Each version entry includes the commit message(s) that triggered the version bump
+   - The workflow automatically generates changelog entries using a smart three-tier approach:
+     1. **Copilot PR review summary** (highest priority) - Extracts detailed summary from Copilot's PR review
+     2. **PR title and body** (fallback) - Uses PR title and description when review isn't available
+     3. **Commit messages** (last resort) - Uses commit messages if PR info isn't accessible
    - For batch merges (2-5 commits), all commit messages are included
    - For single commits or large batches, only the most recent commit message is used
    - You can manually edit ha_sentry/CHANGELOG.md to refine or enhance the auto-generated entries
@@ -71,7 +76,7 @@ Since versions are automatically incremented on every commit, creating a release
    - Example: `## 1.2.0` (version number only, no date)
    - Use simple bullet points for changes (no need for subsections like "Added", "Changed", though they are acceptable)
    - **Important**: Do not add dates or other suffixes to version headings
-   - **Tip**: Write clear, descriptive commit messages as they will appear in the CHANGELOG
+   - **Tip**: Write clear, descriptive PR descriptions and commit messages as they may appear in the CHANGELOG
 
 2. **Create a Git Tag** (optional, for marking specific releases)
    ```bash
@@ -120,10 +125,30 @@ If you need to manually adjust the version (e.g., for a minor or major version b
 
 **Note**: To skip auto-increment on a specific commit, you cannot prevent it. However, you can always manually adjust the version in a subsequent commit if needed.
 
-## Writing Good Commit Messages
+## Writing Good Commit Messages and PR Descriptions
 
-Since commit messages are now automatically included in the CHANGELOG, follow these best practices:
+Since commit messages and PR descriptions may be automatically included in the CHANGELOG, follow these best practices:
 
+### Pull Request Descriptions
+When Copilot creates a PR, it automatically generates a detailed review summary. You can also manually write PR descriptions:
+
+- **Include a clear summary**: The first paragraph or "## Summary" section should concisely explain the changes
+- **Be user-focused**: Describe what changed from a user's perspective, not implementation details
+- **Use structured sections**: Use `## Summary`, `## Overview`, or similar headings for better parsing
+
+**Good PR description example:**
+```markdown
+## Summary
+
+This PR fixes a critical issue where the WebUI would hang for 60 seconds when the dependency graph completed with zero integrations. The fix corrects the status endpoint logic and adds directory mappings.
+
+## Changes
+- Fixed status endpoint to return proper error state
+- Enhanced JavaScript retry logic
+- Added directory mappings in config.yaml
+```
+
+### Commit Messages
 - **Be descriptive**: Write clear, user-friendly commit messages that explain what changed and why
 - **Use conventional commit format** (optional but recommended):
   - `feat: Add new dashboard feature` - New features
@@ -145,7 +170,7 @@ Since commit messages are now automatically included in the CHANGELOG, follow th
 - `WIP` (not descriptive)
 - `Fix` (what was fixed?)
 
-Remember: Your commit message will appear in the CHANGELOG and be visible to all users!
+Remember: Your PR description or commit message may appear in the CHANGELOG and be visible to all users!
 
 ## Pre-Release Checklist
 
