@@ -23,6 +23,13 @@ ports:
   8099/tcp: 8099
 ports_description:
   8099/tcp: Web interface
+
+# Map Home Assistant directories for dependency graph building
+# This gives the add-on read-only access to integration manifests
+map:
+  - config:rw
+  - share:rw
+  - homeassistant_config:ro
   
 # ==================================================================================
 # CONFIGURATION PARAMETER GUIDE
