@@ -1438,12 +1438,11 @@ class DependencyTreeWebServer:
                     
                     // Show detailed error with troubleshooting steps
                     const viz = document.getElementById('visualization');
-                    const actualWaitTime = shouldRetry ? waitTime : waitTime;  // Actual time waited
                     viz.innerHTML = `
                         <div class="error">
                             <h3 style="margin-bottom: 15px;">⚠️ No Integrations Found</h3>
                             <p style="margin-bottom: 15px;">
-                                The dependency graph was built but found <strong>0 integrations</strong>${shouldRetry ? ` after waiting ${actualWaitTime} seconds` : ''}.
+                                The dependency graph was built but found <strong>0 integrations</strong>${waitTime > 0 ? ` after waiting ${waitTime} seconds` : ''}.
                             </p>
                             
                             <p style="margin-bottom: 10px;"><strong>This usually means:</strong></p>

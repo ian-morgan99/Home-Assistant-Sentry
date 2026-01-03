@@ -48,7 +48,7 @@ def test_empty_graph_scenario():
                 message = f'{components_count} components loaded'
                 is_ready = True
             else:
-                status = 'error'  # THIS IS THE FIX - was 'building' before
+                status = 'error'  # Fixed: previously returned 'building' instead of 'error'
                 message = 'Dependency graph build completed but found 0 integrations'
                 is_ready = False
         elif components_count > 0:
