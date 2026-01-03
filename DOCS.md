@@ -723,7 +723,7 @@ Severity: HIGH
 
 Summary:
 3 new error/warning messages detected.
-1 errors may require attention.
+1 error may require attention.
 
 Significant Errors Detected:
 1. ERROR homeassistant.components.mqtt: Setup of mqtt is taking longer than 60 seconds
