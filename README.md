@@ -32,6 +32,7 @@ A Home Assistant add-on that performs daily reviews of **all available updates**
   
 - 📊 **Dependency Graph Builder** (NEW): 
   - Parses integration manifests (manifest.json) to build a complete dependency graph
+  - **Tracks add-on dependencies** - queries Supervisor API for add-on metadata and HA version requirements
   - Identifies all Python package dependencies across integrations
   - Detects shared dependencies and version conflicts
   - Highlights high-risk libraries (aiohttp, cryptography, numpy, pyjwt, sqlalchemy, protobuf)
@@ -39,11 +40,12 @@ A Home Assistant add-on that performs daily reviews of **all available updates**
   
 - 🌳 **Interactive Dependency Tree Visualization** (NEW):
   - Web-based interface accessible via Home Assistant ingress sidebar panel
+  - **Displays add-ons alongside integrations** with type labels and sorting
   - Three visualization modes:
-    - **Dependencies View**: See what packages a component depends on
+    - **Dependencies View**: See what packages a component depends on (including add-on HA version requirements)
     - **Where Used View**: See which components use a specific package
     - **Change Impact View**: Analyze which components are affected by updates
-  - Real-time statistics and high-risk dependency highlighting
+  - Real-time statistics for integrations, add-ons, dependencies, and high-risk packages
   - Visual tree representation with risk indicators
   
 - 🔗 **Shared Dependency Risk Detection** (NEW):
