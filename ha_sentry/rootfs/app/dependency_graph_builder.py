@@ -544,7 +544,7 @@ class DependencyGraphBuilder:
             ha_version = addon.get('homeassistant')
             if ha_version:
                 # Track HA version as a special dependency
-                dep_key = f"homeassistant_version"
+                dep_key = 'homeassistant_version'
                 if dep_key not in self.dependency_map:
                     self.dependency_map[dep_key] = []
                 

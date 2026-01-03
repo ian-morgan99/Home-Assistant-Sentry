@@ -439,12 +439,15 @@ class DependencyTreeWebServer:
                 # Add HA version requirement as a dependency
                 ha_version = addon.get('homeassistant')
                 if ha_version:
+                    # Count how many addons have HA version requirements (not just total addons)
+                    ha_version_users = self.dependency_graph_builder.dependency_map.get('homeassistant_version', [])
+                    
                     tree['dependencies'].append({
                         'package': 'Home Assistant',
                         'specifier': ha_version,
                         'high_risk': False,
-                        'shared': True,  # HA version is shared by all addons
-                        'shared_count': len(addons)
+                        'shared': len(ha_version_users) > 1,
+                        'shared_count': len(ha_version_users)
                     })
                 
                 return web.json_response(tree)

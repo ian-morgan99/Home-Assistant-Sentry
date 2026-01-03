@@ -3,6 +3,9 @@ Test addon dependency tracking functionality
 """
 import sys
 import os
+# Note: sys.path.insert used for test file portability
+# In production, the app modules are in /app/ directory in the addon container
+# For testing outside the container, we need to add the path explicitly
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'ha_sentry', 'rootfs', 'app'))
 
 from dependency_graph_builder import DependencyGraphBuilder
