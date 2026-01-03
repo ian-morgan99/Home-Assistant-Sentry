@@ -503,7 +503,7 @@ class DependencyTreeWebServer:
             # Check if this is an addon
             if item in addons:
                 tree = {
-                    'type': 'addon',
+                    'type': addons[item].get('type', 'addon'),
                     'component': item,
                     'name': addons[item].get('name', item),
                     'used_by': [],
