@@ -685,10 +685,14 @@ No updates are currently available for:
                 notification_message += f"\n{severity_emoji} **{component_display}**\n"
                 notification_message += f"{issue.get('description', 'No description')}\n"
                 
-                # Add "Where Used" link if web UI is enabled and we have a valid component
-                # Only show link for integrations/HACS that might be in dependency graph
-                if self.config.enable_web_ui and component_name != 'Unknown':
-                    # Show link for all types, but it's most useful for integrations
+                # Add "Where Used" link if web UI is enabled and component is an integration/HACS
+                # Only integrations and HACS components are in the dependency graph
+                # Addons, Core, Supervisor, and OS updates are NOT in the dependency graph
+                if (self.config.enable_web_ui and 
+                    component_name != 'Unknown' and 
+                    component_type in ['integration', 'hacs']):
+                    # Extract domain for URL - for integrations, use the component name as-is
+                    # since it should already be a domain-like identifier
                     component_domain = self._extract_component_domain(component_name)
                     where_used_url = self._get_ingress_url() + f"#whereused:{component_domain}"
                     notification_message += f"  [🔍 View Impact]({where_used_url})\n"

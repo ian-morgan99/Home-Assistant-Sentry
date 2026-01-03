@@ -1182,9 +1182,14 @@ class DependencyTreeWebServer:
         function handleUrlFragment() {
             // Check if there's a hash in the URL (e.g., #whereused:component or #impact:comp1,comp2)
             const hash = window.location.hash.substring(1);  // Remove the #
-            if (!hash) return;
+            if (!hash) {
+                addDiagnosticLog('No URL fragment found', 'info');
+                return;
+            }
             
+            addDiagnosticLog(`Handling URL fragment: ${hash}`, 'info');
             const [mode, value] = hash.split(':');
+            addDiagnosticLog(`Parsed mode: ${mode}, value: ${value}`, 'info');
             
             if (mode === 'whereused' && value) {
                 // Set mode to where-used
@@ -1201,13 +1206,19 @@ class DependencyTreeWebServer:
                         const select = document.getElementById('component-select');
                         select.value = value;
                         if (select.value === value) {  // Verify the option exists
+                            addDiagnosticLog(`Found component '${value}' in list, visualizing...`, 'info');
                             visualize();
                         } else {
                             // Component not found in list, show error
                             // Escape component name to prevent XSS
                             const escapedValue = escapeHtml(value);
                             console.warn(`Component '${escapedValue}' not found in component list`);
-                            showError(`Component '${escapedValue}' not found. It may not be a tracked integration.`);
+                            addDiagnosticLog(`Component '${escapedValue}' not found in list`, 'warning');
+                            showError(`Component '${escapedValue}' not found. This may be because:\n\n` +
+                                     `• It's an add-on or system component (not tracked in dependency graph)\n` +
+                                     `• It's not installed on your system\n` +
+                                     `• The component name doesn't match the integration domain\n\n` +
+                                     `Try selecting a component manually from the dropdown instead.`);
                         }
                     },
                     () => {
@@ -1235,6 +1246,7 @@ class DependencyTreeWebServer:
                 // Wait for components to load, then trigger visualization
                 waitForComponents(
                     () => {
+                        addDiagnosticLog(`Impact mode: visualizing for components: ${value}`, 'info');
                         visualize();
                     },
                     () => {
@@ -1256,11 +1268,18 @@ class DependencyTreeWebServer:
                         const select = document.getElementById('component-select');
                         select.value = value;
                         if (select.value === value) {  // Verify the option exists
+                            addDiagnosticLog(`Found component '${value}' in list, visualizing dependencies...`, 'info');
                             visualize();
                         } else {
                             // Component not found in list, show error
                             const escapedValue = escapeHtml(value);
-                            showError(`Component '${escapedValue}' not found. It may not be a tracked integration.`);
+                            console.warn(`Component '${escapedValue}' not found in component list`);
+                            addDiagnosticLog(`Component '${escapedValue}' not found in list`, 'warning');
+                            showError(`Component '${escapedValue}' not found. This may be because:\n\n` +
+                                     `• It's an add-on or system component (not tracked in dependency graph)\n` +
+                                     `• It's not installed on your system\n` +
+                                     `• The component name doesn't match the integration domain\n\n` +
+                                     `Try selecting a component manually from the dropdown instead.`);
                         }
                     },
                     () => {
