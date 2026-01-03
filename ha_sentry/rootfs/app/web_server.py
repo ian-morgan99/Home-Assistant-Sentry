@@ -1494,9 +1494,19 @@ class DependencyTreeWebServer:
                             const statusData = await statusRecheck.json();
                             addDiagnosticLog('Status recheck: ' + JSON.stringify(statusData), 'info');
                             
+                            // CRITICAL FIX: Check if status reports components but we got none
+                            // This indicates a race condition where the graph completed between
+                            // our component fetch and this status check. In this case, RETRY
+                            // the component fetch to get the actual data.
+                            if (statusData.components_count > 0) {
+                                // Status says there are components, but we got none
+                                // This is a race condition - retry immediately
+                                shouldRetry = true;
+                                addDiagnosticLog(`Race condition detected: status reports ${statusData.components_count} components but fetch returned 0. Retrying immediately.`, 'warning');
+                            }
                             // If the graph building is complete (ready/error) with 0 components, 
                             // don't retry - show error immediately
-                            if (statusData.status === 'ready' || statusData.status === 'error') {
+                            else if (statusData.status === 'ready' || statusData.status === 'error') {
                                 shouldRetry = false;
                                 addDiagnosticLog('Graph build complete with 0 components, showing error immediately', 'info');
                             }
