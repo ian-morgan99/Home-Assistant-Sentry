@@ -10,7 +10,7 @@ import logging
 import os
 import re
 from datetime import datetime, timedelta
-from typing import Dict, List, Optional, Tuple
+from typing import Dict, List, Optional
 from log_obfuscator import LogObfuscator
 
 logger = logging.getLogger(__name__)
