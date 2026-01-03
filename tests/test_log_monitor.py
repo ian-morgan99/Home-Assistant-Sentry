@@ -15,7 +15,6 @@ def test_log_monitor_init():
     try:
         from config_manager import ConfigManager
         from log_monitor import LogMonitor
-        from log_obfuscator import LogObfuscator
         
         # Set test environment variables
         os.environ['MONITOR_LOGS_AFTER_UPDATE'] = 'true'
@@ -24,11 +23,11 @@ def test_log_monitor_init():
         os.environ['SUPERVISOR_TOKEN'] = 'test_token'
         
         config = ConfigManager()
-        obfuscator = LogObfuscator(enabled=config.obfuscate_logs)
-        monitor = LogMonitor(config, obfuscator)
+        # LogMonitor creates its own obfuscator internally
+        monitor = LogMonitor(config)
         
         assert monitor.config == config
-        assert monitor.obfuscator == obfuscator
+        assert monitor.obfuscator is not None
         assert monitor.lookback_hours == 24
         
         print("✓ LogMonitor initialization test passed")

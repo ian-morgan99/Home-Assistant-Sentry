@@ -852,9 +852,10 @@ No updates are currently available for:
             notification_message += "\n"
         
         # Add footer
+        check_time = log_analysis.get('check_time', datetime.now(tz=timezone.utc))
         notification_message += f"""---
 *Analysis powered by: {'AI' if log_analysis.get('ai_powered') else 'Heuristics'}*
-*Check time: {datetime.now(tz=timezone.utc).strftime('%Y-%m-%d %H:%M:%S UTC')}*
+*Check time: {check_time.strftime('%Y-%m-%d %H:%M:%S UTC')}*
 *Log lookback period: {self.config.log_check_lookback_hours} hours*
 
 **Next Steps:**

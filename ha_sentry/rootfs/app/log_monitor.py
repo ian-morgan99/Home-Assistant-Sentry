@@ -146,6 +146,7 @@ class LogMonitor:
         signature = re.sub(r'\b\d+\.\d+\.\d+\.\d+\b', '<IP>', signature)  # IP addresses
         signature = re.sub(r'\b[0-9a-f]{8,}\b', '<ID>', signature)  # Hex IDs
         # ISO 8601 timestamps with optional fractional seconds and timezone
+        # Home Assistant logs may use various timestamp formats, this pattern handles most variations
         signature = re.sub(r'\b\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d+)?(Z|[+-]\d{2}:\d{2})?\b', '<TIMESTAMP>', signature)
         signature = re.sub(r'\(\d+\.\d+s\)', '(<TIME>)', signature)  # Duration
         
@@ -343,7 +344,7 @@ class LogMonitor:
                     'ai_powered': True
                 }
             
-            # Anonymize logs before sending to AI
+            # Anonymize logs before sending to AI (slice first for performance)
             anonymized_new = [self.obfuscator.obfuscate(line) for line in new_errors[:self.MAX_LOGS_FOR_AI_ANALYSIS]]
             anonymized_resolved = [self.obfuscator.obfuscate(line) for line in resolved_errors[:self.MAX_LOGS_FOR_AI_ANALYSIS]]
             
@@ -491,6 +492,10 @@ Be concise but clear in your recommendations."""
         else:
             logger.info("Performing heuristic log analysis")
             analysis = self.heuristic_analysis(comparison)
+        
+        # Add check timestamp to analysis
+        from datetime import datetime, timezone
+        analysis['check_time'] = datetime.now(tz=timezone.utc)
         
         # Save current logs for next comparison
         self.save_current_logs(current_errors)
