@@ -1494,27 +1494,33 @@ class DependencyTreeWebServer:
                             const statusData = await statusRecheck.json();
                             addDiagnosticLog('Status recheck: ' + JSON.stringify(statusData), 'info');
                             
-                            // CRITICAL FIX: Check if status reports components but we got none
-                            // This indicates a race condition where the graph completed between
-                            // our component fetch and this status check. In this case, RETRY
-                            // the component fetch to get the actual data.
-                            if (statusData.components_count > 0) {
-                                // Status says there are components, but we got none
-                                // This is a race condition - retry to fetch the actual components
-                                // (explicitly set shouldRetry even though it's already true, for clarity)
-                                shouldRetry = true;
-                                addDiagnosticLog(`Race condition detected: status reports ${statusData.components_count} components but fetch returned 0. Will retry.`, 'warning');
+                            // CRITICAL FIX: Check status and components_count together to detect race conditions
+                            // When graph completes between fetch and status check, we need to check BOTH:
+                            // - status says 'ready' or 'error' (build complete)
+                            // - components_count confirms whether there are actually components or not
+                            
+                            if (statusData.status === 'ready' || statusData.status === 'error') {
+                                if (statusData.components_count === 0) {
+                                    // Status is ready/error AND confirms 0 components - genuinely no integrations
+                                    shouldRetry = false;
+                                    addDiagnosticLog('Graph build complete with 0 components, showing error immediately', 'info');
+                                } else {
+                                    // Status is ready but components_count > 0 - race condition detected!
+                                    // The fetch happened before the graph completed, retry to get the components
+                                    shouldRetry = true;
+                                    addDiagnosticLog(`Race condition detected: status=${statusData.status} with ${statusData.components_count} components but fetch returned 0. Will retry.`, 'warning');
+                                }
                             }
-                            // If the graph building is complete (ready/error) with 0 components, 
-                            // don't retry - show error immediately
-                            else if (statusData.status === 'ready' || statusData.status === 'error') {
-                                shouldRetry = false;
-                                addDiagnosticLog('Graph build complete with 0 components, showing error immediately', 'info');
-                            }
-                            // If build_status is explicitly 'completed' or 'failed', also don't retry
+                            // If build_status is explicitly 'completed' or 'failed', also check components_count
                             else if (statusData.build_status === 'completed' || statusData.build_status === 'failed') {
-                                shouldRetry = false;
-                                addDiagnosticLog('Graph build finished (status: ' + statusData.build_status + ') with 0 components', 'info');
+                                if (statusData.components_count === 0) {
+                                    shouldRetry = false;
+                                    addDiagnosticLog('Graph build finished (status: ' + statusData.build_status + ') with 0 components', 'info');
+                                } else {
+                                    // Build is complete with components but fetch got none - race condition
+                                    shouldRetry = true;
+                                    addDiagnosticLog(`Race condition detected: build_status=${statusData.build_status} with ${statusData.components_count} components but fetch returned 0. Will retry.`, 'warning');
+                                }
                             }
                         }
                     } catch (statusError) {
