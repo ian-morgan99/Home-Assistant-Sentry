@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.3.26
+- Add post-update log monitoring with AI-powered error analysis All requested features have been successfully implemented and tested!
+
+
 ## 1.3.25
 - Add log monitoring feature to check system logs after component updates
 - Monitor Home Assistant logs for new errors/warnings after updates
