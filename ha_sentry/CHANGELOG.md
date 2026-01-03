@@ -1,5 +1,15 @@
 # Changelog
 
+## 1.3.25
+- Add log monitoring feature to check system logs after component updates
+- Monitor Home Assistant logs for new errors/warnings after updates
+- Compare logs between checks to identify changes (new, resolved, persistent errors)
+- Support both heuristic and AI-powered analysis of log changes
+- Automatically anonymize sensitive data (IPs, tokens, keys) before AI analysis
+- Generate notifications with severity assessment and recommendations
+- Configurable via `monitor_logs_after_update` and `log_check_lookback_hours` settings
+- Helps identify issues early before they impact the system
+
 ## 1.3.24
 - Fix race condition in WebUI component loading during graph initialization WebUI shows "Initializing..." or "Loading..." and never displays components, even though the dependency graph successfully builds with integrations in the background.
 

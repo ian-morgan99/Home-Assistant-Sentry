@@ -36,6 +36,10 @@ class ConfigManager:
         # Web UI configuration for dependency visualization
         self.enable_web_ui = self._get_bool_env('ENABLE_WEB_UI', True)
         
+        # Log monitoring configuration
+        self.monitor_logs_after_update = self._get_bool_env('MONITOR_LOGS_AFTER_UPDATE', False)
+        self.log_check_lookback_hours = int(os.getenv('LOG_CHECK_LOOKBACK_HOURS', '24'))
+        
         # Validate configuration consistency
         self._validate_config()
         

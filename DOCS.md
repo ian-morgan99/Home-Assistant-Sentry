@@ -178,6 +178,35 @@ safety_threshold: 0.7
   - `"maximal"`: Debug, info, and errors
 
 - **obfuscate_logs**: Obfuscate sensitive data in log files (default: `true`, recommended)
+  - `true`: IP addresses, API keys, tokens, and passwords are obfuscated in logs
+  - `false`: Log all data in plain text (not recommended except for debugging)
+  - What is obfuscated:
+    - IP addresses: `192.168.1.100` → `192.***.***.100`
+    - API keys/tokens: `api_key=secret123456` → `api_key=sec***456`
+    - Authorization headers: `Bearer token123` → `Bearer tok***23`
+    - URL parameters: `?token=secret` → `?token=sec***et`
+
+#### Log Monitoring Settings
+
+- **monitor_logs_after_update**: Monitor Home Assistant logs for errors after updates (default: `false`)
+  - `true`: Check logs after components are updated and report unexpected failures
+  - `false`: Don't monitor logs
+  - **Use case**: Get notified about new error messages that appear after updates
+  - **How it works**: 
+    - Compares current error logs with previous check to identify changes
+    - In heuristics mode: Lists changes in log entries
+    - In AI mode: Analyzes and summarizes consequential errors
+    - Automatically anonymizes sensitive data before AI analysis
+  - **Example**: After a component update, you'll be notified if new integration setup failures appear
+
+- **log_check_lookback_hours**: How many hours of logs to analyze (default: `24`, range: `1-168`)
+  - Controls how far back to check for error messages
+  - **Recommendation**: 
+    - Daily updates: 24 hours is sufficient
+    - Weekly updates: Consider 48-72 hours
+    - Monthly updates: Consider 168 hours (7 days)
+  - Lower values = faster analysis, but may miss errors
+  - Higher values = more comprehensive, but may include unrelated errors
   - `true`: Automatically obfuscate IP addresses, API keys, tokens, and passwords in logs
   - `false`: Log all data in plain text (not recommended - use only for specific debugging scenarios)
   
@@ -644,6 +673,86 @@ log_level: debug
 ```
 
 ## Advanced Usage
+
+### Log Monitoring After Updates
+
+The add-on can monitor your Home Assistant logs for errors that appear after component updates. This helps catch issues early before they impact your system.
+
+#### How It Works
+
+1. **First Run**: The add-on captures the current error/warning logs as a baseline
+2. **Subsequent Checks**: After each daily check, it compares current logs with the baseline
+3. **Change Detection**: Identifies new errors, resolved errors, and persistent issues
+4. **Analysis**: 
+   - **Heuristics Mode**: Lists all changes and flags significant error patterns
+   - **AI Mode**: Analyzes changes and provides actionable recommendations
+5. **Notification**: Sends a report with severity assessment and recommendations
+
+#### Configuration Example
+
+```yaml
+monitor_logs_after_update: true
+log_check_lookback_hours: 24
+ai_enabled: true  # Optional: for AI-powered analysis
+```
+
+#### What Gets Reported
+
+**New Errors**: Error messages that weren't present in the previous check
+- Integration setup failures
+- Import errors
+- Configuration issues
+- Breaking changes from updates
+
+**Resolved Errors**: Previous errors that are no longer appearing
+- Shows improvement after updates
+
+**Severity Assessment**: 
+- **Critical**: Multiple integration failures or critical errors
+- **High**: Significant errors that may affect functionality
+- **Medium**: Multiple warnings or minor errors
+- **Low**: Few new warnings
+- **None**: No changes detected
+
+#### Example Notification
+
+```
+🟠 Home Assistant Log Monitor Report
+
+Severity: HIGH
+
+Summary:
+3 new error/warning messages detected.
+1 error may require attention.
+
+Significant Errors Detected:
+1. ERROR homeassistant.components.mqtt: Setup of mqtt is taking longer than 60 seconds
+2. ERROR homeassistant.components.zwave: Integration zwave could not be set up
+3. WARNING homeassistant.loader: Cannot import component test
+
+Recommendations:
+- Review the new error messages immediately.
+- Check if any integrations or add-ons are failing to load.
+- Consider reporting issues to component maintainers if errors persist.
+```
+
+#### Privacy & Security
+
+All sensitive data is automatically obfuscated before AI analysis:
+- IP addresses: `192.168.1.100` → `192.***.***.100`
+- Tokens: `token=abc123` → `token=abc***23`
+- API keys: `api_key=secret` → `api_key=sec***et`
+
+This ensures your private information never leaves your network if using cloud AI services.
+
+#### Best Practices
+
+1. **Enable After Setup**: Let your system run for a few days before enabling to establish a stable baseline
+2. **Adjust Lookback Period**: 
+   - Daily updates: 24 hours
+   - Weekly updates: 48-72 hours
+3. **Review Notifications**: Act on critical/high severity reports promptly
+4. **Use AI Mode**: If available, AI analysis provides better context and recommendations
 
 ### Manual Trigger
 

@@ -169,6 +169,41 @@ class AIClient:
             logger.info("Falling back to dependency analysis")
             return self._fallback_analysis(addon_updates, hacs_updates)
     
+    async def _call_ai(self, prompt: str, system_prompt: str = None) -> str:
+        """
+        Generic method to call AI with a prompt
+        
+        Args:
+            prompt: User prompt to send to AI
+            system_prompt: Optional system prompt (uses default if not provided)
+            
+        Returns:
+            AI response as string
+        """
+        if not self.client:
+            raise Exception("AI client not initialized")
+        
+        if system_prompt is None:
+            system_prompt = self._get_system_prompt()
+        
+        response = self.client.chat.completions.create(
+            model=self.config.ai_model,
+            messages=[
+                {
+                    "role": "system",
+                    "content": system_prompt
+                },
+                {
+                    "role": "user",
+                    "content": prompt
+                }
+            ],
+            temperature=0.3,
+            max_tokens=2000
+        )
+        
+        return response.choices[0].message.content
+    
     def _get_system_prompt(self) -> str:
         """Get system prompt for AI analysis"""
         return """You are an expert Home Assistant system administrator specializing in add-on and integration compatibility analysis.

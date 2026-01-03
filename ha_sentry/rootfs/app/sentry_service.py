@@ -3,7 +3,7 @@ Main Sentry Service - Coordinates update checking and analysis
 """
 import asyncio
 import logging
-from datetime import datetime, time, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Dict, List
 from urllib.parse import quote
 
@@ -12,6 +12,8 @@ from ai_client import AIClient
 from dashboard_manager import DashboardManager
 from dependency_graph_builder import DependencyGraphBuilder
 from web_server import DependencyTreeWebServer
+from log_monitor import LogMonitor
+from log_obfuscator import LogObfuscator
 
 logger = logging.getLogger(__name__)
 
@@ -57,6 +59,10 @@ class SentryService:
         
         # Initialize AI client with dependency graph (will be None initially)
         self.ai_client = AIClient(config, dependency_graph=self.dependency_graph)
+        
+        # Initialize log monitor
+        obfuscator = LogObfuscator(enabled=config.obfuscate_logs)
+        self.log_monitor = LogMonitor(config, obfuscator=obfuscator)
         
         logger.info("Sentry Service initialized")
     
@@ -465,6 +471,11 @@ If sensors don't appear, check the add-on logs for authentication errors. The ad
                 logger.debug("Reporting analysis results to Home Assistant")
                 await self._report_results(ha_client, addon_updates, hacs_updates, analysis, all_updates)
                 
+                # Check logs for errors after updates (if enabled)
+                log_analysis = await self.log_monitor.check_logs(ha_client, self.ai_client)
+                if log_analysis:
+                    await self._report_log_analysis(ha_client, log_analysis)
+                
                 # Save machine-readable report (Feature 4) if enabled
                 if self.config.save_reports:
                     self._save_machine_readable_report(all_updates, analysis)
@@ -777,6 +788,90 @@ No updates are currently available for:
         )
         
         logger.info("Results reported to Home Assistant")
+    
+    async def _report_log_analysis(self, ha_client: HomeAssistantClient, log_analysis: Dict):
+        """Report log analysis results to Home Assistant"""
+        severity = log_analysis.get('severity', 'none')
+        
+        if severity == 'none':
+            logger.debug("No significant log changes to report")
+            return
+        
+        # Determine emoji and title based on severity
+        severity_emoji = {
+            'critical': '🔴',
+            'high': '🟠',
+            'medium': '🟡',
+            'low': '🟢'
+        }
+        
+        emoji = severity_emoji.get(severity, '🔵')
+        notification_title = f"{emoji} Home Assistant Log Monitor Report"
+        
+        # Build notification message
+        notification_message = f"""**Log Analysis After Recent Activity**
+
+**Severity:** {severity.upper()}
+
+**Summary:**
+{log_analysis['summary']}
+
+"""
+        
+        # Add statistics
+        new_count = log_analysis.get('new_error_count', 0)
+        resolved_count = log_analysis.get('resolved_error_count', 0)
+        
+        if new_count > 0 or resolved_count > 0:
+            notification_message += f"""**Changes:**
+- New errors/warnings: {new_count}
+- Resolved errors: {resolved_count}
+
+"""
+        
+        # Add significant errors if any
+        significant_errors = log_analysis.get('significant_errors', [])
+        if significant_errors:
+            notification_message += "**Significant Errors Detected:**\n"
+            for i, error in enumerate(significant_errors[:5], 1):  # Limit to 5
+                # Truncate long error lines
+                error_preview = error[:150] + "..." if len(error) > 150 else error
+                notification_message += f"{i}. `{error_preview}`\n"
+            
+            if len(significant_errors) > 5:
+                notification_message += f"\n... and {len(significant_errors) - 5} more errors\n"
+            
+            notification_message += "\n"
+        
+        # Add recommendations
+        recommendations = log_analysis.get('recommendations', [])
+        if recommendations:
+            notification_message += "**Recommendations:**\n"
+            for rec in recommendations:
+                notification_message += f"- {rec}\n"
+            notification_message += "\n"
+        
+        # Add footer
+        check_time = log_analysis.get('check_time', datetime.now(tz=timezone.utc))
+        notification_message += f"""---
+*Analysis powered by: {'AI' if log_analysis.get('ai_powered') else 'Heuristics'}*
+*Check time: {check_time.strftime('%Y-%m-%d %H:%M:%S UTC')}*
+*Log lookback period: {self.config.log_check_lookback_hours} hours*
+
+**Next Steps:**
+1. Review the error messages in your Home Assistant logs
+2. Check if any integrations or add-ons are failing to load
+3. Consider rolling back recent updates if errors are critical
+"""
+        
+        logger.debug("Creating log analysis notification in Home Assistant")
+        await ha_client.create_persistent_notification(
+            notification_title,
+            notification_message,
+            'ha_sentry_log_report'
+        )
+        
+        logger.info(f"Log analysis reported: {severity} severity, {new_count} new errors")
     
     def _save_machine_readable_report(self, updates: List[Dict], analysis: Dict):
         """
