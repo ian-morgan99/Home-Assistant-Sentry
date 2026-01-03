@@ -3,7 +3,7 @@ Main Sentry Service - Coordinates update checking and analysis
 """
 import asyncio
 import logging
-from datetime import datetime, time, timedelta, timezone
+from datetime import datetime, timedelta, timezone
 from typing import Dict, List
 from urllib.parse import quote
 
