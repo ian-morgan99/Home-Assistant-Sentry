@@ -200,12 +200,11 @@ This pull request fixes a critical WebUI issue where the interface would hang fo
 Copilot reviewed 7 out of 7 changed files."""
     
     # Create temporary file with review content to avoid shell injection
-    import tempfile
-    with tempfile.NamedTemporaryFile(mode='w', delete=False, suffix='.txt') as f:
+    with tempfile.NamedTemporaryFile(mode='w', delete=True, suffix='.txt') as f:
         f.write(copilot_review)
+        f.flush()  # Ensure content is written
         review_file = f.name
-    
-    try:
+        
         # Test the extraction logic used in the workflow
         cmd = f'''
         REVIEWS=$(cat {review_file})
@@ -234,8 +233,6 @@ Copilot reviewed 7 out of 7 changed files."""
         # Should be a single line
         assert "\n" not in output, "Should be a single line"
         print("✓ Test passed")
-    finally:
-        os.unlink(review_file)
 
 
 def test_pr_number_extraction():
@@ -250,11 +247,11 @@ def test_pr_number_extraction():
     
     for commit_msg, expected_pr in test_cases:
         # Use a temporary file to safely pass the commit message
-        with tempfile.NamedTemporaryFile(mode='w', delete=False, suffix='.txt') as f:
+        with tempfile.NamedTemporaryFile(mode='w', delete=True, suffix='.txt') as f:
             f.write(commit_msg)
+            f.flush()  # Ensure content is written
             msg_file = f.name
-        
-        try:
+            
             cmd = f'''
             PR_NUMBER=$(cat {msg_file} | grep -oP 'Merge pull request #\\K\\d+' || echo "")
             echo "$PR_NUMBER"
@@ -263,8 +260,6 @@ def test_pr_number_extraction():
             output, returncode = run_shell_command(cmd)
             assert returncode == 0, f"Command should succeed for: {commit_msg}"
             assert output == expected_pr, f"Expected PR '{expected_pr}' from '{commit_msg}', got '{output}'"
-        finally:
-            os.unlink(msg_file)
     
     print("✓ Test passed")
 
