@@ -1180,16 +1180,35 @@ class DependencyTreeWebServer:
         });
         
         function handleUrlFragment() {
-            // Check if there's a hash in the URL (e.g., #whereused:component or #impact:comp1,comp2)
+            // Check for query parameters first (more reliable in HA notifications)
+            const urlParams = new URLSearchParams(window.location.search);
+            const mode = urlParams.get('mode');
+            const component = urlParams.get('component');
+            
+            if (mode && component) {
+                addDiagnosticLog(`Handling URL query params: mode=${mode}, component=${component}`, 'info');
+                handleDeepLink(mode, component);
+                return;
+            }
+            
+            // Fallback to hash fragment for backward compatibility
             const hash = window.location.hash.substring(1);  // Remove the #
             if (!hash) {
-                addDiagnosticLog('No URL fragment found', 'info');
+                addDiagnosticLog('No URL fragment or query params found', 'info');
                 return;
             }
             
             addDiagnosticLog(`Handling URL fragment: ${hash}`, 'info');
-            const [mode, value] = hash.split(':');
-            addDiagnosticLog(`Parsed mode: ${mode}, value: ${value}`, 'info');
+            const [fragmentMode, value] = hash.split(':');
+            addDiagnosticLog(`Parsed mode: ${fragmentMode}, value: ${value}`, 'info');
+            
+            if (fragmentMode && value) {
+                handleDeepLink(fragmentMode, value);
+            }
+        }
+        
+        function handleDeepLink(mode, value) {
+            addDiagnosticLog(`handleDeepLink called: mode=${mode}, value=${value}`, 'info');
             
             if (mode === 'whereused' && value) {
                 // Set mode to where-used
