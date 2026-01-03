@@ -432,7 +432,7 @@ class DependencyTreeWebServer:
                     'component': component,
                     'name': addon.get('name', component),
                     'version': addon.get('version'),
-                    'type': 'addon',
+                    'type': addon.get('type', 'addon'),
                     'dependencies': []
                 }
                 
