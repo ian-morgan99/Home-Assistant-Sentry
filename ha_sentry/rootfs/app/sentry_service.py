@@ -5,6 +5,7 @@ import asyncio
 import logging
 from datetime import datetime, time, timedelta
 from typing import Dict, List
+from urllib.parse import quote
 
 from ha_client import HomeAssistantClient, HA_COMPATIBILITY_VERSIONS
 from ai_client import AIClient
@@ -557,7 +558,6 @@ No updates are currently available for:
             params.append(f"mode={mode}")
         if component:
             # URL encode the component name
-            from urllib.parse import quote
             params.append(f"component={quote(component)}")
         
         if path:
