@@ -22,6 +22,9 @@ class LogMonitor:
     # Pattern to identify error/warning log lines
     ERROR_PATTERN = re.compile(r'(ERROR|WARNING|CRITICAL|FATAL)', re.IGNORECASE)
     
+    # Maximum number of log lines to send to AI for analysis
+    MAX_LOGS_FOR_AI_ANALYSIS = 50
+    
     # Common error patterns that indicate significant issues
     SIGNIFICANT_ERROR_PATTERNS = [
         r'integration .* could not be set up',
@@ -124,7 +127,7 @@ class LogMonitor:
         """
         Extract a signature from an error log line for comparison
         
-        removes timestamps, instance-specific details, and other variable data
+        Removes timestamps, instance-specific details, and other variable data
         to enable comparison between runs.
         
         Args:
@@ -142,7 +145,8 @@ class LogMonitor:
         # Remove common variable parts
         signature = re.sub(r'\b\d+\.\d+\.\d+\.\d+\b', '<IP>', signature)  # IP addresses
         signature = re.sub(r'\b[0-9a-f]{8,}\b', '<ID>', signature)  # Hex IDs
-        signature = re.sub(r'\b\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}', '<TIMESTAMP>', signature)  # ISO timestamps
+        # ISO 8601 timestamps with optional fractional seconds and timezone
+        signature = re.sub(r'\b\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d+)?(Z|[+-]\d{2}:\d{2})?\b', '<TIMESTAMP>', signature)
         signature = re.sub(r'\(\d+\.\d+s\)', '(<TIME>)', signature)  # Duration
         
         # Normalize whitespace
@@ -340,8 +344,8 @@ class LogMonitor:
                 }
             
             # Anonymize logs before sending to AI
-            anonymized_new = [self.obfuscator.obfuscate(line) for line in new_errors[:50]]  # Limit to 50 lines
-            anonymized_resolved = [self.obfuscator.obfuscate(line) for line in resolved_errors[:50]]
+            anonymized_new = [self.obfuscator.obfuscate(line) for line in new_errors[:self.MAX_LOGS_FOR_AI_ANALYSIS]]
+            anonymized_resolved = [self.obfuscator.obfuscate(line) for line in resolved_errors[:self.MAX_LOGS_FOR_AI_ANALYSIS]]
             
             # Build prompt for AI
             prompt = self._build_ai_prompt(anonymized_new, anonymized_resolved)

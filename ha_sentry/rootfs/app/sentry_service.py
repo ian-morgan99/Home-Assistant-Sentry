@@ -3,7 +3,7 @@ Main Sentry Service - Coordinates update checking and analysis
 """
 import asyncio
 import logging
-from datetime import datetime, time, timedelta
+from datetime import datetime, time, timedelta, timezone
 from typing import Dict, List
 from urllib.parse import quote
 
@@ -854,7 +854,7 @@ No updates are currently available for:
         # Add footer
         notification_message += f"""---
 *Analysis powered by: {'AI' if log_analysis.get('ai_powered') else 'Heuristics'}*
-*Check time: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}*
+*Check time: {datetime.now(tz=timezone.utc).strftime('%Y-%m-%d %H:%M:%S UTC')}*
 *Log lookback period: {self.config.log_check_lookback_hours} hours*
 
 **Next Steps:**
