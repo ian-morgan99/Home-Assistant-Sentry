@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.3.18
+- Merge pull request #97 from ian-morgan99/copilot/fix-webui-initialising-hang
+
+
 ## 1.3.17
 - Merge pull request #95 from ian-morgan99/copilot/fix-webui-functionality-issue
 
