@@ -19,8 +19,9 @@ class LogObfuscator:
     IP_PATTERN = re.compile(r'\b(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})\b')
     
     # API keys and tokens: Common patterns for keys/tokens (typically 8+ alphanumeric characters)
+    # Matches: api_key=xxx, API Key: xxx, token: xxx, etc.
     API_KEY_PATTERN = re.compile(
-        r'\b(?:api[_-]?key|token|authorization|password|secret|apikey)["\s:=]+([a-zA-Z0-9_\-]{8,})',
+        r'(?:api[_\s-]?key|token|authorization|password|secret|apikey)[\"\s:=]+([a-zA-Z0-9_\-\.]{8,})',
         re.IGNORECASE
     )
     

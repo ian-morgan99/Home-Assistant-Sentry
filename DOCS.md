@@ -177,6 +177,18 @@ safety_threshold: 0.7
   - `"standard"`: Info and errors (default)
   - `"maximal"`: Debug, info, and errors
 
+- **obfuscate_logs**: Obfuscate sensitive data in log files (default: `true`, recommended)
+  - `true`: Automatically obfuscate IP addresses, API keys, tokens, and passwords in logs
+  - `false`: Log all data in plain text (not recommended - use only for specific debugging scenarios)
+  
+  **What gets obfuscated:**
+  - IP addresses: `192.168.1.100` → `192.***.***.100`
+  - API keys/tokens: `api_key=secret123456` → `api_key=sec***456`
+  - Authorization headers: `Bearer token123` → `Bearer tok***23`
+  - URL parameters: `?token=secret` → `?token=sec***et`
+  
+  **When to disable:** Only disable obfuscation if you need to see full data for specific debugging purposes, and re-enable it immediately after. Leaving it disabled may expose sensitive information in log files.
+
 ## WebUI Access
 
 The add-on includes a built-in **interactive WebUI** for dependency visualization and analysis. This replaces the deprecated dashboard auto-creation feature.
