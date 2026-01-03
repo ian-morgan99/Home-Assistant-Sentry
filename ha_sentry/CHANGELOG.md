@@ -1,23 +1,19 @@
 # Changelog
 
 ## 1.3.19
-- Merge pull request #101 from ian-morgan99/copilot/reopen-changelog-issue
-
+- Extract Copilot review summaries for CHANGELOG entries. Issue #98 requested using Copilot PR review comments in CHANGELOG.md instead of raw commit messages. The workflow now extracts the summary paragraph from copilot-pull-request-reviewer[bot] reviews and uses it as the changelog entry with comprehensive test coverage for PR number extraction and review summary parsing.
 
 ## 1.3.18
-- Merge pull request #97 from ian-morgan99/copilot/fix-webui-initialising-hang
-
+- Fix WebUI hanging and add directory mappings to enable dependency graph access. The WebUI hung for 60 seconds before showing an error when the dependency graph completed with 0 integrations. Fixed the status endpoint to properly detect completion with no integrations and added directory mappings (config:ro, share:ro, homeassistant_config:ro) to provide read-only access to HACS/custom integration directories.
 
 ## 1.3.17
-- Merge pull request #95 from ian-morgan99/copilot/fix-webui-functionality-issue
-
+- Remove dashboard auto-creation option and clarify WebUI access. Dashboard auto-creation via Lovelace API fails with 404 due to Home Assistant add-on permission restrictions. Completely removed the deprecated auto_create_dashboard option and enhanced documentation to emphasize WebUI access via sidebar panel, add-on settings, or direct ingress URL.
 
 ## 1.3.16
-- Merge pull request #94 from ian-morgan99/copilot/fix-webui-loading-issues
-
+- Fix WebUI stuck on "Loading components" by auto-detecting integration paths. The dependency graph was not finding any integrations because default paths don't exist in all HA environments. Implemented dynamic Python version detection with glob patterns, improved error messages distinguishing between empty vs non-existent paths, and added diagnostic logging for troubleshooting.
 
 ## 1.3.15
-- Merge pull request #92 from ian-morgan99/copilot/update-changelog-commentary
+- Auto-generate meaningful changelog entries from commit messages. The automated version increment workflow was generating placeholder text instead of meaningful changelog entries. Enhanced the workflow to extract recent commits, filter bot/version commits, and generate entries based on commit count (2-5 commits: include all, 1 or 6+: most recent only).
 
 
 ## 1.3.14
