@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.3.23
+- Add configurable log obfuscation for sensitive data (IPs, API keys, tokens) Logs currently expose sensitive data including IP addresses, API keys, and authentication tokens. This adds automatic obfuscation enabled by default.
+
+
 ## 1.3.22
 - Add addon dependency tracking to dependency graph and Web UI Extends dependency visibility to include Home Assistant add-ons alongside integrations, addressing the gap identified in PR #105 where addon dependencies were not tracked.
 
