@@ -192,9 +192,48 @@ jobs:
               fi
             fi
             
-            # Fall back to commit messages if no Copilot review was found
+            # Fall back to PR description if no Copilot review was found
+            if [ -z "$CHANGELOG_ENTRIES" ] && [ -n "$PR_NUMBER" ]; then
+              echo "No Copilot review found, trying PR title and body..."
+              
+              # Try to get PR title and body
+              PR_TITLE=$(gh pr view "$PR_NUMBER" --json title --jq '.title' 2>/dev/null || echo "")
+              PR_BODY=$(gh pr view "$PR_NUMBER" --json body --jq '.body' 2>/dev/null || echo "")
+              
+              if [ -n "$PR_TITLE" ]; then
+                echo "Found PR title: $PR_TITLE"
+                
+                # Try to extract a meaningful summary from the PR body
+                # Look for common patterns like "## Summary", "## Overview", or first paragraph
+                BODY_SUMMARY=""
+                if [ -n "$PR_BODY" ]; then
+                  # Try to extract first paragraph or summary section
+                  BODY_SUMMARY=$(echo "$PR_BODY" | awk '
+                    /^## (Summary|Overview|Description|What)/ { in_section=1; next }
+                    in_section && /^$/ { next }
+                    in_section && /^##/ { exit }
+                    in_section && NF { print; getline; while(NF && !/^##/ && !/^###/ && !/^[-*]/) { print; getline } exit }
+                    !in_section && NF && !/^#/ && !/^[-*]/ && !/^```/ && !/^>/ { print; getline; while(NF && !/^#/ && !/^[-*]/ && !/^```/ && !/^>/) { print; getline } exit }
+                  ' | head -10)
+                fi
+                
+                # Create changelog entry from PR info
+                if [ -n "$BODY_SUMMARY" ]; then
+                  # Use PR title and first paragraph of body
+                  COMBINED=$(echo -e "$PR_TITLE\n$BODY_SUMMARY")
+                  CHANGELOG_ENTRIES=$(echo "$COMBINED" | tr '\n' ' ' | sed 's/  */ /g' | sed 's/^ *//; s/ *$//; s/^/- /')
+                  echo "✓ Using PR title and body for changelog"
+                else
+                  # Just use PR title
+                  CHANGELOG_ENTRIES="- $PR_TITLE"
+                  echo "✓ Using PR title for changelog"
+                fi
+              fi
+            fi
+            
+            # Fall back to commit messages if PR info wasn't available
             if [ -z "$CHANGELOG_ENTRIES" ]; then
-              echo "No Copilot review found, using commit messages..."
+              echo "No PR information available, using commit messages..."
               
               # Get recent commits, excluding bot commits and version bumps
               RECENT_COMMITS=$(git log --format="%s" --no-merges -10 | \
