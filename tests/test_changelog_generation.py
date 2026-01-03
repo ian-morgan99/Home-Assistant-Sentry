@@ -264,6 +264,72 @@ def test_pr_number_extraction():
     print("✓ Test passed")
 
 
+def test_pr_title_extraction():
+    """Test extraction of PR title for changelog when review not available."""
+    print("\n=== Test: PR Title Extraction ===")
+    
+    # Simulate PR title
+    pr_title = "Fix WebUI loading issue with empty dependency graph"
+    
+    cmd = f'''
+    PR_TITLE="{pr_title}"
+    CHANGELOG_ENTRIES="- $PR_TITLE"
+    echo "$CHANGELOG_ENTRIES"
+    '''
+    
+    output, returncode = run_shell_command(cmd)
+    print(f"Output: {output}")
+    assert returncode == 0, "Command should succeed"
+    assert output == f"- {pr_title}", f"Expected '- {pr_title}', got '{output}'"
+    print("✓ Test passed")
+
+
+def test_pr_body_summary_extraction():
+    """Test extraction of PR body summary for changelog."""
+    print("\n=== Test: PR Body Summary Extraction ===")
+    
+    # Simulate a PR body with common patterns
+    pr_body = """## Summary
+
+This PR fixes a critical issue where the WebUI would hang when the dependency graph was empty.
+
+## Changes
+- Updated status endpoint
+- Fixed retry logic
+"""
+    
+    with tempfile.NamedTemporaryFile(mode='w', delete=True, suffix='.txt') as f:
+        f.write(pr_body)
+        f.flush()
+        body_file = f.name
+        
+        cmd = f'''
+        PR_BODY=$(cat {body_file})
+        
+        # Extract summary section or first paragraph
+        BODY_SUMMARY=$(echo "$PR_BODY" | awk '
+          /^## (Summary|Overview|Description|What)/ {{ in_section=1; next }}
+          in_section && /^$/ {{ next }}
+          in_section && /^##/ {{ exit }}
+          in_section && NF {{ print; getline; while(NF && !/^##/ && !/^###/ && !/^[-*]/) {{ print; getline }} exit }}
+          !in_section && NF && !/^#/ && !/^[-*]/ && !/^```/ && !/^>/ {{ print; getline; while(NF && !/^#/ && !/^[-*]/ && !/^```/ && !/^>/) {{ print; getline }} exit }}
+        ' | head -10)
+        
+        if [ -n "$BODY_SUMMARY" ]; then
+          echo "$BODY_SUMMARY" | tr '\\n' ' ' | sed 's/  */ /g' | sed 's/^ *//; s/ *$//'
+        else
+          echo "ERROR: No summary extracted"
+        fi
+        '''
+        
+        output, returncode = run_shell_command(cmd)
+        print(f"Output: {output}")
+        assert returncode == 0, "Command should succeed"
+        assert "WebUI would hang" in output or "dependency graph was empty" in output, \
+            f"Expected summary content, got '{output}'"
+        print("✓ Test passed")
+
+
 def test_changelog_file_update():
     """Test that the changelog update logic works correctly."""
     print("\n=== Test: CHANGELOG.md Update Logic ===")
@@ -337,6 +403,8 @@ def main():
         test_actual_git_log_filtering,
         test_copilot_review_extraction,
         test_pr_number_extraction,
+        test_pr_title_extraction,
+        test_pr_body_summary_extraction,
         test_changelog_file_update,
     ]
     
