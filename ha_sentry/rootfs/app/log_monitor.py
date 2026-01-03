@@ -9,7 +9,7 @@ import json
 import logging
 import os
 import re
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Dict, List, Optional
 from log_obfuscator import LogObfuscator
 
@@ -494,7 +494,6 @@ Be concise but clear in your recommendations."""
             analysis = self.heuristic_analysis(comparison)
         
         # Add check timestamp to analysis
-        from datetime import datetime, timezone
         analysis['check_time'] = datetime.now(tz=timezone.utc)
         
         # Save current logs for next comparison
