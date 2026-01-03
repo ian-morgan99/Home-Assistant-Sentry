@@ -5,6 +5,7 @@ import asyncio
 import logging
 from datetime import datetime, time, timedelta
 from typing import Dict, List
+from urllib.parse import quote
 
 from ha_client import HomeAssistantClient, HA_COMPATIBILITY_VERSIONS
 from ai_client import AIClient
@@ -520,18 +521,23 @@ No updates are currently available for:
         
         return counts
     
-    def _get_ingress_url(self, path: str = "") -> str:
+    def _get_ingress_url(self, path: str = "", mode: str = "", component: str = "") -> str:
         """
         Generate a URL for the web UI accessible via Home Assistant ingress
         
         Args:
-            path: Optional path to append to the base URL (e.g., "?mode=whereused")
+            path: Optional path to append to the base URL
+            mode: Optional mode parameter (whereused, impact, dependency)
+            component: Optional component parameter
         
         Returns:
             str: The full ingress URL
             
         Note:
             This uses the standard Home Assistant ingress URL format: /api/hassio_ingress/<slug>
+            
+            Query parameters are used instead of URL fragments because Home Assistant's
+            persistent notification system may not preserve fragments in markdown links.
             
             If the links in notifications don't work:
             1. Check your Home Assistant version (ingress format changed in HA 2021.x+)
@@ -545,8 +551,21 @@ No updates are currently available for:
             - Reverse proxy configuration
         """
         base_url = f"/api/hassio_ingress/{self.ADDON_SLUG}"
+        
+        # Build query string if mode or component provided
+        params = []
+        if mode:
+            params.append(f"mode={mode}")
+        if component:
+            # URL encode the component name
+            params.append(f"component={quote(component)}")
+        
         if path:
-            return f"{base_url}/{path}"
+            base_url = f"{base_url}/{path}"
+        
+        if params:
+            base_url = f"{base_url}?{'&'.join(params)}"
+        
         return base_url
     
     def _extract_component_domain(self, component_name: str) -> str:
@@ -685,12 +704,16 @@ No updates are currently available for:
                 notification_message += f"\n{severity_emoji} **{component_display}**\n"
                 notification_message += f"{issue.get('description', 'No description')}\n"
                 
-                # Add "Where Used" link if web UI is enabled and we have a valid component
-                # Only show link for integrations/HACS that might be in dependency graph
-                if self.config.enable_web_ui and component_name != 'Unknown':
-                    # Show link for all types, but it's most useful for integrations
+                # Add "Where Used" link if web UI is enabled and component is an integration/HACS
+                # Only integrations and HACS components are in the dependency graph
+                # Addons, Core, Supervisor, and OS updates are NOT in the dependency graph
+                if (self.config.enable_web_ui and 
+                    component_name != 'Unknown' and 
+                    component_type in ['integration', 'hacs']):
+                    # Extract domain for URL - for integrations, use the component name as-is
+                    # since it should already be a domain-like identifier
                     component_domain = self._extract_component_domain(component_name)
-                    where_used_url = self._get_ingress_url() + f"#whereused:{component_domain}"
+                    where_used_url = self._get_ingress_url(mode="whereused", component=component_domain)
                     notification_message += f"  [🔍 View Impact]({where_used_url})\n"
                     changed_components.append(component_domain)
                 
@@ -710,7 +733,7 @@ No updates are currently available for:
             # For review required case with changed components, add impact report link
             if not safe and changed_components:
                 components_param = ','.join(changed_components[:10])  # Limit to avoid URL length issues
-                impact_url = self._get_ingress_url() + f"#impact:{components_param}"
+                impact_url = self._get_ingress_url(mode="impact", component=components_param)
                 notification_message += f"- [⚡ Change Impact Report]({impact_url}) - View {len(changed_components)} changed components and their affected dependencies\n"
                 logger.debug(f"Generated impact report URL: {impact_url}")
             

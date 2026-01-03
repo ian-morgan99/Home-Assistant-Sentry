@@ -1,5 +1,15 @@
 # Changelog
 
+## 1.3.21
+- Fixed notification links to only show for integrations and HACS components
+- **CRITICAL FIX: Switched from URL fragments to query parameters for notification links**
+  - URL fragments (# anchors) are not reliably preserved in Home Assistant persistent notifications
+  - Now using query parameters (?mode=whereused&component=name) which work correctly
+  - Web UI supports both formats for backward compatibility
+- Improved error messages when clicking links to components not in dependency graph
+- Added diagnostic logging for URL handling in web UI
+- Fixed issue where links to addons (mosquitto, Node-RED, etc.) would fail because addons are not tracked in the dependency graph
+
 ## 1.3.20
 - Enhance changelog generation with PR metadata extraction and rebuild historic entries Changelog entries were showing bare merge commit messages ("Merge pull request #101...") instead of meaningful descriptions. The workflow had logic to extract Copilot review summaries but no fallback for when reviews are unavailable.
 

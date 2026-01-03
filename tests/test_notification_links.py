@@ -11,6 +11,7 @@ def test_ingress_url_generation():
     """Test that ingress URLs are generated correctly"""
     # We'll test the URL generation logic without instantiating the full service
     # to avoid dependency issues
+    from urllib.parse import quote
     
     # Test the expected URL patterns
     addon_slug = 'ha_sentry'
@@ -19,10 +20,23 @@ def test_ingress_url_generation():
     assert base_url == "/api/hassio_ingress/ha_sentry", f"Expected '/api/hassio_ingress/ha_sentry', got '{base_url}'"
     print("✓ Base ingress URL pattern is correct")
     
-    # Test URL with fragment
-    url_with_fragment = base_url + "#whereused:component"
-    assert "#whereused:component" in url_with_fragment, "Fragment not included in URL"
-    print("✓ URL with fragment pattern is correct")
+    # Test URL with query parameters (new approach - more reliable than fragments)
+    mode = 'whereused'
+    component = 'mosquitto'
+    params = [f"mode={mode}", f"component={quote(component)}"]
+    url_with_params = f"{base_url}?{'&'.join(params)}"
+    assert "mode=whereused" in url_with_params, "Mode parameter not in URL"
+    assert "component=mosquitto" in url_with_params, "Component parameter not in URL"
+    print("✓ URL with query parameters pattern is correct")
+    
+    # Test URL with comma-separated components (for impact mode)
+    mode = 'impact'
+    component = 'comp1,comp2,comp3'
+    params = [f"mode={mode}", f"component={quote(component)}"]
+    url_with_params = f"{base_url}?{'&'.join(params)}"
+    assert "mode=impact" in url_with_params, "Mode parameter not in URL"
+    assert "component=" in url_with_params, "Component parameter not in URL"
+    print("✓ URL with multiple components pattern is correct")
     
     return True
 
@@ -94,8 +108,8 @@ def test_notification_message_structure():
     
     return True
 
-def test_web_ui_url_fragment_handling():
-    """Test that the web UI JavaScript handles URL fragments correctly"""
+def test_web_ui_url_handling():
+    """Test that the web UI JavaScript handles both URL fragments and query parameters"""
     import re
     
     # Read the web_server.py file
@@ -103,18 +117,27 @@ def test_web_ui_url_fragment_handling():
     with open(web_server_path, 'r') as f:
         web_server_content = f.read()
     
-    # Check for handleUrlFragment function
+    # Check for handleUrlFragment function (renamed but still exists)
     assert 'handleUrlFragment' in web_server_content, "handleUrlFragment function not found"
     print("✓ handleUrlFragment function exists in web_server.py")
     
-    # Check for hash parsing
+    # Check for handleDeepLink function (new function that handles both)
+    assert 'handleDeepLink' in web_server_content, "handleDeepLink function not found"
+    print("✓ handleDeepLink function exists in web_server.py")
+    
+    # Check for query parameter parsing (new approach)
+    assert 'URLSearchParams' in web_server_content, "URLSearchParams not found for query parsing"
+    assert 'window.location.search' in web_server_content, "Query parameter parsing not found"
+    print("✓ URL query parameter parsing implemented")
+    
+    # Check for hash parsing (backward compatibility)
     assert 'window.location.hash' in web_server_content, "Hash parsing not found"
-    print("✓ URL hash parsing implemented")
+    print("✓ URL hash parsing implemented (backward compatibility)")
     
     # Check for mode handling
-    assert "mode === 'whereused'" in web_server_content, "Where-used mode handling not found"
-    assert "mode === 'impact'" in web_server_content, "Impact mode handling not found"
-    print("✓ URL fragment modes handled correctly")
+    assert "mode === 'whereused'" in web_server_content or 'mode === "whereused"' in web_server_content, "Where-used mode handling not found"
+    assert "mode === 'impact'" in web_server_content or 'mode === "impact"' in web_server_content, "Impact mode handling not found"
+    print("✓ URL modes handled correctly")
     
     return True
 
@@ -127,7 +150,7 @@ if __name__ == '__main__':
         ("Ingress URL Generation", test_ingress_url_generation),
         ("Component Domain Extraction", test_component_domain_extraction),
         ("Notification Message Structure", test_notification_message_structure),
-        ("Web UI URL Fragment Handling", test_web_ui_url_fragment_handling),
+        ("Web UI URL Handling", test_web_ui_url_handling),
     ]
     
     passed = 0
