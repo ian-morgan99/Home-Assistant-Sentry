@@ -468,6 +468,17 @@ To view add-on logs:
 
 If you see warnings like "Path does not exist" or "0 integrations found":
 
+**Solution (v1.3.17+):** The add-on now includes directory mappings that provide automatic access to custom integrations.
+
+1. **Update to v1.3.17 or later** - This version includes necessary directory mappings
+2. **Restart the add-on** - Directory mappings only take effect after restart (Settings → Add-ons → Home Assistant Sentry → Restart)
+3. **Check logs** - Should now show: `✓ Found path: /config/custom_components`
+4. **Verify** - Run the verification script to confirm access:
+   ```bash
+   docker exec addon_ha_sentry python3 /app/verify_directory_access.py
+   ```
+
+If still not working after restart:
 1. **Check the logs**: The add-on will suggest alternative paths if the defaults don't work
 2. **Configure custom paths**: Add the paths to your configuration:
    ```yaml
@@ -480,7 +491,9 @@ If you see warnings like "Path does not exist" or "0 integrations found":
    enable_dependency_graph: false
    ```
 
-See the [full documentation](DOCS.md#dependency-graph-issues) for more details.
+**Note:** Only custom/HACS integrations can be scanned. Core integrations are in the Home Assistant container and cannot be accessed by add-ons (this is a security feature of Home Assistant architecture).
+
+See [DIRECTORY_MAPPING_VERIFICATION.md](DIRECTORY_MAPPING_VERIFICATION.md) for technical details and proof of functionality.
 
 ## Privacy & Security
 
