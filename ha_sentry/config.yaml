@@ -160,6 +160,17 @@ map:
 #   WHEN TO USE: Use "standard" normally. Use "maximal" when troubleshooting issues.
 #                Use "minimal" if you want the quietest operation.
 #
+# obfuscate_logs: Obfuscate sensitive data in log files (RECOMMENDED)
+#   - true: Obfuscate IP addresses, API keys, tokens, and passwords in logs
+#   - false: Log all data in plain text (not recommended - use only for debugging)
+#   WHEN TO USE: Keep enabled (true) for privacy and security. Only disable for
+#                specific debugging scenarios where you need to see full data.
+#   WHAT IS OBFUSCATED:
+#     - IP addresses: 192.168.1.100 becomes 192.***.***.100
+#     - API keys/tokens: api_key=secret123456 becomes api_key=sec***456
+#     - Authorization headers: Bearer token123 becomes Bearer tok***23
+#     - URL parameters: ?token=secret becomes ?token=sec***et
+#
 # ==================================================================================
 
 options:
@@ -175,6 +186,7 @@ options:
   check_hacs: true
   safety_threshold: 0.7
   log_level: "standard"
+  obfuscate_logs: true
   enable_dependency_graph: true
   save_reports: true
   enable_web_ui: true
@@ -192,6 +204,7 @@ schema:
   check_hacs: bool
   safety_threshold: float(0.0,1.0)
   log_level: list(minimal|standard|maximal)
+  obfuscate_logs: bool
   enable_dependency_graph: bool
   save_reports: bool
   enable_web_ui: bool

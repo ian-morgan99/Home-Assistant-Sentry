@@ -25,6 +25,7 @@ class ConfigManager:
         self.check_hacs = self._get_bool_env('CHECK_HACS', True)
         self.safety_threshold = float(os.getenv('SAFETY_THRESHOLD', '0.7'))
         self.log_level = os.getenv('LOG_LEVEL', 'standard').lower()
+        self.obfuscate_logs = self._get_bool_env('OBFUSCATE_LOGS', True)
         self.supervisor_token = os.getenv('SUPERVISOR_TOKEN', '')
         
         # New configuration options for dependency graph and reporting
