@@ -283,12 +283,23 @@ class DependencyTreeWebServer:
                 status = 'building'
                 message = f'Building dependency graph... ({components_count} components loaded so far)'
                 is_ready = False
+            elif build_status == 'completed':
+                # Build completed - ready if we have components, error if not
+                if components_count > 0:
+                    status = 'ready'
+                    message = f'{components_count} components loaded'
+                    is_ready = True
+                else:
+                    status = 'error'
+                    message = 'Dependency graph build completed but found 0 integrations'
+                    is_ready = False
             elif components_count > 0:
+                # Unknown build status but we have components
                 status = 'ready'
                 message = f'{components_count} components loaded'
                 is_ready = True
             else:
-                # No components but status is not explicitly failed
+                # No components and unknown build status - assume still building
                 status = 'building'
                 message = 'Dependency graph is building... (this may take up to 60 seconds)'
                 is_ready = False
@@ -1365,35 +1376,74 @@ class DependencyTreeWebServer:
                 const select = document.getElementById('component-select');
                 
                 if (components.length === 0) {
-                    // Components still loading - retry after a delay with max retry limit
-                    componentLoadAttempts++;
+                    // Check status again to see if the graph building is actually complete
+                    // If it's complete/failed, show error immediately instead of retrying
+                    let shouldRetry = true;
                     
-                    if (componentLoadAttempts < MAX_COMPONENT_LOAD_RETRIES) {
-                        // Still loading, retry after 2 seconds
-                        const elapsed = componentLoadAttempts * 2;
-                        const remaining = (MAX_COMPONENT_LOAD_RETRIES - componentLoadAttempts) * 2;
-                        addDiagnosticLog(`Components empty, retry ${componentLoadAttempts}/${MAX_COMPONENT_LOAD_RETRIES} (elapsed: ${elapsed}s)`, 'warning');
-                        console.log(`Components still loading, retry ${componentLoadAttempts}/${MAX_COMPONENT_LOAD_RETRIES} in 2 seconds... (elapsed: ${elapsed}s, max wait: ${remaining}s more)`);
-                        select.innerHTML = `<option value="">Loading components (${elapsed}s elapsed, building dependency graph)...</option>`;
-                        updateStatusIndicator('loading', `Loading... (${elapsed}s)`);
-                        setTimeout(loadComponents, 2000);
-                        return;
+                    try {
+                        const statusRecheck = await fetch('./api/status', {
+                            credentials: 'same-origin'
+                        });
+                        
+                        if (statusRecheck.ok) {
+                            const statusData = await statusRecheck.json();
+                            addDiagnosticLog('Status recheck: ' + JSON.stringify(statusData), 'info');
+                            
+                            // If the graph building is complete (ready/error) with 0 components, 
+                            // don't retry - show error immediately
+                            if (statusData.status === 'ready' || statusData.status === 'error') {
+                                shouldRetry = false;
+                                addDiagnosticLog('Graph build complete with 0 components, showing error immediately', 'info');
+                            }
+                            // If build_status is explicitly 'completed' or 'failed', also don't retry
+                            else if (statusData.build_status === 'completed' || statusData.build_status === 'failed') {
+                                shouldRetry = false;
+                                addDiagnosticLog('Graph build finished (status: ' + statusData.build_status + ') with 0 components', 'info');
+                            }
+                        }
+                    } catch (statusError) {
+                        addDiagnosticLog('Status recheck failed: ' + statusError.message, 'warning');
+                        // If status check fails, continue with retry logic
                     }
                     
-                    // After max retries, show error message
-                    const waitTime = MAX_COMPONENT_LOAD_RETRIES * 2;  // Calculate actual wait time
-                    addDiagnosticLog(`No components after ${waitTime}s, giving up`, 'error');
+                    // If we should retry (graph is still building), do so with max retry limit
+                    if (shouldRetry) {
+                        componentLoadAttempts++;
+                        
+                        if (componentLoadAttempts < MAX_COMPONENT_LOAD_RETRIES) {
+                            // Still loading, retry after 2 seconds
+                            const elapsed = componentLoadAttempts * 2;
+                            const remaining = (MAX_COMPONENT_LOAD_RETRIES - componentLoadAttempts) * 2;
+                            addDiagnosticLog(`Components empty, retry ${componentLoadAttempts}/${MAX_COMPONENT_LOAD_RETRIES} (elapsed: ${elapsed}s)`, 'warning');
+                            console.log(`Components still loading, retry ${componentLoadAttempts}/${MAX_COMPONENT_LOAD_RETRIES} in 2 seconds... (elapsed: ${elapsed}s, max wait: ${remaining}s more)`);
+                            select.innerHTML = `<option value="">Loading components (${elapsed}s elapsed, building dependency graph)...</option>`;
+                            updateStatusIndicator('loading', `Loading... (${elapsed}s)`);
+                            setTimeout(loadComponents, 2000);
+                            return;
+                        }
+                    }
+                    
+                    // Either we shouldn't retry (build complete) or we hit max retries
+                    
+                    // Show error message immediately (either build complete or max retries hit)
+                    const waitTime = componentLoadAttempts * 2;  // Actual wait time
+                    if (shouldRetry) {
+                        addDiagnosticLog(`No components after ${waitTime}s (max retries), giving up`, 'error');
+                    } else {
+                        addDiagnosticLog(`Graph build complete with 0 components (waited ${waitTime}s)`, 'error');
+                    }
                     updateStatusIndicator('error', 'No components found');
                     showDiagnosticPanel();
                     select.innerHTML = '<option value="">No integrations found</option>';
                     
                     // Show detailed error with troubleshooting steps
                     const viz = document.getElementById('visualization');
+                    const actualWaitTime = shouldRetry ? waitTime : waitTime;  // Actual time waited
                     viz.innerHTML = `
                         <div class="error">
                             <h3 style="margin-bottom: 15px;">⚠️ No Integrations Found</h3>
                             <p style="margin-bottom: 15px;">
-                                The dependency graph was built but found <strong>0 integrations</strong> after waiting ${waitTime} seconds.
+                                The dependency graph was built but found <strong>0 integrations</strong>${shouldRetry ? ` after waiting ${actualWaitTime} seconds` : ''}.
                             </p>
                             
                             <p style="margin-bottom: 10px;"><strong>This usually means:</strong></p>
