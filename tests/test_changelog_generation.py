@@ -181,6 +181,78 @@ def test_actual_git_log_filtering():
     print("✓ Test passed")
 
 
+def test_copilot_review_extraction():
+    """Test extraction of Copilot review summary for changelog."""
+    print("\n=== Test: Copilot Review Summary Extraction ===")
+    
+    # Simulate a Copilot review body (from actual PR #97)
+    copilot_review = """## Pull request overview
+
+This pull request fixes a critical WebUI issue where the interface would hang for 60 seconds before showing an error when the dependency graph completed with zero integrations. The fix has two parts: correcting the status endpoint logic to properly detect completion with no integrations, and adding directory mappings to enable the add-on to access custom integration directories.
+
+**Key Changes:**
+- Fixed status endpoint to return `status='error'` when build completes with 0 integrations
+- Enhanced JavaScript retry logic to detect completed/failed build states
+- Added directory mappings in config.yaml
+
+### Reviewed changes
+
+Copilot reviewed 7 out of 7 changed files."""
+    
+    # Test the extraction logic used in the workflow
+    cmd = f'''
+    REVIEWS='{copilot_review}'
+    
+    # Extract the first paragraph after "## Pull request overview"
+    SUMMARY=$(echo "$REVIEWS" | awk '
+      /## Pull request overview/ {{ in_section=1; next }}
+      in_section && /^$/ {{ next }}
+      in_section && NF {{ print; getline; while(NF && !/^\\*\\*/ && !/^##/ && !/^###/) {{ print; getline }} exit }}
+    ')
+    
+    # Format as changelog entry
+    if [ -n "$SUMMARY" ]; then
+      echo "$SUMMARY" | tr '\\n' ' ' | sed 's/  */ /g' | sed 's/^ *//; s/ *$//; s/^/- /'
+    else
+      echo "ERROR: No summary extracted"
+    fi
+    '''
+    
+    output, returncode = run_shell_command(cmd)
+    print(f"Output: {output}")
+    assert returncode == 0, "Command should succeed"
+    assert output.startswith("- This pull request"), f"Expected to start with '- This pull request', got '{output}'"
+    assert "WebUI issue" in output, "Should contain 'WebUI issue'"
+    assert "dependency graph" in output, "Should contain 'dependency graph'"
+    # Should be a single line
+    assert "\n" not in output, "Should be a single line"
+    print("✓ Test passed")
+
+
+def test_pr_number_extraction():
+    """Test extraction of PR number from merge commit message."""
+    print("\n=== Test: PR Number Extraction ===")
+    
+    test_cases = [
+        ("Merge pull request #97 from ian-morgan99/branch", "97"),
+        ("Merge pull request #123 from user/feature", "123"),
+        ("Regular commit message", ""),
+    ]
+    
+    for commit_msg, expected_pr in test_cases:
+        cmd = f'''
+        COMMIT_MSG='{commit_msg}'
+        PR_NUMBER=$(echo "$COMMIT_MSG" | grep -oP 'Merge pull request #\\K\\d+' || echo "")
+        echo "$PR_NUMBER"
+        '''
+        
+        output, returncode = run_shell_command(cmd)
+        assert returncode == 0, f"Command should succeed for: {commit_msg}"
+        assert output == expected_pr, f"Expected PR '{expected_pr}' from '{commit_msg}', got '{output}'"
+    
+    print("✓ Test passed")
+
+
 def test_changelog_file_update():
     """Test that the changelog update logic works correctly."""
     print("\n=== Test: CHANGELOG.md Update Logic ===")
@@ -252,6 +324,8 @@ def main():
         test_changelog_generation_many_commits,
         test_changelog_generation_empty,
         test_actual_git_log_filtering,
+        test_copilot_review_extraction,
+        test_pr_number_extraction,
         test_changelog_file_update,
     ]
     
