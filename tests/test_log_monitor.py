@@ -4,7 +4,6 @@ Test log monitoring functionality
 import sys
 import os
 import tempfile
-import json
 from datetime import datetime, timedelta
 
 # Add the app directory to Python path
