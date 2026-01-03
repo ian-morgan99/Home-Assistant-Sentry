@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.3.20
+- Enhance changelog generation with PR metadata extraction and rebuild historic entries Changelog entries were showing bare merge commit messages ("Merge pull request #101...") instead of meaningful descriptions. The workflow had logic to extract Copilot review summaries but no fallback for when reviews are unavailable.
+
+
 ## 1.3.19
 - Extract Copilot review summaries for CHANGELOG entries. Issue #98 requested using Copilot PR review comments in CHANGELOG.md instead of raw commit messages. The workflow now extracts the summary paragraph from copilot-pull-request-reviewer[bot] reviews and uses it as the changelog entry with comprehensive test coverage for PR number extraction and review summary parsing.
 
