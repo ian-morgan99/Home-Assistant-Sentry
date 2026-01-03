@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.3.22
+- Add addon dependency tracking to dependency graph and Web UI Extends dependency visibility to include Home Assistant add-ons alongside integrations, addressing the gap identified in PR #105 where addon dependencies were not tracked.
+
+
 ## 1.3.21
 - Fixed notification links to only show for integrations and HACS components
 - **CRITICAL FIX: Switched from URL fragments to query parameters for notification links**
