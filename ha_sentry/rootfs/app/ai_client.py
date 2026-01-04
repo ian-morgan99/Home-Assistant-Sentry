@@ -165,25 +165,27 @@ class AIClient:
                 )
             
             # Run in thread pool with async timeout
-            # Total timeout: 180s (3 minutes) to account for:
+            # Total timeout: 160s (~2.5 minutes), composed of:
             # - 30s connection timeout
             # - 120s read timeout
-            # - Extra buffer for thread scheduling
+            # - 10s additional buffer for retries, thread scheduling, and other overhead
             try:
                 response = await asyncio.wait_for(
                     asyncio.to_thread(_sync_ai_call),
-                    timeout=180.0
+                    timeout=160.0
                 )
             except asyncio.TimeoutError:
-                logger.error("AI analysis timed out after 180 seconds")
+                logger.error("AI analysis timed out after 160 seconds")
                 logger.error(f"AI Provider: {self.config.ai_provider}")
                 logger.error(f"AI Endpoint: {self.config.ai_endpoint}")
                 logger.error(f"AI Model: {self.config.ai_model}")
-                logger.info("This usually means:")
-                logger.info("  1. The AI provider is not responding or is overloaded")
-                logger.info("  2. The network connection is slow or unstable")
-                logger.info("  3. The AI model is taking too long to generate a response")
-                logger.info("Falling back to dependency analysis")
+                logger.info(
+                    "AI analysis timeout details:\n"
+                    "  1. The AI provider may not be responding or could be overloaded\n"
+                    "  2. The network connection may be slow or unstable\n"
+                    "  3. The AI model might be taking too long to generate a response\n"
+                    "Falling back to dependency analysis"
+                )
                 raise  # Re-raise to trigger fallback
             
             # Parse AI response
