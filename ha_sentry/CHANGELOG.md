@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.3.29
+- Fix 404 handler to return JSON for API/ingress paths Home Assistant Supervisor probes `/ingress/validate_session` and other routes, receiving HTML 404s that it attempts to parse as JSON, causing "Attempt to decode JSON with unexpected mimetype: text/plain" errors in Core logs.
+
+
 ## 1.3.28
 - Fix AI analysis blocking event loop causing timeouts and missed notifications 1. ✅ **AI Analysis Timeout** - HTTP connection to LMStudio hangs, preventing update analysis 2. ✅ **No Notifications Sent** - Notifications depend on analysis completion 3. ✅ **WebUI Status Update** - Web server becomes unresponsive when AI blocks
 
