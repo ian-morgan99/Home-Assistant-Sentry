@@ -148,6 +148,12 @@ class DependencyTreeWebServer:
         self.app.router.add_get('/api/where-used/{component}', self._handle_where_used)
         self.app.router.add_get('/api/change-impact', self._handle_change_impact)
         self.app.router.add_get('/api/graph-data', self._handle_graph_data)
+        
+        # IMPORTANT: Catch-all route for 404 handling - MUST BE LAST
+        # This route catches all unmatched paths and returns appropriate 404 responses
+        # (JSON for API/ingress paths, HTML for browser requests).
+        # Adding any routes after this will prevent them from being reached!
+        self.app.router.add_route('*', '/{tail:.*}', self._handle_not_found)
     
     def _generate_error_html(self, error_message: str, title: str = "Error") -> str:
         """
@@ -624,6 +630,30 @@ class DependencyTreeWebServer:
         except Exception as e:
             logger.error(f"Error getting graph data: {e}", exc_info=True)
             return web.json_response({'error': str(e)}, status=500)
+    
+    async def _handle_not_found(self, request):
+        """Handle 404 errors - return JSON for API paths, HTML for others"""
+        path = request.path
+        logger.debug(f"404 Not Found: {request.method} {path}")
+        
+        # Check if this looks like an API request or ingress-related path
+        # Return JSON for API paths and any path that might be probed by the Supervisor
+        if (path.startswith('/api/') or 
+            path.startswith('/ingress/') or 
+            'json' in request.headers.get('Accept', '').lower()):
+            # Return JSON 404 for API-like requests
+            return web.json_response({
+                'error': 'Not Found',
+                'message': f'The requested path {path} does not exist',
+                'path': path
+            }, status=404)
+        else:
+            # Return HTML 404 for browser requests
+            error_html = self._generate_error_html(
+                f"The requested page '{path}' was not found.",
+                "Page Not Found"
+            )
+            return web.Response(text=error_html, content_type='text/html', status=404)
     
     def _generate_html(self):
         """Generate the HTML interface for dependency visualization"""
