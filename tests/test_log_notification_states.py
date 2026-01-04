@@ -146,7 +146,7 @@ def test_enhanced_debug_logging():
         
         # Test with no previous logs
         previous_empty = []
-        comparison_empty = monitor.compare_logs(current, previous_empty)
+        monitor.compare_logs(current, previous_empty)
         
         # In the actual check_logs method, can_determine_changes would be False
         # when previous_errors is empty
