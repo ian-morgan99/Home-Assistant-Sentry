@@ -88,7 +88,7 @@ All tests pass:
 1. `ha_sentry/rootfs/app/web_server.py`: Added 404 handling (27 lines added)
 
 ### New Files
-1. `tests/test_404_handling.py`: Comprehensive test suite (142 lines)
+1. `tests/test_404_handling.py`: Comprehensive test suite (156 lines)
 
 ## Commits
 1. `aa38f73`: Fix ingress 404 error - return JSON for API/ingress paths
