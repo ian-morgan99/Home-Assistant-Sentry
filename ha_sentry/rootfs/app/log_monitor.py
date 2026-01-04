@@ -482,8 +482,54 @@ Be concise but clear in your recommendations."""
         # Load previous errors
         previous_errors = self.load_previous_logs()
         
+        # Enhanced debug logging for maximal log level
+        logger.debug("=" * 60)
+        logger.debug("LOG COMPARISON DETAILS")
+        logger.debug("=" * 60)
+        
+        # Calculate time ranges for comparison
+        current_time = datetime.now()
+        lookback_start = current_time - timedelta(hours=self.lookback_hours)
+        
+        logger.debug(f"Current check time: {current_time.strftime('%Y-%m-%d %H:%M:%S')}")
+        logger.debug(f"Lookback period: {self.lookback_hours} hours")
+        logger.debug(f"Comparing logs from: {lookback_start.strftime('%Y-%m-%d %H:%M:%S')} to {current_time.strftime('%Y-%m-%d %H:%M:%S')}")
+        logger.debug(f"Current errors found: {len(current_errors)}")
+        logger.debug(f"Previous errors loaded: {len(previous_errors)}")
+        
+        # Log whether we can determine changes
+        can_determine_changes = len(previous_errors) > 0
+        if can_determine_changes:
+            logger.debug("Previous log data available - can determine changes")
+        else:
+            logger.debug("No previous log data available - this may be first run or previous logs were cleared")
+        
+        # Log sample of current errors for debugging (maximal level only)
+        if current_errors and logger.isEnabledFor(logging.DEBUG):
+            logger.debug("Sample of current error entries (up to 5):")
+            for i, error in enumerate(current_errors[:5], 1):
+                # Truncate long lines for readability
+                preview = error[:150] + "..." if len(error) > 150 else error
+                logger.debug(f"  {i}. {preview}")
+        
+        # Log sample of previous errors for debugging (maximal level only)
+        if previous_errors and logger.isEnabledFor(logging.DEBUG):
+            logger.debug("Sample of previous error entries (up to 5):")
+            for i, error in enumerate(previous_errors[:5], 1):
+                # Truncate long lines for readability
+                preview = error[:150] + "..." if len(error) > 150 else error
+                logger.debug(f"  {i}. {preview}")
+        
+        logger.debug("=" * 60)
+        
         # Compare logs
         comparison = self.compare_logs(current_errors, previous_errors)
+        
+        # Log comparison results for debugging
+        logger.debug(f"Comparison results:")
+        logger.debug(f"  New errors: {len(comparison['new_errors'])}")
+        logger.debug(f"  Resolved errors: {len(comparison['resolved_errors'])}")
+        logger.debug(f"  Persistent errors: {len(comparison['persistent_errors'])}")
         
         # Analyze results
         if ai_client and self.config.ai_enabled:
@@ -496,8 +542,12 @@ Be concise but clear in your recommendations."""
         # Add check timestamp to analysis
         analysis['check_time'] = datetime.now(tz=timezone.utc)
         
+        # Add flag to indicate if we can determine changes (for notification logic)
+        analysis['can_determine_changes'] = can_determine_changes
+        
         # Save current logs for next comparison
         self.save_current_logs(current_errors)
+        logger.debug(f"Saved {len(current_errors)} current error entries for next comparison")
         
         logger.info(f"Log analysis complete: severity={analysis['severity']}, new={analysis['new_error_count']}, resolved={analysis['resolved_error_count']}")
         logger.info("=" * 60)

@@ -790,26 +790,76 @@ No updates are currently available for:
         logger.info("Results reported to Home Assistant")
     
     async def _report_log_analysis(self, ha_client: HomeAssistantClient, log_analysis: Dict):
-        """Report log analysis results to Home Assistant"""
+        """Report log analysis results to Home Assistant
+        
+        Always creates a notification with one of three states:
+        - GREEN (✅): No changes in log entries
+        - AMBER (⚠️): Can't determine changes (first run or missing previous logs)
+        - RED (🔴): Changes detected in log entries
+        """
         severity = log_analysis.get('severity', 'none')
+        new_count = log_analysis.get('new_error_count', 0)
+        resolved_count = log_analysis.get('resolved_error_count', 0)
+        can_determine_changes = log_analysis.get('can_determine_changes', True)
         
-        if severity == 'none':
-            logger.debug("No significant log changes to report")
-            return
-        
-        # Determine emoji and title based on severity
-        severity_emoji = {
-            'critical': '🔴',
-            'high': '🟠',
-            'medium': '🟡',
-            'low': '🟢'
-        }
-        
-        emoji = severity_emoji.get(severity, '🔵')
-        notification_title = f"{emoji} Home Assistant Log Monitor Report"
-        
-        # Build notification message
-        notification_message = f"""**Log Analysis After Recent Activity**
+        # Determine notification status and color
+        if not can_determine_changes:
+            # AMBER: Can't determine changes
+            status_emoji = '⚠️'
+            status_color = 'AMBER'
+            notification_title = f"{status_emoji} Home Assistant Log Monitor - Unable to Compare"
+            
+            logger.debug("Creating AMBER notification - cannot determine log changes")
+            notification_message = f"""**Log Monitoring Status: {status_color}**
+
+⚠️ **Unable to determine if log entries have changed.**
+
+This is the first log check, or previous log data is unavailable. Starting fresh baseline.
+
+**Current Status:**
+- Errors/warnings found: {new_count}
+- Previous baseline: None available
+
+**What This Means:**
+This is expected on first run or after clearing log history. Future checks should be able to compare against this baseline.
+
+"""
+        elif severity == 'none' and new_count == 0 and resolved_count == 0:
+            # GREEN: No changes, no errors
+            status_emoji = '✅'
+            status_color = 'GREEN'
+            notification_title = f"{status_emoji} Home Assistant Log Monitor - All Clear"
+            
+            logger.debug("Creating GREEN notification - no log changes")
+            notification_message = f"""**Log Monitoring Status: {status_color}**
+
+✅ **No changes in log entries since last check.**
+
+Your Home Assistant system logs are stable with no new errors or warnings.
+
+**Summary:**
+{log_analysis['summary']}
+
+"""
+        else:
+            # RED: Changes detected
+            status_emoji = '🔴'
+            status_color = 'RED'
+            
+            # Use severity-specific emoji for title
+            severity_emoji = {
+                'critical': '🔴',
+                'high': '🟠',
+                'medium': '🟡',
+                'low': '🟢'
+            }
+            emoji = severity_emoji.get(severity, status_emoji)
+            notification_title = f"{emoji} Home Assistant Log Monitor - Changes Detected"
+            
+            logger.debug(f"Creating RED notification - log changes detected (severity: {severity})")
+            notification_message = f"""**Log Monitoring Status: {status_color}**
+
+🔴 **Changes detected in log entries since last check.**
 
 **Severity:** {severity.upper()}
 
@@ -817,61 +867,62 @@ No updates are currently available for:
 {log_analysis['summary']}
 
 """
-        
-        # Add statistics
-        new_count = log_analysis.get('new_error_count', 0)
-        resolved_count = log_analysis.get('resolved_error_count', 0)
-        
-        if new_count > 0 or resolved_count > 0:
-            notification_message += f"""**Changes:**
+            
+            # Add statistics
+            if new_count > 0 or resolved_count > 0:
+                notification_message += f"""**Changes:**
 - New errors/warnings: {new_count}
 - Resolved errors: {resolved_count}
 
 """
-        
-        # Add significant errors if any
-        significant_errors = log_analysis.get('significant_errors', [])
-        if significant_errors:
-            notification_message += "**Significant Errors Detected:**\n"
-            for i, error in enumerate(significant_errors[:5], 1):  # Limit to 5
-                # Truncate long error lines
-                error_preview = error[:150] + "..." if len(error) > 150 else error
-                notification_message += f"{i}. `{error_preview}`\n"
             
-            if len(significant_errors) > 5:
-                notification_message += f"\n... and {len(significant_errors) - 5} more errors\n"
+            # Add significant errors if any
+            significant_errors = log_analysis.get('significant_errors', [])
+            if significant_errors:
+                notification_message += "**Significant Errors Detected:**\n"
+                for i, error in enumerate(significant_errors[:5], 1):  # Limit to 5
+                    # Truncate long error lines
+                    error_preview = error[:150] + "..." if len(error) > 150 else error
+                    notification_message += f"{i}. `{error_preview}`\n"
+                
+                if len(significant_errors) > 5:
+                    notification_message += f"\n... and {len(significant_errors) - 5} more errors\n"
+                
+                notification_message += "\n"
             
-            notification_message += "\n"
+            # Add recommendations
+            recommendations = log_analysis.get('recommendations', [])
+            if recommendations:
+                notification_message += "**Recommendations:**\n"
+                for rec in recommendations:
+                    notification_message += f"- {rec}\n"
+                notification_message += "\n"
         
-        # Add recommendations
-        recommendations = log_analysis.get('recommendations', [])
-        if recommendations:
-            notification_message += "**Recommendations:**\n"
-            for rec in recommendations:
-                notification_message += f"- {rec}\n"
-            notification_message += "\n"
-        
-        # Add footer
+        # Add footer (common for all statuses)
         check_time = log_analysis.get('check_time', datetime.now(tz=timezone.utc))
         notification_message += f"""---
 *Analysis powered by: {'AI' if log_analysis.get('ai_powered') else 'Heuristics'}*
 *Check time: {check_time.strftime('%Y-%m-%d %H:%M:%S UTC')}*
 *Log lookback period: {self.config.log_check_lookback_hours} hours*
-
+"""
+        
+        # Add next steps for RED status only
+        if status_color == 'RED':
+            notification_message += f"""
 **Next Steps:**
 1. Review the error messages in your Home Assistant logs
 2. Check if any integrations or add-ons are failing to load
 3. Consider rolling back recent updates if errors are critical
 """
         
-        logger.debug("Creating log analysis notification in Home Assistant")
+        logger.debug(f"Creating log analysis notification in Home Assistant (Status: {status_color})")
         await ha_client.create_persistent_notification(
             notification_title,
             notification_message,
             'ha_sentry_log_report'
         )
         
-        logger.info(f"Log analysis reported: {severity} severity, {new_count} new errors")
+        logger.info(f"Log analysis reported: {status_color} status, severity={severity}, new={new_count}, resolved={resolved_count}")
     
     def _save_machine_readable_report(self, updates: List[Dict], analysis: Dict):
         """
