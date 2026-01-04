@@ -85,7 +85,7 @@ All tests pass:
 ## Code Changes
 
 ### Modified Files
-1. `ha_sentry/rootfs/app/web_server.py`: Added 404 handling (27 lines added)
+1. `ha_sentry/rootfs/app/web_server.py`: Added 404 handling (29 lines added)
 
 ### New Files
 1. `tests/test_404_handling.py`: Comprehensive test suite (156 lines)
