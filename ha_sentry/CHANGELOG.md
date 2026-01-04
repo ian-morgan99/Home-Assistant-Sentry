@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.3.28
+- Fix AI analysis blocking event loop causing timeouts and missed notifications 1. ✅ **AI Analysis Timeout** - HTTP connection to LMStudio hangs, preventing update analysis 2. ✅ **No Notifications Sent** - Notifications depend on analysis completion 3. ✅ **WebUI Status Update** - Web server becomes unresponsive when AI blocks
+
+
 ## 1.3.27
 - Add persistent notifications for log monitoring with status indicators and debug logging - ✅ Green: No changes in log entries - ⚠️ Amber: Can't determine changes (first run or missing previous logs) - 🔴 Red: Changes detected in log entries
 
