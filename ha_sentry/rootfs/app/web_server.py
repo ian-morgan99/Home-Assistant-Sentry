@@ -148,7 +148,11 @@ class DependencyTreeWebServer:
         self.app.router.add_get('/api/where-used/{component}', self._handle_where_used)
         self.app.router.add_get('/api/change-impact', self._handle_change_impact)
         self.app.router.add_get('/api/graph-data', self._handle_graph_data)
-        # Catch-all route for 404 handling - must be last
+        
+        # IMPORTANT: Catch-all route for 404 handling - MUST BE LAST
+        # This route catches all unmatched paths and returns appropriate 404 responses
+        # (JSON for API/ingress paths, HTML for browser requests).
+        # Adding any routes after this will prevent them from being reached!
         self.app.router.add_route('*', '/{tail:.*}', self._handle_not_found)
     
     def _generate_error_html(self, error_message: str, title: str = "Error") -> str:
