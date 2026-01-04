@@ -2,6 +2,7 @@
 AI Client for analyzing update conflicts
 Supports OpenAI-compatible endpoints (OpenAI, LMStudio, OpenWebUI, Ollama)
 """
+import asyncio
 import logging
 import json
 from typing import Dict, List, Optional
@@ -49,14 +50,14 @@ class AIClient:
             import httpx
             
             # Configure timeout to prevent hanging on network issues
-            # Connect timeout: 10 seconds to establish connection
+            # Connect timeout: 30 seconds to establish connection (increased for slow networks)
             # Read timeout: 120 seconds for AI response generation
             # Write timeout: 30 seconds for sending request
             timeout = httpx.Timeout(
-                connect=10.0,  # Connection establishment
+                connect=30.0,  # Connection establishment (increased from 10s for slow networks)
                 read=120.0,    # Reading response (AI may take time to generate)
                 write=30.0,    # Writing request
-                pool=10.0      # Acquiring connection from pool
+                pool=30.0      # Acquiring connection from pool (increased from 10s)
             )
             
             # Configure based on provider
@@ -138,23 +139,52 @@ class AIClient:
             context = self._prepare_analysis_context(addon_updates, hacs_updates)
             logger.debug(f"Context prepared, size: {len(context)} characters")
             
-            # Call AI for analysis
+            # Call AI for analysis with timeout protection
+            # The OpenAI client's .create() call is synchronous and can block the event loop
+            # We run it in a thread pool and add an async timeout wrapper for robustness
             logger.info(f"Sending analysis request to AI ({self.config.ai_provider} - {self.config.ai_model})")
-            response = self.client.chat.completions.create(
-                model=self.config.ai_model,
-                messages=[
-                    {
-                        "role": "system",
-                        "content": self._get_system_prompt()
-                    },
-                    {
-                        "role": "user",
-                        "content": context
-                    }
-                ],
-                temperature=0.3,
-                max_tokens=2000
-            )
+            logger.debug(f"AI endpoint: {self.config.ai_endpoint}")
+            logger.debug("Using async timeout wrapper to prevent blocking (180s total timeout)")
+            
+            # Define the synchronous AI call function
+            def _sync_ai_call():
+                return self.client.chat.completions.create(
+                    model=self.config.ai_model,
+                    messages=[
+                        {
+                            "role": "system",
+                            "content": self._get_system_prompt()
+                        },
+                        {
+                            "role": "user",
+                            "content": context
+                        }
+                    ],
+                    temperature=0.3,
+                    max_tokens=2000
+                )
+            
+            # Run in thread pool with async timeout
+            # Total timeout: 180s (3 minutes) to account for:
+            # - 30s connection timeout
+            # - 120s read timeout
+            # - Extra buffer for thread scheduling
+            try:
+                response = await asyncio.wait_for(
+                    asyncio.to_thread(_sync_ai_call),
+                    timeout=180.0
+                )
+            except asyncio.TimeoutError:
+                logger.error("AI analysis timed out after 180 seconds")
+                logger.error(f"AI Provider: {self.config.ai_provider}")
+                logger.error(f"AI Endpoint: {self.config.ai_endpoint}")
+                logger.error(f"AI Model: {self.config.ai_model}")
+                logger.info("This usually means:")
+                logger.info("  1. The AI provider is not responding or is overloaded")
+                logger.info("  2. The network connection is slow or unstable")
+                logger.info("  3. The AI model is taking too long to generate a response")
+                logger.info("Falling back to dependency analysis")
+                raise  # Re-raise to trigger fallback
             
             # Parse AI response
             ai_response = response.choices[0].message.content
@@ -165,6 +195,7 @@ class AIClient:
             return self._parse_ai_response(ai_response, addon_updates, hacs_updates)
             
         except Exception as e:
+            # Catch all exceptions including timeouts, connection errors, etc.
             logger.error(f"AI analysis failed: {e}", exc_info=True)
             logger.info("Falling back to dependency analysis")
             return self._fallback_analysis(addon_updates, hacs_updates)
