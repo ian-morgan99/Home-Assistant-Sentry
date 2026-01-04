@@ -55,7 +55,7 @@ Current Status:
 - Previous baseline: None available
 
 What This Means:
-This is expected on first run or after clearing log history. The next check will be able to compare against this baseline.
+This is expected on first run or after clearing log history. Future checks should be able to compare against this baseline.
 
 ---
 Analysis powered by: Heuristics
@@ -66,7 +66,7 @@ Log lookback period: 24 hours
 **What it means:**
 - First time monitoring is running
 - Establishing a baseline for future comparisons
-- Next check will show green or red status
+- Future checks may show green or red status
 - No action needed - this is normal
 
 ---

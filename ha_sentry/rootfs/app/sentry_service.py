@@ -821,7 +821,7 @@ This is the first log check, or previous log data is unavailable. Starting fresh
 - Previous baseline: None available
 
 **What This Means:**
-This is expected on first run or after clearing log history. The next check will be able to compare against this baseline.
+This is expected on first run or after clearing log history. Future checks should be able to compare against this baseline.
 
 """
         elif severity == 'none' and new_count == 0 and resolved_count == 0:
