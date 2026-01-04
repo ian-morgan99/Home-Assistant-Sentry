@@ -1,5 +1,5 @@
 name: Home Assistant Sentry
-version: "1.3.26"
+version: "1.3.27"
 slug: ha_sentry
 description: Daily review of add-on and HACS updates with AI-powered conflict detection
 arch:

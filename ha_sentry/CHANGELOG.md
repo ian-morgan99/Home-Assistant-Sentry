@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.3.27
+- Add persistent notifications for log monitoring with status indicators and debug logging - ✅ Green: No changes in log entries - ⚠️ Amber: Can't determine changes (first run or missing previous logs) - 🔴 Red: Changes detected in log entries
+
+
 ## 1.3.26
 - Add post-update log monitoring with AI-powered error analysis All requested features have been successfully implemented and tested!
 
