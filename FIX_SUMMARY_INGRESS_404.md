@@ -25,7 +25,7 @@ Added intelligent 404 handling to the web server that distinguishes between API/
 
 **File: `ha_sentry/rootfs/app/web_server.py`**
 
-1. Added `_handle_not_found()` method (lines 632-654):
+1. Added `_handle_not_found()` method (lines 634-656):
    - Checks if the request path starts with `/api/` or `/ingress/`
    - Checks if the request Accept header contains `json`
    - Returns JSON 404 for API-like requests
