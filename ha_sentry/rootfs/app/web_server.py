@@ -1322,7 +1322,7 @@ class DependencyTreeWebServer:
         
         // Initialize - wrap everything in try-catch for safety
         try {
-            document.addEventListener('DOMContentLoaded', () => {
+            document.addEventListener('DOMContentLoaded', async () => {
                 try {
                     addDiagnosticLog('DOM Content Loaded', 'info');
                     addDiagnosticLog('Current URL: ' + window.location.href, 'info');
@@ -1334,10 +1334,10 @@ class DependencyTreeWebServer:
                     // Set global timeout failsafe
                     globalInitTimeoutId = setTimeout(handleGlobalInitTimeout, GLOBAL_INIT_TIMEOUT_MS);
                     
-                    // Start loading
+                    // Start loading with proper await for async functions
                     try {
-                        loadComponents();
-                        loadStats();
+                        await loadComponents();
+                        await loadStats();
                         setupModeButtons();
                         handleUrlFragment();  // Handle URL fragment for deep linking
                     } catch (error) {
