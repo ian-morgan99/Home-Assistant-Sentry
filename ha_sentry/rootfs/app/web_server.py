@@ -1150,7 +1150,11 @@ class DependencyTreeWebServer:
             }
             const traversalPattern = /(\.\.)|(%2e)|(%252e)|(%2f)|(%5c)|(%252f)/i;
             if (traversalPattern.test(rawPath) || decodedPath.includes('..')) {
-                throw new Error('Unsafe API path detected');
+                const matched = traversalPattern.exec(rawLower);
+                const matchedPattern = matched && matched[0] ? matched[0] : '..';
+                const message = `Unsafe API path detected: directory traversal pattern "${matchedPattern}" is not allowed in "${decodedPath}". Please remove any ".." or encoded equivalents from the path.`;
+                addDiagnosticLog(message, 'error');
+                throw new Error(message);
             }
             const sanitizedPath = decodedPath
                 .replace(/^\/+/, '')
