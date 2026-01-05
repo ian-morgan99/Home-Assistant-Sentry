@@ -148,21 +148,28 @@ class AIClient:
             
             # Define the synchronous AI call function
             def _sync_ai_call():
-                return self.client.chat.completions.create(
-                    model=self.config.ai_model,
-                    messages=[
-                        {
-                            "role": "system",
-                            "content": self._get_system_prompt()
-                        },
-                        {
-                            "role": "user",
-                            "content": context
-                        }
-                    ],
-                    temperature=0.3,
-                    max_tokens=2000
-                )
+                logger.debug("Starting synchronous AI API call in thread pool")
+                try:
+                    result = self.client.chat.completions.create(
+                        model=self.config.ai_model,
+                        messages=[
+                            {
+                                "role": "system",
+                                "content": self._get_system_prompt()
+                            },
+                            {
+                                "role": "user",
+                                "content": context
+                            }
+                        ],
+                        temperature=0.3,
+                        max_tokens=2000
+                    )
+                    logger.debug("Synchronous AI API call completed successfully")
+                    return result
+                except Exception as e:
+                    logger.error(f"Synchronous AI API call failed: {e}")
+                    raise
             
             # Run in thread pool with async timeout
             # Total timeout: 160s (~2.5 minutes), composed of:
@@ -170,10 +177,12 @@ class AIClient:
             # - 120s read timeout
             # - 10s additional buffer for retries, thread scheduling, and other overhead
             try:
+                logger.debug("Executing AI call with asyncio.to_thread and 160s timeout")
                 response = await asyncio.wait_for(
                     asyncio.to_thread(_sync_ai_call),
                     timeout=160.0
                 )
+                logger.debug("AI call completed within timeout")
             except asyncio.TimeoutError:
                 logger.error("AI analysis timed out after 160 seconds")
                 logger.error(f"AI Provider: {self.config.ai_provider}")
@@ -184,9 +193,14 @@ class AIClient:
                     "  1. The AI provider may not be responding or could be overloaded\n"
                     "  2. The network connection may be slow or unstable\n"
                     "  3. The AI model might be taking too long to generate a response\n"
+                    "  4. Check if the AI endpoint is accessible: " + self.config.ai_endpoint + "\n"
+                    "  5. Try increasing timeout or disabling AI: Set 'ai_enabled: false' in configuration\n"
                     "Falling back to dependency analysis"
                 )
                 raise  # Re-raise to trigger fallback
+            except Exception as e:
+                logger.error(f"AI call failed with exception: {e}")
+                raise
             
             # Parse AI response
             ai_response = response.choices[0].message.content

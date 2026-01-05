@@ -251,10 +251,11 @@ class SentryService:
         # Send startup notification to help users find sensors
         await self._send_startup_notification()
         
-        # Run initial check as a background task to avoid blocking the web server
-        # This allows the web UI to be responsive even if the AI provider is slow/unavailable
-        logger.info("Scheduling initial update check as background task...")
-        asyncio.create_task(self._run_initial_check())
+        # Delay initial check to allow web UI to become fully responsive first
+        # This ensures users can access the WebUI even if AI provider is slow/unresponsive
+        # The 5-second delay gives the web server time to handle initial page loads
+        logger.info("Scheduling initial update check as background task (delayed 5 seconds)...")
+        asyncio.create_task(self._run_initial_check_delayed())
         
         # Start scheduled checks
         await self._schedule_checks()
@@ -339,8 +340,32 @@ If sensors don't appear, check the add-on logs for authentication errors. The ad
         except Exception as e:
             logger.error(f"Error sending startup notification: {e}", exc_info=True)
     
+    async def _run_initial_check_delayed(self):
+        """Run the initial update check as a background task with delay
+        
+        Delays the initial update check by 5 seconds to ensure the WebUI becomes
+        responsive before potentially slow AI analysis starts. This prevents users
+        from experiencing blocked or slow WebUI during the critical startup window.
+        """
+        try:
+            # Wait 5 seconds to allow web UI to become responsive first
+            # This prevents slow/unresponsive AI providers from affecting WebUI load
+            logger.debug("Waiting 5 seconds before initial update check...")
+            await asyncio.sleep(5)
+            logger.info("Running initial update check...")
+            await self.run_update_check()
+            logger.info("Initial update check completed")
+        except Exception as e:
+            logger.error(f"Error in initial update check: {e}", exc_info=True)
+            logger.info("Initial check failed, but service will continue with scheduled checks")
+    
     async def _run_initial_check(self):
-        """Run the initial update check as a background task"""
+        """Run the initial update check as a background task (no delay)
+        
+        This method is kept for potential future use (e.g., manual triggers, tests)
+        but is not currently called during normal startup. Use _run_initial_check_delayed
+        for startup to ensure WebUI responsiveness.
+        """
         try:
             logger.info("Running initial update check...")
             await self.run_update_check()
