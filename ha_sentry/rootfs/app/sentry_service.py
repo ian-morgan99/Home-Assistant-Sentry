@@ -341,7 +341,12 @@ If sensors don't appear, check the add-on logs for authentication errors. The ad
             logger.error(f"Error sending startup notification: {e}", exc_info=True)
     
     async def _run_initial_check_delayed(self):
-        """Run the initial update check as a background task with delay"""
+        """Run the initial update check as a background task with delay
+        
+        Delays the initial update check by 5 seconds to ensure the WebUI becomes
+        responsive before potentially slow AI analysis starts. This prevents users
+        from experiencing blocked or slow WebUI during the critical startup window.
+        """
         try:
             # Wait 5 seconds to allow web UI to become responsive first
             # This prevents slow/unresponsive AI providers from affecting WebUI load
@@ -355,7 +360,12 @@ If sensors don't appear, check the add-on logs for authentication errors. The ad
             logger.info("Initial check failed, but service will continue with scheduled checks")
     
     async def _run_initial_check(self):
-        """Run the initial update check as a background task (no delay)"""
+        """Run the initial update check as a background task (no delay)
+        
+        This method is kept for potential future use (e.g., manual triggers, tests)
+        but is not currently called during normal startup. Use _run_initial_check_delayed
+        for startup to ensure WebUI responsiveness.
+        """
         try:
             logger.info("Running initial update check...")
             await self.run_update_check()
