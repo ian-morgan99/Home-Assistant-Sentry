@@ -1140,6 +1140,15 @@ class DependencyTreeWebServer:
             updateDiagnosticPanel();
         }
 
+        /**
+         * Build a safe API URL that works both directly and via HA ingress.
+         * - Normalizes leading/trailing slashes
+         * - Rejects directory-traversal patterns (.. and encoded equivalents)
+         * - Preserves ingress subpaths from window.location.pathname
+         * @param {string} path relative API path such as "api/status"
+         * @returns {string} absolute URL ready for fetch()
+         * @throws {Error} when unsafe traversal patterns are detected
+         */
         function getApiUrl(path) {
             const rawPath = path || '';
             let decodedPath = rawPath;
@@ -1148,14 +1157,16 @@ class DependencyTreeWebServer:
             } catch (e) {
                 addDiagnosticLog('Failed to decode API path, using raw value', 'warning');
             }
-            const traversalPattern = /(\.\.)|(%2e)|(%252e)|(%2f)|(%5c)|(%252f)/i;
-            if (traversalPattern.test(rawPath) || decodedPath.includes('..')) {
-                const matched = traversalPattern.exec(rawLower);
-                const matchedPattern = matched && matched[0] ? matched[0] : '..';
-                const message = `Unsafe API path detected: directory traversal pattern "${matchedPattern}" is not allowed in "${decodedPath}". Please remove any ".." or encoded equivalents from the path.`;
+            
+            // Focus only on directory traversal patterns (.. and encoded forms)
+            const traversalPattern = /(\.\.)|(%2e%2e)|(%252e%252e)/i;
+            const match = traversalPattern.exec(rawPath) || traversalPattern.exec(decodedPath);
+            if (match) {
+                const message = `Unsafe API path detected: directory traversal pattern "${match[0]}" is not allowed in "${decodedPath}".`;
                 addDiagnosticLog(message, 'error');
                 throw new Error(message);
             }
+            
             const sanitizedPath = decodedPath
                 .replace(/^\/+/, '')
                 .replace(/\/{2,}/g, '/');
