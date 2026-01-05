@@ -1,7 +1,14 @@
 # Changelog
 
 ## 1.3.31
-- [WIP] Analyze logs for webui not working issue The Web UI gets stuck showing "Preparing status..." because: 1. The initial HTML has static text: `<p id="status-detail">Preparing status...</p>` 2. During initialization, `updateStatusIndicator()` is called, which updates the status indicator but NOT the status detail text 3. The status detail text is only updated later in `loadComponents()`, but if there are JavaScript errors or API call failures, this may not execute 4. No diagnostic logging existed to trace the initialization flow
+- Major WebUI overhaul: Add real-time progress bar, comprehensive error handling, and network timeout management
+- Show visual progress during dependency graph building (30-60 second process)
+- Poll status API every second to display real-time progress and integration count
+- Add 7 distinct error scenarios with specific troubleshooting steps
+- Implement timeout handling with AbortController (8s for status, 15s for components)
+- Extract all timeouts and thresholds to named constants for easy configuration
+- Add step-by-step diagnostic logging for precise failure tracking
+- Fix async/await in DOMContentLoaded to properly catch initialization errors
 
 
 ## 1.3.30
