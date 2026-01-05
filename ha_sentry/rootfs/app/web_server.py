@@ -1026,6 +1026,18 @@ class DependencyTreeWebServer:
                 <span class="loading-spinner"></span> Initializing...
             </span>
             <p id="status-detail" class="subtitle" style="margin-top: 6px;">Preparing status...</p>
+            
+            <!-- Progress bar for graph building -->
+            <div id="progress-container" style="display: none; margin-top: 15px; max-width: 600px; margin-left: auto; margin-right: auto;">
+                <div style="display: flex; justify-content: space-between; margin-bottom: 5px; font-size: 0.9em;">
+                    <span id="progress-label">Building dependency graph...</span>
+                    <span id="progress-time"></span>
+                </div>
+                <div style="background: #2a2a2a; border-radius: 10px; height: 20px; overflow: hidden; border: 1px solid #444;">
+                    <div id="progress-bar" style="background: linear-gradient(90deg, #4a9eff, #64b5f6); height: 100%; width: 0%; transition: width 0.3s ease, background 0.3s ease; display: flex; align-items: center; justify-content: center; color: white; font-size: 0.75em; font-weight: bold;"></div>
+                </div>
+                <div id="progress-details" style="margin-top: 5px; font-size: 0.85em; color: #aaa; text-align: center;"></div>
+            </div>
         </header>
         
         <noscript>
@@ -1275,6 +1287,202 @@ class DependencyTreeWebServer:
             }
         }
         
+        /**
+         * Show or update the progress bar
+         * @param {number} percent - Progress percentage (0-100)
+         * @param {string} label - Progress label text
+         * @param {string} details - Additional details text
+         */
+        function updateProgressBar(percent, label, details) {
+            const container = document.getElementById('progress-container');
+            const bar = document.getElementById('progress-bar');
+            const labelElem = document.getElementById('progress-label');
+            const detailsElem = document.getElementById('progress-details');
+            
+            if (!container || !bar) return;
+            
+            container.style.display = 'block';
+            bar.style.width = Math.max(5, Math.min(100, percent)) + '%';
+            
+            // Show percentage in bar if > 10%
+            if (percent > 10) {
+                bar.textContent = Math.round(percent) + '%';
+            } else {
+                bar.textContent = '';
+            }
+            
+            // Update colors based on progress
+            if (percent < 30) {
+                bar.style.background = 'linear-gradient(90deg, #4a9eff, #64b5f6)';
+            } else if (percent < 70) {
+                bar.style.background = 'linear-gradient(90deg, #64b5f6, #81c784)';
+            } else {
+                bar.style.background = 'linear-gradient(90deg, #81c784, #66bb6a)';
+            }
+            
+            if (labelElem) labelElem.textContent = label || '';
+            if (detailsElem) detailsElem.textContent = details || '';
+        }
+        
+        /**
+         * Hide the progress bar
+         */
+        function hideProgressBar() {
+            const container = document.getElementById('progress-container');
+            if (container) {
+                container.style.display = 'none';
+            }
+        }
+        
+        /**
+         * Fetch with timeout using AbortController
+         * @param {string} url - URL to fetch
+         * @param {object} options - Fetch options
+         * @param {number} timeoutMs - Timeout in milliseconds (default 10000)
+         * @returns {Promise<Response>}
+         */
+        async function fetchWithTimeout(url, options = {}, timeoutMs = 10000) {
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+            
+            try {
+                const response = await fetch(url, {
+                    ...options,
+                    signal: controller.signal
+                });
+                clearTimeout(timeoutId);
+                return response;
+            } catch (error) {
+                clearTimeout(timeoutId);
+                if (error.name === 'AbortError') {
+                    throw new Error(`Request timeout after ${timeoutMs}ms`);
+                }
+                throw error;
+            }
+        }
+        
+        /**
+         * Poll the status API to show real-time progress during graph building
+         * @returns {Promise<object>} - Status data
+         */
+        async function pollBuildStatus() {
+            const startTime = Date.now();
+            let lastComponentCount = 0;
+            let pollAttempts = 0;
+            const MAX_POLL_ATTEMPTS = 60; // 60 attempts * 1 second = 60 seconds max
+            
+            return new Promise((resolve, reject) => {
+                const pollInterval = setInterval(async () => {
+                    pollAttempts++;
+                    const elapsed = Math.floor((Date.now() - startTime) / 1000);
+                    
+                    try {
+                        const statusUrl = getApiUrl('api/status');
+                        addDiagnosticLog(`Polling status (attempt ${pollAttempts}/${MAX_POLL_ATTEMPTS})`, 'info');
+                        
+                        const response = await fetchWithTimeout(statusUrl, {
+                            credentials: 'same-origin'
+                        }, 8000); // 8 second timeout for status checks
+                        
+                        if (!response.ok) {
+                            addDiagnosticLog(`Status poll failed: HTTP ${response.status}`, 'warning');
+                            if (pollAttempts >= MAX_POLL_ATTEMPTS) {
+                                clearInterval(pollInterval);
+                                reject(new Error(`Status API returned ${response.status} after ${elapsed}s`));
+                            }
+                            return;
+                        }
+                        
+                        const statusData = await response.json();
+                        addDiagnosticLog(`Status: ${statusData.status}, components: ${statusData.components_count}`, 'info');
+                        
+                        // Update progress bar based on status
+                        if (statusData.status === 'building') {
+                            const progress = Math.min(90, (pollAttempts / MAX_POLL_ATTEMPTS) * 100);
+                            updateProgressBar(
+                                progress,
+                                'Building dependency graph...',
+                                `${statusData.components_count || 0} integrations found • ${elapsed}s elapsed`
+                            );
+                            updateStatusDetail(statusData.message || 'Building dependency graph...');
+                            
+                            // Update component count indicator
+                            if (statusData.components_count > lastComponentCount) {
+                                lastComponentCount = statusData.components_count;
+                                addDiagnosticLog(`Progress: ${statusData.components_count} integrations discovered`, 'info');
+                            }
+                        } else if (statusData.status === 'ready') {
+                            // Graph is ready
+                            updateProgressBar(100, 'Complete!', `${statusData.components_count} integrations loaded`);
+                            clearInterval(pollInterval);
+                            resolve(statusData);
+                        } else if (statusData.status === 'error' || statusData.status === 'unavailable') {
+                            // Build failed or unavailable
+                            hideProgressBar();
+                            clearInterval(pollInterval);
+                            reject(new Error(statusData.message || 'Dependency graph unavailable'));
+                        } else {
+                            // Unknown status, keep polling
+                            updateProgressBar(
+                                (pollAttempts / MAX_POLL_ATTEMPTS) * 100,
+                                'Checking status...',
+                                `Elapsed: ${elapsed}s`
+                            );
+                        }
+                        
+                        // Timeout after max attempts
+                        if (pollAttempts >= MAX_POLL_ATTEMPTS) {
+                            hideProgressBar();
+                            clearInterval(pollInterval);
+                            reject(new Error(`Build timeout after ${elapsed}s - check add-on logs`));
+                        }
+                    } catch (error) {
+                        addDiagnosticLog(`Status poll error: ${error.message}`, 'error');
+                        if (pollAttempts >= MAX_POLL_ATTEMPTS) {
+                            hideProgressBar();
+                            clearInterval(pollInterval);
+                            reject(error);
+                        }
+                    }
+                }, 1000); // Poll every second
+            });
+        }
+        
+        /**
+         * Enhanced error display with detailed troubleshooting
+         */
+        function showDetailedError(title, message, troubleshooting = []) {
+            const viz = document.getElementById('visualization');
+            let html = `
+                <div class="error">
+                    <h3 style="margin-bottom: 15px;">⚠️ ${escapeHtml(title)}</h3>
+                    <p style="margin-bottom: 15px; white-space: pre-wrap;">${escapeHtml(message)}</p>
+            `;
+            
+            if (troubleshooting && troubleshooting.length > 0) {
+                html += `
+                    <p style="margin-bottom: 10px;"><strong>Troubleshooting Steps:</strong></p>
+                    <ol style="margin-left: 20px; margin-bottom: 15px;">
+                `;
+                troubleshooting.forEach(step => {
+                    html += `<li style="margin-bottom: 8px;">${escapeHtml(step)}</li>`;
+                });
+                html += `</ol>`;
+            }
+            
+            html += `
+                    <button onclick="window.location.reload()" style="margin-top: 15px; margin-right: 10px; padding: 10px 20px; font-size: 1em; cursor: pointer;">
+                        🔄 Refresh Page
+                    </button>
+                    <button onclick="toggleDiagnostics()" style="margin-top: 15px; padding: 10px 20px; font-size: 1em; cursor: pointer;">
+                        📋 Show Diagnostic Logs
+                    </button>
+                </div>
+            `;
+            viz.innerHTML = html;
+            showDiagnosticPanel();
+        }
+        
         // NOTE: All API fetch() calls are routed through getApiUrl() to normalize paths
         // and handle ingress subpaths. This ensures the URLs resolve correctly both when
         // accessed directly at the server root and when accessed through Home Assistant's
@@ -1518,76 +1726,156 @@ class DependencyTreeWebServer:
         }
         
         async function loadComponents() {
-            addDiagnosticLog('Starting component loading', 'info');
-            updateStatusDetail('Loading components and status...');
+            addDiagnosticLog('Starting component loading with progress tracking', 'info');
+            updateStatusDetail('Initializing...');
             
             try {
-                // First check the status to see if the graph is still building
-                let statusResponse;
+                // STEP 1: Initial status check with timeout
+                addDiagnosticLog('Step 1: Checking initial status', 'info');
+                let initialStatus;
                 try {
                     const statusUrl = getApiUrl('api/status');
                     addDiagnosticLog('Fetching status from ' + statusUrl, 'info');
                     console.log('[API] Fetching status from:', statusUrl);
                     
-                    statusResponse = await fetch(statusUrl, {
+                    const statusResponse = await fetchWithTimeout(statusUrl, {
                         credentials: 'same-origin'
-                    });
+                    }, 8000); // 8 second timeout
                     
                     console.log('[API] Status response received:', statusResponse.status, statusResponse.statusText);
                     addDiagnosticLog('Status response: HTTP ' + statusResponse.status, 'info');
                     
-                    if (statusResponse.ok) {
-                        const statusData = await statusResponse.json();
-                        addDiagnosticLog('Status check result: ' + JSON.stringify(statusData), 'info');
-                        console.log('Status check:', statusData);
-                        updateStatusDetail(statusData.message || 'Checking status...');
-                        
-                        // If status indicates error or unavailable, show error immediately
-                        if (statusData.status === 'error' || statusData.status === 'unavailable') {
-                            addDiagnosticLog('Service unavailable: ' + statusData.message, 'error');
-                            updateStatusIndicator('error', 'Service unavailable');
-                            updateStatusDetail(statusData.message || 'Service unavailable');
-                            const select = document.getElementById('component-select');
-                            select.innerHTML = '<option value="">Service unavailable</option>';
-                            showConfigError({
-                                error: 'Dependency graph not available',
-                                message: statusData.message || 'The dependency graph service is not available.',
-                                fix: 'Check add-on logs for errors, or enable "enable_dependency_graph: true" in configuration.'
-                            });
-                            showDiagnosticPanel();
-                            return;
-                        }
-                    } else {
-                        addDiagnosticLog('Status check failed: HTTP ' + statusResponse.status, 'warning');
+                    if (!statusResponse.ok) {
+                        throw new Error(`Status API returned HTTP ${statusResponse.status}`);
                     }
+                    
+                    initialStatus = await statusResponse.json();
+                    addDiagnosticLog('Initial status: ' + JSON.stringify(initialStatus), 'info');
+                    console.log('Initial status check:', initialStatus);
+                    updateStatusDetail(initialStatus.message || 'Checking status...');
+                    
+                    // Handle immediate error states
+                    if (initialStatus.status === 'error' || initialStatus.status === 'unavailable') {
+                        hideProgressBar();
+                        addDiagnosticLog('Service unavailable: ' + initialStatus.message, 'error');
+                        updateStatusIndicator('error', 'Service unavailable');
+                        updateStatusDetail(initialStatus.message || 'Service unavailable');
+                        const select = document.getElementById('component-select');
+                        select.innerHTML = '<option value="">Service unavailable</option>';
+                        
+                        showDetailedError(
+                            'Dependency Graph Unavailable',
+                            initialStatus.message || 'The dependency graph service is not available.',
+                            [
+                                'Check if "enable_dependency_graph: true" is set in add-on configuration',
+                                'View add-on logs for detailed error messages',
+                                'Verify Home Assistant integrations are accessible',
+                                'Try restarting the add-on'
+                            ]
+                        );
+                        return;
+                    }
+                    
                 } catch (statusError) {
-                    // Status check failed, continue with component loading anyway
-                    addDiagnosticLog('Status check exception: ' + statusError.message, 'warning');
-                    console.warn('Status check failed:', statusError);
+                    addDiagnosticLog('Initial status check failed: ' + statusError.message, 'error');
+                    console.error('Initial status check failed:', statusError);
+                    
+                    // Try to continue anyway, but show warning
+                    updateStatusDetail('Status check failed, attempting to load components...');
+                    showDetailedError(
+                        'Status Check Failed',
+                        `Could not check dependency graph status: ${statusError.message}`,
+                        [
+                            'Network connectivity issue or API timeout',
+                            'Check your network connection',
+                            'Check add-on logs for backend errors',
+                            'Try refreshing the page'
+                        ]
+                    );
+                    return;
                 }
+                
+                // STEP 2: If building, poll for progress with progress bar
+                if (initialStatus.status === 'building') {
+                    addDiagnosticLog('Graph is building, starting progress polling', 'info');
+                    updateStatusIndicator('loading', 'Building graph...');
+                    
+                    try {
+                        const finalStatus = await pollBuildStatus();
+                        addDiagnosticLog('Build completed: ' + JSON.stringify(finalStatus), 'info');
+                        // Continue to component loading
+                    } catch (pollError) {
+                        hideProgressBar();
+                        addDiagnosticLog('Build polling failed: ' + pollError.message, 'error');
+                        updateStatusIndicator('error', 'Build timeout');
+                        updateStatusDetail(pollError.message);
+                        
+                        showDetailedError(
+                            'Dependency Graph Build Timeout',
+                            pollError.message,
+                            [
+                                'The dependency graph is taking longer than expected to build',
+                                'Check add-on logs for "BUILDING DEPENDENCY GRAPH" messages',
+                                'Large systems (100+ integrations) may take 30-60 seconds',
+                                'Look for path scanning errors in logs',
+                                'Try refreshing the page in a few moments'
+                            ]
+                        );
+                        return;
+                    }
+                }
+                
+                // STEP 3: Load components list
+                hideProgressBar(); // Hide progress bar before loading final components
+                addDiagnosticLog('Step 3: Loading components list', 'info');
+                updateStatusIndicator('loading', 'Loading components...');
+                updateStatusDetail('Fetching component list...');
                 
                 const componentsUrl = getApiUrl('api/components');
                 addDiagnosticLog('Fetching components from ' + componentsUrl, 'info');
                 console.log('[API] Fetching components from:', componentsUrl);
                 
-                const response = await fetch(componentsUrl, {
-                    credentials: 'same-origin'
-                });
+                let response;
+                try {
+                    response = await fetchWithTimeout(componentsUrl, {
+                        credentials: 'same-origin'
+                    }, 15000); // 15 second timeout for components
+                } catch (fetchError) {
+                    addDiagnosticLog('Components fetch failed: ' + fetchError.message, 'error');
+                    updateStatusIndicator('error', 'Network error');
+                    updateStatusDetail('Failed to fetch components');
+                    
+                    showDetailedError(
+                        'Network Error',
+                        `Failed to load components: ${fetchError.message}`,
+                        [
+                            'Check your network connection',
+                            'Verify the add-on is running (check add-on status)',
+                            'Check for proxy/ingress configuration issues',
+                            'Try accessing directly via port 8099 if using ingress',
+                            'Check browser console for CORS errors'
+                        ]
+                    );
+                    return;
+                }
                 
                 console.log('[API] Components response received:', response.status, response.statusText);
                 addDiagnosticLog('Components fetch response: HTTP ' + response.status, 'info');
                 
+                // Handle error responses
                 if (response.status === 503) {
-                    // Service unavailable - show detailed configuration error
                     addDiagnosticLog('Service unavailable (503)', 'error');
                     updateStatusIndicator('error', 'Service unavailable');
                     updateStatusDetail('Dependency graph service unavailable');
-                    showDiagnosticPanel();
+                    
                     try {
                         const data = await response.json();
                         showConfigError(data);
                     } catch (e) {
-                        showConfigError({ error: 'Service unavailable', message: 'The dependency graph service is not available.' });
+                        showConfigError({ 
+                            error: 'Service unavailable', 
+                            message: 'The dependency graph service is not available.' 
+                        });
                     }
                     return;
                 }
@@ -1596,168 +1884,79 @@ class DependencyTreeWebServer:
                     addDiagnosticLog(`HTTP error: ${response.status} ${response.statusText}`, 'error');
                     updateStatusIndicator('error', 'Failed to load');
                     updateStatusDetail(`Failed to load components (HTTP ${response.status})`);
-                    showDiagnosticPanel();
-                    showError(`Failed to load components: HTTP ${response.status} ${response.statusText}`);
+                    
+                    showDetailedError(
+                        'Component Loading Failed',
+                        `HTTP ${response.status}: ${response.statusText}`,
+                        [
+                            'API request failed with error code',
+                            'Check add-on logs for backend errors',
+                            'Verify the add-on is running properly',
+                            'Try restarting the add-on'
+                        ]
+                    );
                     return;
                 }
                 
-                const data = await response.json();
-                addDiagnosticLog('Components data received, count: ' + (data.components ? data.components.length : 'unknown'), 'info');
+                // STEP 4: Parse and validate component data
+                let data;
+                try {
+                    data = await response.json();
+                    addDiagnosticLog('Components data received, count: ' + (data.components ? data.components.length : 'unknown'), 'info');
+                } catch (parseError) {
+                    addDiagnosticLog('Failed to parse JSON response: ' + parseError.message, 'error');
+                    updateStatusIndicator('error', 'Parse error');
+                    
+                    showDetailedError(
+                        'Invalid Response',
+                        'Failed to parse API response',
+                        [
+                            'The API returned invalid JSON data',
+                            'This may indicate a backend error',
+                            'Check add-on logs for error messages',
+                            'Try restarting the add-on'
+                        ]
+                    );
+                    return;
+                }
                 
                 if (data.error) {
                     addDiagnosticLog('API returned error: ' + data.error, 'error');
                     updateStatusIndicator('error', 'API error');
-                    showDiagnosticPanel();
-                    showError(data.error);
+                    showDetailedError('API Error', data.error, [
+                        'The backend returned an error',
+                        'Check add-on logs for details',
+                        'Try refreshing the page'
+                    ]);
                     return;
                 }
                 
+                // STEP 5: Handle components
                 components = data.components;
                 const select = document.getElementById('component-select');
                 
                 if (components.length === 0) {
-                    // Check status again to see if the graph building is actually complete
-                    // If it's complete/failed, show error immediately instead of retrying
-                    let shouldRetry = true;
-                    
-                    try {
-                        const statusRecheck = await fetch(getApiUrl('api/status'), {
-                            credentials: 'same-origin'
-                        });
-                        
-                        if (statusRecheck.ok) {
-                            const statusData = await statusRecheck.json();
-                            addDiagnosticLog('Status recheck: ' + JSON.stringify(statusData), 'info');
-                            
-                            // CRITICAL FIX: Check status and components_count together to detect race conditions
-                            // When graph completes between fetch and status check, we need to check BOTH:
-                            // - status says 'ready' or 'error' (build complete)
-                            // - components_count confirms whether there are actually components or not
-                            
-                            if (statusData.status === 'ready' || statusData.status === 'error') {
-                                if (statusData.components_count === 0) {
-                                    // Status is ready/error AND confirms 0 components - genuinely no integrations
-                                    shouldRetry = false;
-                                    addDiagnosticLog('Graph build complete with 0 components, showing error immediately', 'info');
-                                } else {
-                                    // Status is ready but components_count > 0 - race condition detected!
-                                    // The fetch happened before the graph completed, retry to get the components
-                                    shouldRetry = true;
-                                    addDiagnosticLog(`Race condition detected: status=${statusData.status} with ${statusData.components_count} components but fetch returned 0. Will retry.`, 'warning');
-                                }
-                            }
-                            // If build_status is explicitly 'completed' or 'failed', also check components_count
-                            else if (statusData.build_status === 'completed' || statusData.build_status === 'failed') {
-                                if (statusData.components_count === 0) {
-                                    shouldRetry = false;
-                                    addDiagnosticLog('Graph build finished (status: ' + statusData.build_status + ') with 0 components', 'info');
-                                } else {
-                                    // Build is complete with components but fetch got none - race condition
-                                    shouldRetry = true;
-                                    addDiagnosticLog(`Race condition detected: build_status=${statusData.build_status} with ${statusData.components_count} components but fetch returned 0. Will retry.`, 'warning');
-                                }
-                            }
-                        }
-                    } catch (statusError) {
-                        addDiagnosticLog('Status recheck failed: ' + statusError.message, 'warning');
-                        // If status check fails, continue with retry logic
-                    }
-                    
-                    // If we should retry (graph is still building), do so with max retry limit
-                    if (shouldRetry) {
-                        componentLoadAttempts++;
-                        
-                        if (componentLoadAttempts < MAX_COMPONENT_LOAD_RETRIES) {
-                            // Still loading, retry after 2 seconds
-                            const elapsed = componentLoadAttempts * 2;
-                            const remaining = (MAX_COMPONENT_LOAD_RETRIES - componentLoadAttempts) * 2;
-                            addDiagnosticLog(`Components empty, retry ${componentLoadAttempts}/${MAX_COMPONENT_LOAD_RETRIES} (elapsed: ${elapsed}s)`, 'warning');
-                            console.log(`Components still loading, retry ${componentLoadAttempts}/${MAX_COMPONENT_LOAD_RETRIES} in 2 seconds... (elapsed: ${elapsed}s, max wait: ${remaining}s more)`);
-                            select.innerHTML = `<option value="">Loading components (${elapsed}s elapsed, building dependency graph)...</option>`;
-                            updateStatusIndicator('loading', `Loading... (${elapsed}s)`);
-                            setTimeout(loadComponents, 2000);
-                            return;
-                        }
-                    }
-                    
-                    // Either we shouldn't retry (build complete) or we hit max retries
-                    
-                    // Show error message immediately (either build complete or max retries hit)
-                    const waitTime = componentLoadAttempts * 2;  // Actual wait time
-                    if (shouldRetry) {
-                        addDiagnosticLog(`No components after ${waitTime}s (max retries), giving up`, 'error');
-                    } else {
-                        addDiagnosticLog(`Graph build complete with 0 components (waited ${waitTime}s)`, 'error');
-                    }
+                    // No components found - show comprehensive error
+                    addDiagnosticLog('No components found, showing troubleshooting guide', 'error');
                     updateStatusIndicator('error', 'No components found');
-                    showDiagnosticPanel();
-                    select.innerHTML = '<option value="">No integrations found</option>';
                     updateStatusDetail('Dependency graph returned 0 integrations');
+                    select.innerHTML = '<option value="">No integrations found</option>';
                     
-                    // Show detailed error with troubleshooting steps
-                    const viz = document.getElementById('visualization');
-                    viz.innerHTML = `
-                        <div class="error">
-                            <h3 style="margin-bottom: 15px;">⚠️ No Integrations Found</h3>
-                            <p style="margin-bottom: 15px;">
-                                The dependency graph was built but found <strong>0 integrations</strong>${waitTime > 0 ? ` after waiting ${waitTime} seconds` : ''}.
-                            </p>
-                            
-                            <p style="margin-bottom: 10px;"><strong>This usually means:</strong></p>
-                            <ol style="margin-left: 20px; margin-bottom: 15px;">
-                                <li style="margin-bottom: 8px;">
-                                    <strong>Integration paths are incorrect or inaccessible</strong><br>
-                                    <span style="font-size: 0.9em; color: #ffb3b3;">
-                                        The add-on can't find your Home Assistant integrations.
-                                    </span>
-                                </li>
-                                <li style="margin-bottom: 8px;">
-                                    <strong>The dependency graph build failed</strong><br>
-                                    <span style="font-size: 0.9em; color: #ffb3b3;">
-                                        Check the add-on logs for error messages during graph building.
-                                    </span>
-                                </li>
-                            </ol>
-                            
-                            <p style="margin-bottom: 10px;"><strong>How to fix:</strong></p>
-                            <ol style="margin-left: 20px; margin-bottom: 15px;">
-                                <li style="margin-bottom: 8px;">
-                                    Check the <strong>add-on logs</strong> for details:
-                                    <ul style="margin-left: 20px; margin-top: 5px;">
-                                        <li>Go to Settings → Add-ons → Home Assistant Sentry</li>
-                                        <li>Click the "Log" tab</li>
-                                        <li>Look for messages starting with "BUILDING DEPENDENCY GRAPH"</li>
-                                        <li>Look for "FOUND ALTERNATIVE INTEGRATION PATHS" suggestions</li>
-                                    </ul>
-                                </li>
-                                <li style="margin-bottom: 8px;">
-                                    If logs show path errors, <strong>configure custom paths</strong>:
-                                    <ul style="margin-left: 20px; margin-top: 5px;">
-                                        <li>Go to Configuration tab</li>
-                                        <li>Add the paths shown in the logs to 'custom_integration_paths'</li>
-                                        <li>Save and restart the add-on</li>
-                                    </ul>
-                                </li>
-                                <li style="margin-bottom: 8px;">
-                                    Try <strong>refreshing this page</strong> after checking the logs
-                                </li>
-                            </ol>
-                            
-                            <p style="font-size: 0.9em; color: #ffb3b3; margin-top: 15px;">
-                                💡 <strong>Tip:</strong> The add-on automatically scans common paths and suggests alternatives in the logs.
-                            </p>
-                            
-                            <button onclick="window.location.reload()" style="margin-top: 15px; margin-right: 10px;">
-                                🔄 Refresh Page
-                            </button>
-                            <button onclick="toggleDiagnostics()" style="margin-top: 15px;">
-                                📋 Hide Diagnostic Logs
-                            </button>
-                        </div>`;
+                    showDetailedError(
+                        'No Integrations Found',
+                        'The dependency graph was built but found 0 integrations.',
+                        [
+                            'Check add-on logs for "BUILDING DEPENDENCY GRAPH" section',
+                            'Look for "FOUND ALTERNATIVE INTEGRATION PATHS" suggestions',
+                            'Verify integration paths: Go to Settings → Add-ons → Home Assistant Sentry → Log',
+                            'If custom paths needed, configure "custom_integration_paths" in add-on configuration',
+                            'Ensure Home Assistant integrations are properly installed'
+                        ]
+                    );
                     return;
                 }
                 
-                // Successfully loaded components, reset retry counter
+                // STEP 6: Success! Populate dropdown
                 componentLoadAttempts = 0;
                 initializationComplete = true;
                 updateStatusDetail(`${components.length} components available`);
@@ -1773,22 +1972,33 @@ class DependencyTreeWebServer:
                 components.forEach(comp => {
                     const option = document.createElement('option');
                     option.value = comp.domain;
-                    // Show type label and name, with dependency count
                     option.textContent = `[${comp.type_label}] ${comp.name} (${comp.dependency_count} deps)`;
                     select.appendChild(option);
                 });
                 
-                // Log success for debugging
+                // Log success
                 addDiagnosticLog(`Successfully loaded ${components.length} components`, 'info');
                 updateStatusIndicator('success', `${components.length} components loaded`);
                 console.log(`Loaded ${components.length} components successfully`);
+                
             } catch (error) {
+                // Catch-all error handler
+                hideProgressBar();
                 addDiagnosticLog('Component loading exception: ' + error.message, 'error');
                 addDiagnosticLog('Error stack: ' + (error.stack || 'no stack trace'), 'error');
                 updateStatusIndicator('error', 'Load failed');
                 updateStatusDetail('Component loading failed');
-                showDiagnosticPanel();
-                showError('Failed to load components: ' + error.message);
+                
+                showDetailedError(
+                    'Unexpected Error',
+                    `An unexpected error occurred: ${error.message}`,
+                    [
+                        'Check browser console for detailed error messages',
+                        'Check add-on logs for backend errors',
+                        'Try refreshing the page',
+                        'If problem persists, report the issue with logs'
+                    ]
+                );
                 console.error('Component loading error:', error);
             }
         }
