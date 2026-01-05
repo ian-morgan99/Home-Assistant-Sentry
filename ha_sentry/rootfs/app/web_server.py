@@ -259,7 +259,7 @@ class DependencyTreeWebServer:
     async def _handle_status(self, request):
         """Get the status of the dependency graph building process"""
         try:
-            logger.debug(f"Status check requested from {request.remote} path={request.path}")
+            logger.debug("Status check requested")
             if not self.dependency_graph_builder:
                 return web.json_response({
                     'status': 'unavailable',
@@ -331,7 +331,7 @@ class DependencyTreeWebServer:
     async def _handle_get_components(self, request):
         """Get list of all components (integrations and addons)"""
         try:
-            logger.debug(f"Components requested from {request.remote} path={request.path}")
+            logger.debug("Components requested")
             if not self.dependency_graph_builder:
                 logger.error("API request failed: Dependency graph not available")
                 logger.error("The dependency graph is required for web UI functionality")
@@ -388,7 +388,7 @@ class DependencyTreeWebServer:
         """Get dependency tree for a specific component (what it depends on)"""
         try:
             component = request.match_info['component']
-            logger.debug(f"Dependency tree requested for '{component}' from {request.remote}")
+            logger.debug(f"Dependency tree requested for '{component}'")
             
             if not self.dependency_graph_builder:
                 logger.warning(f"API request for dependency tree of '{component}' failed: Dependency graph not available")
@@ -472,7 +472,7 @@ class DependencyTreeWebServer:
         """Get 'where used' tree for a component or dependency (what depends on it)"""
         try:
             item = request.match_info['component']
-            logger.debug(f"Where-used requested for '{item}' from {request.remote}")
+            logger.debug(f"Where-used requested for '{item}'")
             
             if not self.dependency_graph_builder:
                 logger.warning(f"API request for where-used of '{item}' failed: Dependency graph not available")
@@ -1126,10 +1126,6 @@ class DependencyTreeWebServer:
         
         // Diagnostic logging
         const diagnosticLogs = [];
-        const apiBasePath = (() => {
-            const pathname = window.location.pathname || '/';
-            return pathname.endsWith('/') ? pathname : pathname + '/';
-        })();
         
         function addDiagnosticLog(message, level = 'info') {
             const timestamp = new Date().toISOString().substring(11, 23);
@@ -1145,11 +1141,26 @@ class DependencyTreeWebServer:
         }
 
         function getApiUrl(path) {
-            const sanitizedPath = (path || '').replace(/^\\//, '');
-            const base = window.location.origin + apiBasePath;
-            const url = new URL(sanitizedPath, base).toString();
-            addDiagnosticLog(`API URL resolved: ${sanitizedPath} -> ${url}`, 'info');
-            return url;
+            const rawPath = path || '';
+            const rawLower = rawPath.toLowerCase();
+            let decodedPath = rawPath;
+            try {
+                decodedPath = decodeURIComponent(rawPath);
+            } catch (e) {
+                addDiagnosticLog('Failed to decode API path, using raw value', 'warning');
+            }
+            const decodedLower = decodedPath.toLowerCase();
+            const traversalPattern = /(\.\.)|(%2e)|(%252e)|(%2f)|(%5c)|(%252f)/i;
+            if (traversalPattern.test(rawLower) || decodedLower.includes('..')) {
+                throw new Error('Unsafe API path detected');
+            }
+            const sanitizedPath = decodedPath
+                .replace(/^\/+/, '')
+                .replace(/\/{2,}/g, '/');
+            const pathname = window.location.pathname || '/';
+            const basePath = pathname.endsWith('/') ? pathname : pathname + '/';
+            const base = window.location.origin + basePath;
+            return new URL(sanitizedPath, base).toString();
         }
         
         function updateDiagnosticPanel() {
@@ -1202,7 +1213,7 @@ class DependencyTreeWebServer:
         function updateStatusDetail(message) {
             const detail = document.getElementById('status-detail');
             if (!detail) return;
-            detail.textContent = message || '';
+            detail.textContent = String(message || '');
         }
         
         function handleGlobalInitTimeout() {
@@ -1226,8 +1237,9 @@ class DependencyTreeWebServer:
         }
         
         // NOTE: All API fetch() calls are routed through getApiUrl() to normalize paths
-        // This ensures the URLs resolve correctly both when accessed directly at the server root
-        // and when accessed through Home Assistant's ingress proxy at /api/hassio_ingress/ha_sentry/
+        // and handle ingress subpaths. This ensures the URLs resolve correctly both when
+        // accessed directly at the server root and when accessed through Home Assistant's
+        // ingress proxy at /api/hassio_ingress/ha_sentry/
         
         /**
          * Escape HTML entities to prevent XSS attacks
