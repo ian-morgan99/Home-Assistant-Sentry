@@ -259,6 +259,7 @@ class DependencyTreeWebServer:
     async def _handle_status(self, request):
         """Get the status of the dependency graph building process"""
         try:
+            logger.debug(f"Status check requested from {request.remote} path={request.path}")
             if not self.dependency_graph_builder:
                 return web.json_response({
                     'status': 'unavailable',
@@ -330,6 +331,7 @@ class DependencyTreeWebServer:
     async def _handle_get_components(self, request):
         """Get list of all components (integrations and addons)"""
         try:
+            logger.debug(f"Components requested from {request.remote} path={request.path}")
             if not self.dependency_graph_builder:
                 logger.error("API request failed: Dependency graph not available")
                 logger.error("The dependency graph is required for web UI functionality")
@@ -386,6 +388,7 @@ class DependencyTreeWebServer:
         """Get dependency tree for a specific component (what it depends on)"""
         try:
             component = request.match_info['component']
+            logger.debug(f"Dependency tree requested for '{component}' from {request.remote}")
             
             if not self.dependency_graph_builder:
                 logger.warning(f"API request for dependency tree of '{component}' failed: Dependency graph not available")
@@ -469,6 +472,7 @@ class DependencyTreeWebServer:
         """Get 'where used' tree for a component or dependency (what depends on it)"""
         try:
             item = request.match_info['component']
+            logger.debug(f"Where-used requested for '{item}' from {request.remote}")
             
             if not self.dependency_graph_builder:
                 logger.warning(f"API request for where-used of '{item}' failed: Dependency graph not available")
@@ -1021,6 +1025,7 @@ class DependencyTreeWebServer:
             <span id="status-indicator" class="status-indicator loading">
                 <span class="loading-spinner"></span> Initializing...
             </span>
+            <p id="status-detail" class="subtitle" style="margin-top: 6px;">Preparing status...</p>
         </header>
         
         <noscript>
@@ -1121,6 +1126,10 @@ class DependencyTreeWebServer:
         
         // Diagnostic logging
         const diagnosticLogs = [];
+        const apiBasePath = (() => {
+            const pathname = window.location.pathname || '/';
+            return pathname.endsWith('/') ? pathname : pathname + '/';
+        })();
         
         function addDiagnosticLog(message, level = 'info') {
             const timestamp = new Date().toISOString().substring(11, 23);
@@ -1133,6 +1142,14 @@ class DependencyTreeWebServer:
             
             // Update diagnostic panel if visible
             updateDiagnosticPanel();
+        }
+
+        function getApiUrl(path) {
+            const sanitizedPath = (path || '').replace(/^\\//, '');
+            const base = window.location.origin + apiBasePath;
+            const url = new URL(sanitizedPath, base).toString();
+            addDiagnosticLog(`API URL resolved: ${sanitizedPath} -> ${url}`, 'info');
+            return url;
         }
         
         function updateDiagnosticPanel() {
@@ -1181,11 +1198,18 @@ class DependencyTreeWebServer:
                 indicator.innerHTML = `✅ ${escapeHtml(message)}`;
             }
         }
+
+        function updateStatusDetail(message) {
+            const detail = document.getElementById('status-detail');
+            if (!detail) return;
+            detail.textContent = message || '';
+        }
         
         function handleGlobalInitTimeout() {
             if (!initializationComplete) {
                 addDiagnosticLog('Global initialization timeout reached (15s)', 'error');
                 updateStatusIndicator('error', 'Initialization timeout');
+                updateStatusDetail('Initialization exceeded 15 seconds');
                 showDiagnosticPanel();
                 
                 const select = document.getElementById('component-select');
@@ -1201,7 +1225,7 @@ class DependencyTreeWebServer:
             }
         }
         
-        // NOTE: All API fetch() calls use relative URLs with './' prefix (e.g., './api/components')
+        // NOTE: All API fetch() calls are routed through getApiUrl() to normalize paths
         // This ensures the URLs resolve correctly both when accessed directly at the server root
         // and when accessed through Home Assistant's ingress proxy at /api/hassio_ingress/ha_sentry/
         
@@ -1429,13 +1453,15 @@ class DependencyTreeWebServer:
         
         async function loadComponents() {
             addDiagnosticLog('Starting component loading', 'info');
+            updateStatusDetail('Loading components and status...');
             
             try {
                 // First check the status to see if the graph is still building
                 let statusResponse;
                 try {
-                    addDiagnosticLog('Fetching status from ./api/status', 'info');
-                    statusResponse = await fetch('./api/status', {
+                    const statusUrl = getApiUrl('api/status');
+                    addDiagnosticLog('Fetching status from ' + statusUrl, 'info');
+                    statusResponse = await fetch(statusUrl, {
                         credentials: 'same-origin'
                     });
                     
@@ -1443,11 +1469,13 @@ class DependencyTreeWebServer:
                         const statusData = await statusResponse.json();
                         addDiagnosticLog('Status check result: ' + JSON.stringify(statusData), 'info');
                         console.log('Status check:', statusData);
+                        updateStatusDetail(statusData.message || 'Checking status...');
                         
                         // If status indicates error or unavailable, show error immediately
                         if (statusData.status === 'error' || statusData.status === 'unavailable') {
                             addDiagnosticLog('Service unavailable: ' + statusData.message, 'error');
                             updateStatusIndicator('error', 'Service unavailable');
+                            updateStatusDetail(statusData.message || 'Service unavailable');
                             const select = document.getElementById('component-select');
                             select.innerHTML = '<option value="">Service unavailable</option>';
                             showConfigError({
@@ -1467,8 +1495,9 @@ class DependencyTreeWebServer:
                     console.warn('Status check failed:', statusError);
                 }
                 
-                addDiagnosticLog('Fetching components from ./api/components', 'info');
-                const response = await fetch('./api/components', {
+                const componentsUrl = getApiUrl('api/components');
+                addDiagnosticLog('Fetching components from ' + componentsUrl, 'info');
+                const response = await fetch(componentsUrl, {
                     credentials: 'same-origin'
                 });
                 
@@ -1478,6 +1507,7 @@ class DependencyTreeWebServer:
                     // Service unavailable - show detailed configuration error
                     addDiagnosticLog('Service unavailable (503)', 'error');
                     updateStatusIndicator('error', 'Service unavailable');
+                    updateStatusDetail('Dependency graph service unavailable');
                     showDiagnosticPanel();
                     try {
                         const data = await response.json();
@@ -1491,6 +1521,7 @@ class DependencyTreeWebServer:
                 if (!response.ok) {
                     addDiagnosticLog(`HTTP error: ${response.status} ${response.statusText}`, 'error');
                     updateStatusIndicator('error', 'Failed to load');
+                    updateStatusDetail(`Failed to load components (HTTP ${response.status})`);
                     showDiagnosticPanel();
                     showError(`Failed to load components: HTTP ${response.status} ${response.statusText}`);
                     return;
@@ -1516,7 +1547,7 @@ class DependencyTreeWebServer:
                     let shouldRetry = true;
                     
                     try {
-                        const statusRecheck = await fetch('./api/status', {
+                        const statusRecheck = await fetch(getApiUrl('api/status'), {
                             credentials: 'same-origin'
                         });
                         
@@ -1587,6 +1618,7 @@ class DependencyTreeWebServer:
                     updateStatusIndicator('error', 'No components found');
                     showDiagnosticPanel();
                     select.innerHTML = '<option value="">No integrations found</option>';
+                    updateStatusDetail('Dependency graph returned 0 integrations');
                     
                     // Show detailed error with troubleshooting steps
                     const viz = document.getElementById('visualization');
@@ -1654,6 +1686,7 @@ class DependencyTreeWebServer:
                 // Successfully loaded components, reset retry counter
                 componentLoadAttempts = 0;
                 initializationComplete = true;
+                updateStatusDetail(`${components.length} components available`);
                 
                 // Clear global timeout
                 if (globalInitTimeoutId) {
@@ -1679,6 +1712,7 @@ class DependencyTreeWebServer:
                 addDiagnosticLog('Component loading exception: ' + error.message, 'error');
                 addDiagnosticLog('Error stack: ' + (error.stack || 'no stack trace'), 'error');
                 updateStatusIndicator('error', 'Load failed');
+                updateStatusDetail('Component loading failed');
                 showDiagnosticPanel();
                 showError('Failed to load components: ' + error.message);
                 console.error('Component loading error:', error);
@@ -1688,7 +1722,9 @@ class DependencyTreeWebServer:
         async function loadStats() {
             try {
                 addDiagnosticLog('Loading statistics', 'info');
-                const response = await fetch('./api/graph-data', {
+                const statsUrl = getApiUrl('api/graph-data');
+                addDiagnosticLog('Fetching stats from ' + statsUrl, 'info');
+                const response = await fetch(statsUrl, {
                     credentials: 'same-origin'
                 });
                 
@@ -1747,7 +1783,7 @@ class DependencyTreeWebServer:
         }
         
         async function visualizeDependencies(component) {
-            const response = await fetch(`./api/dependency-tree/${component}`, {
+            const response = await fetch(getApiUrl(`api/dependency-tree/${component}`), {
                 credentials: 'same-origin'
             });
             
@@ -1797,7 +1833,7 @@ class DependencyTreeWebServer:
         }
         
         async function visualizeWhereUsed(component) {
-            const response = await fetch(`./api/where-used/${component}`, {
+            const response = await fetch(getApiUrl(`api/where-used/${component}`), {
                 credentials: 'same-origin'
             });
             
@@ -1853,7 +1889,7 @@ class DependencyTreeWebServer:
                 return;
             }
             
-            const response = await fetch(`./api/change-impact?components=${encodeURIComponent(componentsInput)}`, {
+            const response = await fetch(getApiUrl(`api/change-impact?components=${encodeURIComponent(componentsInput)}`), {
                 credentials: 'same-origin'
             });
             
