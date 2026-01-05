@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.3.30
+- Improve Web UI initialization diagnostics and ingress-safe API routing Web UI dependency graph remained on “Initializing” with empty component lists and non-functional “Where used” due to brittle ingress paths and lack of visible progress.
+
+
 ## 1.3.29
 - Fix 404 handler to return JSON for API/ingress paths Home Assistant Supervisor probes `/ingress/validate_session` and other routes, receiving HTML 404s that it attempts to parse as JSON, causing "Attempt to decode JSON with unexpected mimetype: text/plain" errors in Core logs.
 
