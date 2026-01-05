@@ -1,7 +1,14 @@
 # Changelog
 
 ## 1.3.31
-- Fix Web UI stuck on "Preparing status..." by properly awaiting async functions in DOMContentLoaded handler
+- Major WebUI overhaul: Add real-time progress bar, comprehensive error handling, and network timeout management
+- Show visual progress during dependency graph building (30-60 second process)
+- Poll status API every second to display real-time progress and integration count
+- Add 7 distinct error scenarios with specific troubleshooting steps
+- Implement timeout handling with AbortController (8s for status, 15s for components)
+- Extract all timeouts and thresholds to named constants for easy configuration
+- Add step-by-step diagnostic logging for precise failure tracking
+- Fix async/await in DOMContentLoaded to properly catch initialization errors
 
 
 ## 1.3.30
