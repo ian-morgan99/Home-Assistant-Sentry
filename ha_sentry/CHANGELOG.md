@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.3.32
+- Add comprehensive WebUI progress tracking and error handling to fix "Preparing status..." hang The Web UI gets stuck on "Preparing status..." when `loadComponents()` or `loadStats()` fail, because these async functions were called without `await`, causing unhandled promise rejections. This PR provides a comprehensive solution with production-grade features to address all potential failure modes.
+
+
 ## 1.3.31
 - Major WebUI overhaul: Add real-time progress bar, comprehensive error handling, and network timeout management
 - Show visual progress during dependency graph building (30-60 second process)
