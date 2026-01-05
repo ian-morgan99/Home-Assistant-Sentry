@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.3.31
+- [WIP] Analyze logs for webui not working issue The Web UI gets stuck showing "Preparing status..." because: 1. The initial HTML has static text: `<p id="status-detail">Preparing status...</p>` 2. During initialization, `updateStatusIndicator()` is called, which updates the status indicator but NOT the status detail text 3. The status detail text is only updated later in `loadComponents()`, but if there are JavaScript errors or API call failures, this may not execute 4. No diagnostic logging existed to trace the initialization flow
+
+
 ## 1.3.30
 - Improve Web UI initialization diagnostics and ingress-safe API routing Web UI dependency graph remained on “Initializing” with empty component lists and non-functional “Where used” due to brittle ingress paths and lack of visible progress.
 
