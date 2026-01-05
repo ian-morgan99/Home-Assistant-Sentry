@@ -1162,6 +1162,14 @@ class DependencyTreeWebServer:
         let globalInitTimeoutId = null;
         let initializationComplete = false;
         
+        // Progress bar and polling constants
+        const MIN_PROGRESS_BAR_WIDTH = 5;  // Minimum progress bar width percentage for visibility
+        const MAX_PROGRESS_BEFORE_COMPLETE = 90;  // Cap progress at 90% until actual completion
+        const MAX_BUILD_POLL_ATTEMPTS = 60;  // Maximum polling attempts (60 seconds)
+        const POLL_INTERVAL_MS = 1000;  // Poll status every 1 second
+        const STATUS_CHECK_TIMEOUT_MS = 8000;  // Timeout for status API calls
+        const COMPONENTS_FETCH_TIMEOUT_MS = 15000;  // Timeout for components API calls
+        
         // Diagnostic logging
         const diagnosticLogs = [];
         
@@ -1302,7 +1310,7 @@ class DependencyTreeWebServer:
             if (!container || !bar) return;
             
             container.style.display = 'block';
-            bar.style.width = Math.max(5, Math.min(100, percent)) + '%';
+            bar.style.width = Math.max(MIN_PROGRESS_BAR_WIDTH, Math.min(100, percent)) + '%';
             
             // Show percentage in bar if > 10%
             if (percent > 10) {
@@ -1369,7 +1377,7 @@ class DependencyTreeWebServer:
             const startTime = Date.now();
             let lastComponentCount = 0;
             let pollAttempts = 0;
-            const MAX_POLL_ATTEMPTS = 60; // 60 attempts * 1 second = 60 seconds max
+            const MAX_POLL_ATTEMPTS = MAX_BUILD_POLL_ATTEMPTS; // Use constant defined at top
             
             return new Promise((resolve, reject) => {
                 const pollInterval = setInterval(async () => {
@@ -1382,7 +1390,7 @@ class DependencyTreeWebServer:
                         
                         const response = await fetchWithTimeout(statusUrl, {
                             credentials: 'same-origin'
-                        }, 8000); // 8 second timeout for status checks
+                        }, STATUS_CHECK_TIMEOUT_MS); // Timeout for status checks
                         
                         if (!response.ok) {
                             addDiagnosticLog(`Status poll failed: HTTP ${response.status}`, 'warning');
@@ -1398,7 +1406,7 @@ class DependencyTreeWebServer:
                         
                         // Update progress bar based on status
                         if (statusData.status === 'building') {
-                            const progress = Math.min(90, (pollAttempts / MAX_POLL_ATTEMPTS) * 100);
+                            const progress = Math.min(MAX_PROGRESS_BEFORE_COMPLETE, (pollAttempts / MAX_POLL_ATTEMPTS) * 100);
                             updateProgressBar(
                                 progress,
                                 'Building dependency graph...',
@@ -1444,7 +1452,7 @@ class DependencyTreeWebServer:
                             reject(error);
                         }
                     }
-                }, 1000); // Poll every second
+                }, POLL_INTERVAL_MS); // Poll at configured interval
             });
         }
         
@@ -1740,7 +1748,7 @@ class DependencyTreeWebServer:
                     
                     const statusResponse = await fetchWithTimeout(statusUrl, {
                         credentials: 'same-origin'
-                    }, 8000); // 8 second timeout
+                    }, STATUS_CHECK_TIMEOUT_MS); // Timeout for status checks
                     
                     console.log('[API] Status response received:', statusResponse.status, statusResponse.statusText);
                     addDiagnosticLog('Status response: HTTP ' + statusResponse.status, 'info');
@@ -1839,7 +1847,7 @@ class DependencyTreeWebServer:
                 try {
                     response = await fetchWithTimeout(componentsUrl, {
                         credentials: 'same-origin'
-                    }, 15000); // 15 second timeout for components
+                    }, COMPONENTS_FETCH_TIMEOUT_MS); // Timeout for components fetch
                 } catch (fetchError) {
                     addDiagnosticLog('Components fetch failed: ' + fetchError.message, 'error');
                     updateStatusIndicator('error', 'Network error');
