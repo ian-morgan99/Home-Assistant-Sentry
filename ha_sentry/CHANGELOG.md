@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.3.33
+- Delay initial update check to prevent WebUI blocking on slow AI endpoints WebUI hung on "Preparing status..." when LMStudio accepted TCP connections but didn't respond to HTTP requests, blocking initial startup.
+
+
 ## 1.3.32
 - Add comprehensive WebUI progress tracking and error handling to fix "Preparing status..." hang The Web UI gets stuck on "Preparing status..." when `loadComponents()` or `loadStats()` fail, because these async functions were called without `await`, causing unhandled promise rejections. This PR provides a comprehensive solution with production-grade features to address all potential failure modes.
 
