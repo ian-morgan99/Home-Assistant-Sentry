@@ -1108,6 +1108,32 @@ class DependencyTreeWebServer:
     </div>
     
     <script>
+        // IMMEDIATE DIAGNOSTIC: Update status as soon as script loads (before DOM ready)
+        // This helps diagnose if JavaScript is executing at all
+        (function() {
+            try {
+                console.log('[INIT] Script block executing immediately');
+                // Try to update status even before DOM is fully ready
+                const updateNow = function() {
+                    const statusDetail = document.getElementById('status-detail');
+                    if (statusDetail) {
+                        statusDetail.textContent = 'JavaScript is executing... waiting for DOM ready';
+                        console.log('[INIT] Successfully updated status-detail element');
+                    } else {
+                        console.log('[INIT] status-detail element not yet available');
+                    }
+                };
+                
+                // Try immediately (element might already exist)
+                updateNow();
+                
+                // Also try after a tiny delay in case DOM is still loading
+                setTimeout(updateNow, 10);
+            } catch (e) {
+                console.error('[INIT] CRITICAL: Immediate script execution failed:', e);
+            }
+        })();
+        
         let currentMode = 'dependency';
         let components = [];
         let componentLoadIntervalId = null;  // Track interval to prevent memory leaks
@@ -1294,36 +1320,51 @@ class DependencyTreeWebServer:
             }, COMPONENT_LOAD_INTERVAL_MS);
         }
         
-        // Initialize
-        document.addEventListener('DOMContentLoaded', () => {
-            addDiagnosticLog('DOM Content Loaded', 'info');
-            addDiagnosticLog('Current URL: ' + window.location.href, 'info');
-            addDiagnosticLog('User Agent: ' + navigator.userAgent.substring(0, 100), 'info');
-            
-            updateStatusIndicator('loading', 'Loading components...');
-            
-            // Set global timeout failsafe
-            globalInitTimeoutId = setTimeout(handleGlobalInitTimeout, GLOBAL_INIT_TIMEOUT_MS);
-            
-            // Start loading
-            try {
-                loadComponents();
-                loadStats();
-                setupModeButtons();
-                handleUrlFragment();  // Handle URL fragment for deep linking
-            } catch (error) {
-                addDiagnosticLog('Error during initialization: ' + error.message, 'error');
-                updateStatusIndicator('error', 'Initialization failed');
-                showDiagnosticPanel();
-                showError('Failed to initialize Web UI: ' + error.message);
-            }
-            
-            // Log current URL for debugging
-            console.log('Web UI loaded');
-            console.log('  URL:', window.location.href);
-            console.log('  Path:', window.location.pathname);
-            console.log('  Hash:', window.location.hash);
-        });
+        // Initialize - wrap everything in try-catch for safety
+        try {
+            document.addEventListener('DOMContentLoaded', () => {
+                try {
+                    addDiagnosticLog('DOM Content Loaded', 'info');
+                    addDiagnosticLog('Current URL: ' + window.location.href, 'info');
+                    addDiagnosticLog('User Agent: ' + navigator.userAgent.substring(0, 100), 'info');
+                    
+                    updateStatusIndicator('loading', 'Loading components...');
+                    updateStatusDetail('Initializing... Loading components and status');
+                    
+                    // Set global timeout failsafe
+                    globalInitTimeoutId = setTimeout(handleGlobalInitTimeout, GLOBAL_INIT_TIMEOUT_MS);
+                    
+                    // Start loading
+                    try {
+                        loadComponents();
+                        loadStats();
+                        setupModeButtons();
+                        handleUrlFragment();  // Handle URL fragment for deep linking
+                    } catch (error) {
+                        addDiagnosticLog('Error during initialization: ' + error.message, 'error');
+                        addDiagnosticLog('Error stack: ' + (error.stack || 'no stack'), 'error');
+                        updateStatusIndicator('error', 'Initialization failed');
+                        updateStatusDetail('Initialization error: ' + error.message);
+                        showDiagnosticPanel();
+                        showError('Failed to initialize Web UI: ' + error.message);
+                    }
+                    
+                    // Log current URL for debugging
+                    console.log('Web UI loaded');
+                    console.log('  URL:', window.location.href);
+                    console.log('  Path:', window.location.pathname);
+                    console.log('  Hash:', window.location.hash);
+                } catch (error) {
+                    // Catastrophic error in DOMContentLoaded handler
+                    console.error('CRITICAL: DOMContentLoaded handler failed:', error);
+                    alert('Critical error loading Web UI. Check browser console. Error: ' + error.message);
+                }
+            });
+        } catch (error) {
+            // addEventListener itself failed
+            console.error('CRITICAL: Failed to attach DOMContentLoaded listener:', error);
+            alert('Critical error: Cannot attach DOMContentLoaded listener. Error: ' + error.message);
+        }
         
         function handleUrlFragment() {
             // Check for query parameters first (more reliable in HA notifications)
@@ -1486,9 +1527,14 @@ class DependencyTreeWebServer:
                 try {
                     const statusUrl = getApiUrl('api/status');
                     addDiagnosticLog('Fetching status from ' + statusUrl, 'info');
+                    console.log('[API] Fetching status from:', statusUrl);
+                    
                     statusResponse = await fetch(statusUrl, {
                         credentials: 'same-origin'
                     });
+                    
+                    console.log('[API] Status response received:', statusResponse.status, statusResponse.statusText);
+                    addDiagnosticLog('Status response: HTTP ' + statusResponse.status, 'info');
                     
                     if (statusResponse.ok) {
                         const statusData = await statusResponse.json();
@@ -1522,10 +1568,13 @@ class DependencyTreeWebServer:
                 
                 const componentsUrl = getApiUrl('api/components');
                 addDiagnosticLog('Fetching components from ' + componentsUrl, 'info');
+                console.log('[API] Fetching components from:', componentsUrl);
+                
                 const response = await fetch(componentsUrl, {
                     credentials: 'same-origin'
                 });
                 
+                console.log('[API] Components response received:', response.status, response.statusText);
                 addDiagnosticLog('Components fetch response: HTTP ' + response.status, 'info');
                 
                 if (response.status === 503) {
