@@ -1142,16 +1142,14 @@ class DependencyTreeWebServer:
 
         function getApiUrl(path) {
             const rawPath = path || '';
-            const rawLower = rawPath.toLowerCase();
             let decodedPath = rawPath;
             try {
                 decodedPath = decodeURIComponent(rawPath);
             } catch (e) {
                 addDiagnosticLog('Failed to decode API path, using raw value', 'warning');
             }
-            const decodedLower = decodedPath.toLowerCase();
             const traversalPattern = /(\.\.)|(%2e)|(%252e)|(%2f)|(%5c)|(%252f)/i;
-            if (traversalPattern.test(rawLower) || decodedLower.includes('..')) {
+            if (traversalPattern.test(rawPath) || decodedPath.includes('..')) {
                 throw new Error('Unsafe API path detected');
             }
             const sanitizedPath = decodedPath
