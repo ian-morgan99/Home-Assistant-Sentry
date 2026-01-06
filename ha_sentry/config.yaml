@@ -143,6 +143,14 @@ map:
 #   WHEN TO USE: Enable to access the interactive dependency visualization via the
 #                Sentry sidebar panel. Requires enable_dependency_graph to be true.
 #
+# port: Web interface port
+#   - Default: 8099
+#   - Range: 1024-65535
+#   WHEN TO USE: Change if port 8099 is already in use by another add-on.
+#                Common alternatives: 8097, 8098, 8100
+#   IMPORTANT: After changing this, restart the add-on. The web UI will be accessible
+#              via the Sentry sidebar panel regardless of which port you choose.
+#
 # REPORTING CONFIGURATION
 # -----------------------
 # save_reports: Save machine-readable JSON reports to disk
@@ -206,6 +214,7 @@ options:
   enable_dependency_graph: true
   save_reports: true
   enable_web_ui: true
+  port: 8099
   custom_integration_paths: []
   monitor_logs_after_update: false
   log_check_lookback_hours: 24
@@ -226,6 +235,7 @@ schema:
   enable_dependency_graph: bool
   save_reports: bool
   enable_web_ui: bool
+  port: port
   custom_integration_paths:
     - str?
   monitor_logs_after_update: bool

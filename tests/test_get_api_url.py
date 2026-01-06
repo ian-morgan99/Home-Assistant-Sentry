@@ -27,13 +27,11 @@ def run_node_test():
                 addDiagnosticLog(message, 'error');
                 throw new Error(message);
             }
+            // Return relative URL - works with both direct access and HA ingress
             const sanitizedPath = decodedPath
                 .replace(/^\/+/, '')
                 .replace(/\/{2,}/g, '/');
-            const pathname = window.location.pathname || '/';
-            const basePath = pathname.endsWith('/') ? pathname : pathname + '/';
-            const base = window.location.origin + basePath;
-            return new URL(sanitizedPath, base).toString();
+            return sanitizedPath;
         }
         function run(name, fn) {
             try {
@@ -59,14 +57,15 @@ def test_get_api_url_paths():
     results = run_node_test()
     by_name = {r["name"]: r for r in results}
 
+    # Now returns relative URLs (works with both direct and ingress access)
     assert by_name["normal"]["error"] is None
-    assert by_name["normal"]["value"] == "http://localhost/api/hassio_ingress/ha_sentry/api/status"
+    assert by_name["normal"]["value"] == "api/status"
 
     assert by_name["leading-slash"]["error"] is None
-    assert by_name["leading-slash"]["value"] == "http://localhost/api/hassio_ingress/ha_sentry/api/components"
+    assert by_name["leading-slash"]["value"] == "api/components"
 
     assert by_name["double-slash"]["error"] is None
-    assert by_name["double-slash"]["value"] == "http://localhost/api/hassio_ingress/ha_sentry/api/components"
+    assert by_name["double-slash"]["value"] == "api/components"
 
     # Traversal attempts should raise errors
     assert by_name["traversal"]["error"] is not None

@@ -39,6 +39,7 @@
     "enable_dependency_graph": true,
     "save_reports": true,
     "enable_web_ui": true,
+    "port": 8099,
     "custom_integration_paths": [],
     "monitor_logs_after_update": false,
     "log_check_lookback_hours": 24
@@ -60,6 +61,7 @@
     "enable_dependency_graph": "bool",
     "save_reports": "bool",
     "enable_web_ui": "bool",
+    "port": "port",
     "custom_integration_paths": ["str?"],
     "monitor_logs_after_update": "bool",
     "log_check_lookback_hours": "int(1,168)"
