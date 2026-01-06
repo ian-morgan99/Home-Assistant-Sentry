@@ -394,10 +394,23 @@ The add-on creates persistent notifications with:
 
 - ✅ Safety status (safe/review required)
 - 📊 Confidence score
-- 📦 List of available updates
+- 📦 List of available updates with per-component links
+- 🔍 **Interactive Links**: Each integration/HACS component includes a "View Dependencies" link to the WebUI
+- ⚡ **Change Impact Report Link**: Shows all updated components and their dependencies in one view
+- 🛡️ **Open WebUI Link**: Access the full dependency visualization interface
 - ⚠️ Identified issues with severity levels
 - 💡 Actionable recommendations
 - 🕐 Timestamp of analysis
+
+### Notification Links
+
+Starting with version 2.0.0, notifications include interactive links to help you understand update impacts:
+
+- **Per-Component Links**: Click "🔍 View Dependencies" next to any integration or HACS component to see its dependency diagram in "Where Used" mode
+- **Change Impact Report**: View all updated components and their affected dependencies in one comprehensive view
+- **Open WebUI**: Access the full interactive dependency visualization and analysis tool
+
+All links use Home Assistant's ingress system and open directly in the WebUI without requiring additional navigation.
 
 ## Logging
 

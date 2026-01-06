@@ -90,7 +90,7 @@ safety_threshold: 0.7
 
 **Can't find them?** Check the add-on logs and ensure `create_dashboard_entities: true` in configuration.
 
-### 7. Check the Analysis Results
+### 7. Check the Analysis Results and WebUI
 
 After the first check completes (happens immediately on startup):
 
@@ -100,6 +100,16 @@ After the first check completes (happens immediately on startup):
    - Whether they're safe to install
    - Any detected issues
    - Recommendations
+   - **Interactive links** to view dependencies for each component
+   - **Change Impact Report** link to see all updates and their dependencies
+   - **Open WebUI** link for full dependency visualization
+
+3. **Access the WebUI**:
+   - Click the **"Sentry"** panel in your Home Assistant sidebar (easiest method)
+   - Or click any link in the notification
+   - Or go to Settings → Add-ons → Home Assistant Sentry → Open Web UI
+
+The WebUI provides interactive dependency visualization, "Where Used" analysis, and change impact reports.
 
 ## Creating a Dashboard Card
 
