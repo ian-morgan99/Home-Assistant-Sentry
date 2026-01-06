@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.3.34
+- Fix WebUI ingress routing and make port user-configurable The WebUI hangs at "Preparing status..." when accessed through Home Assistant ingress because JavaScript builds absolute URLs that are missing the ingress path prefix stripped by HA's proxy. Additionally, the port was hardcoded, preventing users from changing it when port 8099 is already in use.
+
+
 ## 1.3.33
 - Delay initial update check to prevent WebUI blocking on slow AI endpoints WebUI hung on "Preparing status..." when LMStudio accepted TCP connections but didn't respond to HTTP requests, blocking initial startup.
 
