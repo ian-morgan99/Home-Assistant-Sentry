@@ -607,7 +607,10 @@ No updates are currently available for:
             - How the add-on was installed (built-in vs. custom repository)
             - Reverse proxy configuration
         """
-        base_url = f"/api/hassio_ingress/{self.ADDON_SLUG}"
+        # Always include trailing slash for proper ingress routing
+        # Home Assistant's ingress system expects URLs in the format:
+        # /api/hassio_ingress/<slug>/ (with trailing slash)
+        base_url = f"/api/hassio_ingress/{self.ADDON_SLUG}/"
         
         # Build query string if mode or component provided
         params = []
@@ -618,7 +621,9 @@ No updates are currently available for:
             params.append(f"component={quote(component)}")
         
         if path:
-            base_url = f"{base_url}/{path}"
+            # Remove leading slash from path to avoid double slashes
+            path = path.lstrip('/')
+            base_url = f"{base_url}{path}"
         
         if params:
             base_url = f"{base_url}?{'&'.join(params)}"
@@ -660,6 +665,53 @@ No updates are currently available for:
             'integration': 'Integration'
         }
         return type_labels.get(component_type, component_type.capitalize())
+    
+    def _format_updates_with_links(self, all_updates: List[Dict], max_items: int = 10) -> tuple:
+        """
+        Format a list of updates with links to the WebUI dependency diagram
+        
+        Args:
+            all_updates: List of update dictionaries
+            max_items: Maximum number of items to include in the list
+        
+        Returns:
+            tuple: (formatted_message, list_of_component_domains)
+        """
+        if not all_updates or not self.config.enable_web_ui:
+            return ("", [])
+        
+        message = "\n**📦 Available Updates:**\n\n"
+        component_domains = []
+        
+        for update in all_updates[:max_items]:
+            # Determine component type and name
+            component_type = update.get('type', update.get('update_type', 'unknown'))
+            component_name = update.get('name', 'Unknown')
+            
+            # Format version info
+            current_version = update.get('current_version', update.get('installed_version', '?'))
+            latest_version = update.get('latest_version', update.get('version', '?'))
+            
+            # Format type label
+            type_label = self._get_component_type_label(component_type)
+            
+            # Generate link only for integrations and HACS (only these are in dependency graph)
+            component_domain = self._extract_component_domain(component_name)
+            
+            # Format the update line
+            message += f"• **{component_name}** ({type_label}): {current_version} → {latest_version}"
+            
+            if component_type in ['integration', 'hacs']:
+                where_used_url = self._get_ingress_url(mode="whereused", component=component_domain)
+                message += f" [🔍 View Dependencies]({where_used_url})"
+                component_domains.append(component_domain)
+            
+            message += "\n"
+        
+        if len(all_updates) > max_items:
+            message += f"\n_...and {len(all_updates) - max_items} more updates_\n"
+        
+        return (message, component_domains)
     
     async def _report_results(self, ha_client: HomeAssistantClient, 
                             addon_updates: List[Dict], 
@@ -716,8 +768,15 @@ No updates are currently available for:
                 for rec in analysis['recommendations'][:5]:  # Limit to 5
                     notification_message += f"- {rec}\n"
             
-            # Initialize empty list for changed components (safe case)
+            # Initialize changed_components list for safe case
             changed_components = []
+            
+            # Add list of all updates with links (for safe case)
+            if total_updates > 0:
+                updates_message, update_domains = self._format_updates_with_links(all_updates, max_items=10)
+                notification_message += updates_message
+                # Merge with changed_components for impact report
+                changed_components.extend(update_domains)
         else:
             logger.debug("Generating REVIEW REQUIRED notification")
             notification_message = f"""⚠️ **REVIEW REQUIRED before updating**
@@ -782,13 +841,22 @@ No updates are currently available for:
                 notification_message += "\n**Recommendations:**\n"
                 for rec in analysis['recommendations'][:5]:
                     notification_message += f"- {rec}\n"
+            
+            # Add list of all updates with links (for review required case)
+            if total_updates > 0:
+                updates_message, update_domains = self._format_updates_with_links(all_updates, max_items=10)
+                notification_message += updates_message
+                # Merge with changed_components from issues
+                for domain in update_domains:
+                    if domain not in changed_components:
+                        changed_components.append(domain)
         
         # Add web UI links section if enabled
         if self.config.enable_web_ui:
             notification_message += "\n---\n**📊 Interactive WebUI - Detailed Analysis:**\n"
             
-            # For review required case with changed components, add impact report link
-            if not safe and changed_components:
+            # Add impact report link if we have changed components (both safe and review required)
+            if changed_components:
                 components_param = ','.join(changed_components[:10])  # Limit to avoid URL length issues
                 impact_url = self._get_ingress_url(mode="impact", component=components_param)
                 notification_message += f"- [⚡ Change Impact Report]({impact_url}) - View {len(changed_components)} changed components and their affected dependencies\n"
