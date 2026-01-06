@@ -1,5 +1,17 @@
 # Changelog
 
+## 2.0.0
+- **MAJOR RELEASE**: Fix notification links to WebUI and add per-component dependency links
+- Fix main WebUI link by adding trailing slash to ingress URL (`/api/hassio_ingress/ha_sentry/`)
+- Add "View Dependencies" link for each integration/HACS component in notifications
+- Links appear in both SAFE and REVIEW REQUIRED notifications
+- Add comprehensive "Available Updates" section with links for all updated components
+- Change Impact Report link now works for both safe and review-required notifications
+- Update all documentation (DOCS.md, README.md, QUICKSTART.md) to reflect new features
+- Improve list merge efficiency using set-based deduplication
+- **Breaking Change**: Notification format now includes interactive links section
+
+
 ## 1.3.34
 - Fix WebUI ingress routing and make port user-configurable The WebUI hangs at "Preparing status..." when accessed through Home Assistant ingress because JavaScript builds absolute URLs that are missing the ingress path prefix stripped by HA's proxy. Additionally, the port was hardcoded, preventing users from changing it when port 8099 is already in use.
 
