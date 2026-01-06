@@ -661,7 +661,7 @@ class DependencyTreeWebServer:
     
     def _generate_html(self):
         """Generate the HTML interface for dependency visualization"""
-        return """<!DOCTYPE html>
+        return r"""<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
@@ -1188,11 +1188,18 @@ class DependencyTreeWebServer:
 
         /**
          * Build a safe API URL that works both directly and via HA ingress.
+         * 
+         * Uses relative URLs to ensure compatibility with Home Assistant's ingress proxy.
+         * When accessed through ingress, HA's proxy strips the /api/hassio_ingress/slug prefix
+         * before forwarding requests to the add-on, but the browser still needs to make requests
+         * relative to the ingress path. Using relative URLs ensures this works correctly.
+         * 
          * - Normalizes leading/trailing slashes
          * - Rejects directory-traversal patterns (.. and encoded equivalents)
-         * - Preserves ingress subpaths from window.location.pathname
+         * - Returns relative URL that works with both direct access and ingress
+         * 
          * @param {string} path relative API path such as "api/status"
-         * @returns {string} absolute URL ready for fetch()
+         * @returns {string} relative URL safe for fetch()
          * @throws {Error} when unsafe traversal patterns are detected
          */
         function getApiUrl(path) {
@@ -1213,13 +1220,13 @@ class DependencyTreeWebServer:
                 throw new Error(message);
             }
             
+            // Return relative URL - this works correctly with both direct access and HA ingress
+            // Direct access: fetch('api/status') from http://localhost:8099/ → http://localhost:8099/api/status
+            // Ingress access: fetch('api/status') from http://ha:8123/api/hassio_ingress/slug/ → http://ha:8123/api/hassio_ingress/slug/api/status
             const sanitizedPath = decodedPath
                 .replace(/^\/+/, '')
                 .replace(/\/{2,}/g, '/');
-            const pathname = window.location.pathname || '/';
-            const basePath = pathname.endsWith('/') ? pathname : pathname + '/';
-            const base = window.location.origin + basePath;
-            return new URL(sanitizedPath, base).toString();
+            return sanitizedPath;
         }
         
         function updateDiagnosticPanel() {
