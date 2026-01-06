@@ -35,9 +35,6 @@ class SentryService:
     """Main service for monitoring and analyzing Home Assistant updates"""
     
     # Constants
-    # WEB_UI_PORT must match ingress_port in config.json and config.yaml
-    # This is NOT user-configurable - it's add-on metadata that tells HA Supervisor
-    # which port the add-on listens on for ingress routing
     WEB_UI_PORT = 8099  # Port for dependency visualization web interface
     ADDON_SLUG = 'ha_sentry'  # Addon slug for ingress URLs
     
@@ -227,7 +224,7 @@ class SentryService:
         if self.config.enable_web_ui:
             try:
                 logger.info("Starting web server for dependency visualization...")
-                logger.info(f"  Web UI port: {self.WEB_UI_PORT}")
+                logger.info(f"  Web UI port: {self.config.port}")
                 logger.info(f"  Dependency graph: Building in background...")
                 # Ensure builder exists (in case dependency_graph is disabled)
                 # The web server needs a builder reference to function
@@ -236,7 +233,7 @@ class SentryService:
                 self.web_server = DependencyTreeWebServer(
                     self.dependency_graph_builder,
                     self.config,
-                    port=self.WEB_UI_PORT,
+                    port=self.config.port,
                     sentry_service=self  # Pass self for status checking
                 )
                 await self.web_server.start()
@@ -244,7 +241,7 @@ class SentryService:
                 logger.error(f"Failed to start web server: {e}", exc_info=True)
                 logger.error("Web UI will not be available")
                 logger.info("To troubleshoot:")
-                logger.info(f"  1. Check if port {self.WEB_UI_PORT} is already in use")
+                logger.info(f"  1. Check if port {self.config.port} is already in use")
                 logger.info("  2. Verify 'enable_dependency_graph' is true in configuration")
                 logger.info("  3. Check add-on logs for dependency graph building errors")
                 logger.info("Continuing without web UI")

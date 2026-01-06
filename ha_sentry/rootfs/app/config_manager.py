@@ -35,6 +35,7 @@ class ConfigManager:
         
         # Web UI configuration for dependency visualization
         self.enable_web_ui = self._get_bool_env('ENABLE_WEB_UI', True)
+        self.port = int(os.getenv('PORT', '8099'))
         
         # Log monitoring configuration
         self.monitor_logs_after_update = self._get_bool_env('MONITOR_LOGS_AFTER_UPDATE', False)
