@@ -775,8 +775,8 @@ No updates are currently available for:
             if total_updates > 0:
                 updates_message, update_domains = self._format_updates_with_links(all_updates, max_items=10)
                 notification_message += updates_message
-                # Merge with changed_components for impact report
-                changed_components.extend(update_domains)
+                # Use set for efficient deduplication
+                changed_components = list(set(update_domains))
         else:
             logger.debug("Generating REVIEW REQUIRED notification")
             notification_message = f"""⚠️ **REVIEW REQUIRED before updating**
@@ -846,10 +846,8 @@ No updates are currently available for:
             if total_updates > 0:
                 updates_message, update_domains = self._format_updates_with_links(all_updates, max_items=10)
                 notification_message += updates_message
-                # Merge with changed_components from issues
-                for domain in update_domains:
-                    if domain not in changed_components:
-                        changed_components.append(domain)
+                # Merge with changed_components from issues using set for efficient deduplication
+                changed_components = list(set(changed_components + update_domains))
         
         # Add web UI links section if enabled
         if self.config.enable_web_ui:
