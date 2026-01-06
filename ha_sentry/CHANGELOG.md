@@ -1,5 +1,9 @@
 # Changelog
 
+## 2.0.01
+- Fix notification links to WebUI and add per-component dependency links Notification links were redirecting to home dashboard instead of WebUI. Per-component dependency links were missing.
+
+
 ## 2.0.0
 - **MAJOR RELEASE**: Fix notification links to WebUI and add per-component dependency links
 - Fix main WebUI link by adding trailing slash to ingress URL (`/api/hassio_ingress/ha_sentry/`)
