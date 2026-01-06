@@ -60,7 +60,7 @@ Home Assistant Sentry is an add-on that helps you safely manage updates to your 
      - Explore component dependencies
      - View "where used" analysis for any component
      - Analyze the impact of multiple component changes
-   - The web UI is accessible via the ingress URL: `/api/hassio_ingress/ha_sentry`
+   - The web UI is accessible via the ingress URL: `/api/hassio_ingress/ha_sentry/`
    - Note: It may take up to 60 seconds for the dependency graph to build on first load
 
 ## Configuration Guide
@@ -239,7 +239,7 @@ This is the easiest and most reliable method.
 
 #### Method 3: Direct Ingress URL
 
-Navigate directly to: `/api/hassio_ingress/ha_sentry`
+Navigate directly to: `/api/hassio_ingress/ha_sentry/`
 
 Or click links in notifications that use this format.
 
@@ -270,9 +270,33 @@ The WebUI provides:
 - See the "Empty Dependency Graph" troubleshooting section below
 
 **"Links in notifications don't work"**
-- Use the sidebar panel instead (most reliable)
+- Links in notifications now properly route to the WebUI with a trailing slash
+- Each updated component (integration/HACS) has a "View Dependencies" link that opens the WebUI in "Where Used" mode for that component
+- A "Change Impact Report" link shows all updated components and their dependencies
+- If links still don't work, use the sidebar panel instead (most reliable)
 - Or use Method 2 (via add-on settings)
 - Check if you're behind a reverse proxy that might interfere
+
+### Notification Links
+
+Since version 2.0.0, notifications include interactive links to help you understand update impacts:
+
+**Per-Component Links**: Each integration or HACS component in the "Available Updates" section includes a "🔍 View Dependencies" link that:
+- Opens the WebUI in "Where Used" mode for that specific component
+- Shows which other integrations depend on it
+- Displays shared packages and potential conflicts
+- Only appears for integrations and HACS (not add-ons, core, or OS)
+
+**Change Impact Report Link**: When multiple components are being updated, a "⚡ Change Impact Report" link shows:
+- All updated components in one view
+- Total number of affected dependencies
+- High-risk changes highlighted
+- Complete picture of the update's impact
+
+**Open WebUI Link**: Always available link to access the full WebUI for:
+- Exploring all component dependencies
+- Switching between different visualization modes
+- Performing custom dependency analysis
 
 ### Dashboard vs WebUI
 
@@ -281,7 +305,7 @@ The WebUI provides:
 | Feature | Dashboard (Deprecated) | WebUI (Recommended) |
 |---------|----------------------|---------------------|
 | Status | ❌ Doesn't work | ✅ Fully functional |
-| Access | Would be at `/lovelace/ha-sentry` | `/api/hassio_ingress/ha_sentry` |
+| Access | Would be at `/lovelace/ha-sentry` | `/api/hassio_ingress/ha_sentry/` |
 | Visualization | Basic sensor cards | Interactive graphs |
 | Dependency Analysis | Limited | Full analysis |
 | Impact Reports | No | Yes |

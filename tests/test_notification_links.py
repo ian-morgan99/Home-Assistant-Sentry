@@ -14,11 +14,13 @@ def test_ingress_url_generation():
     from urllib.parse import quote
     
     # Test the expected URL patterns
+    # Note: Trailing slash is REQUIRED for proper Home Assistant ingress routing
+    # Without it, the URL may redirect to the home dashboard instead of the WebUI
     addon_slug = 'ha_sentry'
-    base_url = f"/api/hassio_ingress/{addon_slug}"
+    base_url = f"/api/hassio_ingress/{addon_slug}/"
     
-    assert base_url == "/api/hassio_ingress/ha_sentry", f"Expected '/api/hassio_ingress/ha_sentry', got '{base_url}'"
-    print("✓ Base ingress URL pattern is correct")
+    assert base_url == "/api/hassio_ingress/ha_sentry/", f"Expected '/api/hassio_ingress/ha_sentry/', got '{base_url}'"
+    print("✓ Base ingress URL pattern is correct (with trailing slash)")
     
     # Test URL with query parameters (new approach - more reliable than fragments)
     mode = 'whereused'
