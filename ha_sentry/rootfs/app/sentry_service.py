@@ -35,6 +35,9 @@ class SentryService:
     """Main service for monitoring and analyzing Home Assistant updates"""
     
     # Constants
+    # WEB_UI_PORT must match ingress_port in config.json and config.yaml
+    # This is NOT user-configurable - it's add-on metadata that tells HA Supervisor
+    # which port the add-on listens on for ingress routing
     WEB_UI_PORT = 8099  # Port for dependency visualization web interface
     ADDON_SLUG = 'ha_sentry'  # Addon slug for ingress URLs
     
