@@ -16,10 +16,11 @@ def test_ingress_url_generation():
     # Test the expected URL patterns
     # Note: Trailing slash is REQUIRED for proper Home Assistant ingress routing
     # Without it, the URL may redirect to the home dashboard instead of the WebUI
+    # Use /hassio/ingress/ format for frontend navigation (not /api/hassio_ingress/)
     addon_slug = 'ha_sentry'
-    base_url = f"/api/hassio_ingress/{addon_slug}/"
+    base_url = f"/hassio/ingress/{addon_slug}/"
     
-    assert base_url == "/api/hassio_ingress/ha_sentry/", f"Expected '/api/hassio_ingress/ha_sentry/', got '{base_url}'"
+    assert base_url == "/hassio/ingress/ha_sentry/", f"Expected '/hassio/ingress/ha_sentry/', got '{base_url}'"
     print("✓ Base ingress URL pattern is correct (with trailing slash)")
     
     # Test URL with query parameters (new approach - more reliable than fragments)
@@ -100,9 +101,9 @@ def test_notification_message_structure():
         "View Impact",  # Individual component links
         "Change Impact Report",  # Full impact report link
         "Web UI",  # Web UI link (not "Dashboard" to avoid confusion with Lovelace dashboards)
-        "#whereused:",  # Hash fragment for where-used
-        "#impact:",  # Hash fragment for impact
-        "/api/hassio_ingress/ha_sentry"  # Base ingress URL
+        "#whereused:",  # Hash fragment for where-used (legacy, still supported)
+        "#impact:",  # Hash fragment for impact (legacy, still supported)
+        "/hassio/ingress/ha_sentry"  # Base ingress URL (frontend route)
     ]
     
     print("✓ Notification structure test: Expected patterns defined")

@@ -24,25 +24,26 @@ def test_ingress_url_generation():
             
             def _get_ingress_url(self, path: str = "") -> str:
                 """Generate ingress URL"""
-                base_url = f"/api/hassio_ingress/{self.ADDON_SLUG}"
+                base_url = f"/hassio/ingress/{self.ADDON_SLUG}/"
                 if path:
-                    return f"{base_url}/{path}"
+                    path = path.lstrip('/')
+                    return f"{base_url}{path}"
                 return base_url
         
         config = MockConfig()
         service = MockSentryService(config)
         
-        # Test base URL
+        # Test base URL (with trailing slash)
         base_url = service._get_ingress_url()
-        assert base_url == "/api/hassio_ingress/ha_sentry", f"Expected /api/hassio_ingress/ha_sentry, got {base_url}"
+        assert base_url == "/hassio/ingress/ha_sentry/", f"Expected /hassio/ingress/ha_sentry/, got {base_url}"
         
         # Test URL with path
         path_url = service._get_ingress_url("some/path")
-        assert path_url == "/api/hassio_ingress/ha_sentry/some/path", f"Expected /api/hassio_ingress/ha_sentry/some/path, got {path_url}"
+        assert path_url == "/hassio/ingress/ha_sentry/some/path", f"Expected /hassio/ingress/ha_sentry/some/path, got {path_url}"
         
-        # Test URL with fragment (like whereused)
+        # Test URL with fragment (like whereused) - for backward compatibility
         fragment_url = service._get_ingress_url() + "#whereused:test_component"
-        assert fragment_url == "/api/hassio_ingress/ha_sentry#whereused:test_component", f"Got {fragment_url}"
+        assert fragment_url == "/hassio/ingress/ha_sentry/#whereused:test_component", f"Got {fragment_url}"
         
         print("✓ Ingress URL generation test passed")
         print(f"  Base URL: {base_url}")

@@ -275,7 +275,7 @@ class SentryService:
 Access the interactive WebUI for dependency analysis and impact visualization:
 1. **Via Sidebar Panel**: Look for the 'Sentry' panel in your Home Assistant sidebar (preferred method)
 2. **Via Add-on Settings**: Settings → Add-ons → Home Assistant Sentry → Open Web UI
-3. **Direct Ingress URL**: `/api/hassio_ingress/ha_sentry`
+3. **Direct Ingress URL**: `/hassio/ingress/ha_sentry/`
 
 The WebUI provides:
 - Interactive dependency graphs
@@ -591,7 +591,11 @@ No updates are currently available for:
             str: The full ingress URL
             
         Note:
-            This uses the standard Home Assistant ingress URL format: /api/hassio_ingress/<slug>
+            This uses the Home Assistant frontend ingress URL format: /hassio/ingress/<slug>
+            
+            The /hassio/ingress/ format is used for notification links and frontend navigation,
+            as it keeps users within the Home Assistant interface. The /api/hassio_ingress/
+            format is the backend proxy endpoint used by the frontend internally.
             
             Query parameters are used instead of URL fragments because Home Assistant's
             persistent notification system may not preserve fragments in markdown links.
@@ -609,8 +613,8 @@ No updates are currently available for:
         """
         # Always include trailing slash for proper ingress routing
         # Home Assistant's ingress system expects URLs in the format:
-        # /api/hassio_ingress/<slug>/ (with trailing slash)
-        base_url = f"/api/hassio_ingress/{self.ADDON_SLUG}/"
+        # /hassio/ingress/<slug>/ (with trailing slash) for frontend navigation
+        base_url = f"/hassio/ingress/{self.ADDON_SLUG}/"
         
         # Build query string if mode or component provided
         params = []
