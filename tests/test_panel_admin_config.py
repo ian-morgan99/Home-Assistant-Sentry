@@ -10,13 +10,16 @@ import traceback
 # Add the app directory to Python path
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'ha_sentry', 'rootfs', 'app'))
 
+# Constants
+EXPECTED_INGRESS_PORT = 8099
+CONFIG_JSON_PATH = os.path.join(os.path.dirname(__file__), '..', 'ha_sentry', 'config.json')
+CONFIG_YAML_PATH = os.path.join(os.path.dirname(__file__), '..', 'ha_sentry', 'config.yaml')
+
 
 def test_panel_admin_in_config_json():
     """Test that panel_admin is set to true in config.json"""
     try:
-        config_path = os.path.join(os.path.dirname(__file__), '..', 'ha_sentry', 'config.json')
-        
-        with open(config_path, 'r') as f:
+        with open(CONFIG_JSON_PATH, 'r') as f:
             config = json.load(f)
         
         # Check that panel_admin field exists
@@ -30,7 +33,8 @@ def test_panel_admin_in_config_json():
         
         # Verify ingress_port is set
         assert 'ingress_port' in config, "ingress_port must be set when using ingress"
-        assert config['ingress_port'] == 8099, f"ingress_port should be 8099, got {config['ingress_port']}"
+        assert config['ingress_port'] == EXPECTED_INGRESS_PORT, \
+            f"ingress_port should be {EXPECTED_INGRESS_PORT}, got {config['ingress_port']}"
         
         # Verify panel settings
         assert 'panel_icon' in config, "panel_icon should be set for sidebar display"
@@ -52,9 +56,7 @@ def test_panel_admin_in_config_json():
 def test_panel_admin_in_config_yaml():
     """Test that panel_admin is set to true in config.yaml"""
     try:
-        config_path = os.path.join(os.path.dirname(__file__), '..', 'ha_sentry', 'config.yaml')
-        
-        with open(config_path, 'r') as f:
+        with open(CONFIG_YAML_PATH, 'r') as f:
             config = yaml.safe_load(f)
         
         # Check that panel_admin field exists
@@ -68,7 +70,8 @@ def test_panel_admin_in_config_yaml():
         
         # Verify ingress_port is set
         assert 'ingress_port' in config, "ingress_port must be set when using ingress"
-        assert config['ingress_port'] == 8099, f"ingress_port should be 8099, got {config['ingress_port']}"
+        assert config['ingress_port'] == EXPECTED_INGRESS_PORT, \
+            f"ingress_port should be {EXPECTED_INGRESS_PORT}, got {config['ingress_port']}"
         
         # Verify panel settings
         assert 'panel_icon' in config, "panel_icon should be set for sidebar display"
@@ -90,13 +93,10 @@ def test_panel_admin_in_config_yaml():
 def test_config_json_yaml_consistency():
     """Test that panel_admin is consistent between config.json and config.yaml"""
     try:
-        json_path = os.path.join(os.path.dirname(__file__), '..', 'ha_sentry', 'config.json')
-        yaml_path = os.path.join(os.path.dirname(__file__), '..', 'ha_sentry', 'config.yaml')
-        
-        with open(json_path, 'r') as f:
+        with open(CONFIG_JSON_PATH, 'r') as f:
             json_config = json.load(f)
         
-        with open(yaml_path, 'r') as f:
+        with open(CONFIG_YAML_PATH, 'r') as f:
             yaml_config = yaml.safe_load(f)
         
         # Check consistency of panel_admin
