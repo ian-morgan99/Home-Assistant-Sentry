@@ -117,10 +117,11 @@ def test_url_markdown_format():
 def test_actual_code_uses_correct_format():
     """Verify that the actual sentry_service.py file uses the correct URL format"""
     try:
-        # Read the sentry_service.py file
-        service_file = os.path.join(os.path.dirname(__file__), '..', 'ha_sentry', 'rootfs', 'app', 'sentry_service.py')
-        with open(service_file, 'r') as f:
-            content = f.read()
+        from pathlib import Path
+        
+        # Read the sentry_service.py file using pathlib for better robustness
+        service_file = Path(__file__).parent.parent / 'ha_sentry' / 'rootfs' / 'app' / 'sentry_service.py'
+        content = service_file.read_text()
         
         # Check that the _get_ingress_url method uses the correct format
         assert 'base_url = f"/hassio/ingress/{self.ADDON_SLUG}/"' in content, \
