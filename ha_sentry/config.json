@@ -16,6 +16,7 @@
   "ingress_port": 8099,
   "panel_icon": "mdi:family-tree",
   "panel_title": "Sentry",
+  "panel_admin": true,
   "ports": {
     "8099/tcp": 8099
   },
