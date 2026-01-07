@@ -5,6 +5,7 @@ import sys
 import os
 import json
 import yaml
+import traceback
 
 # Add the app directory to Python path
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'ha_sentry', 'rootfs', 'app'))
@@ -44,7 +45,6 @@ def test_panel_admin_in_config_json():
         return True
     except Exception as e:
         print(f"✗ panel_admin configuration test failed for config.json: {e}")
-        import traceback
         traceback.print_exc()
         return False
 
@@ -83,7 +83,6 @@ def test_panel_admin_in_config_yaml():
         return True
     except Exception as e:
         print(f"✗ panel_admin configuration test failed for config.yaml: {e}")
-        import traceback
         traceback.print_exc()
         return False
 
@@ -122,7 +121,6 @@ def test_config_json_yaml_consistency():
         return True
     except Exception as e:
         print(f"✗ Configuration consistency test failed: {e}")
-        import traceback
         traceback.print_exc()
         return False
 
@@ -140,11 +138,11 @@ if __name__ == '__main__':
     failed = 0
     
     for test in tests:
-        print()
         if test():
             passed += 1
         else:
             failed += 1
+        print()  # Blank line after each test for readability
     
     print(f"\n{'='*50}")
     print(f"Tests completed: {passed} passed, {failed} failed")
