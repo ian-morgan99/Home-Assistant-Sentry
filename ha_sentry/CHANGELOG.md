@@ -1,5 +1,9 @@
 # Changelog
 
+## 2.0.02
+- Fix notification links using correct ingress URL format Notification links were redirecting to the Home Assistant dashboard instead of opening the Sentry Web UI. The code was using `/api/hassio_ingress/{slug}/` (backend proxy route) instead of `/hassio/ingress/{slug}/` (frontend navigation route).
+
+
 ## 2.0.01
 - Fix notification links to WebUI and add per-component dependency links Notification links were redirecting to home dashboard instead of WebUI. Per-component dependency links were missing.
 
