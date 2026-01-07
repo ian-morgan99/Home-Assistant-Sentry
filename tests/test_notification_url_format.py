@@ -2,7 +2,6 @@
 Test that notification messages contain correct ingress URL format
 """
 import sys
-import os
 from urllib.parse import quote
 
 def test_notification_url_format():
