@@ -275,7 +275,7 @@ class SentryService:
 Access the interactive WebUI for dependency analysis and impact visualization:
 1. **Via Sidebar Panel**: Look for the 'Sentry' panel in your Home Assistant sidebar (preferred method)
 2. **Via Add-on Settings**: Settings → Add-ons → Home Assistant Sentry → Open Web UI
-3. **Direct Ingress URL**: `/hassio/ingress/ha_sentry`
+3. **Direct Ingress URL**: `/hassio/ingress/ha_sentry/`
 
 The WebUI provides:
 - Interactive dependency graphs
