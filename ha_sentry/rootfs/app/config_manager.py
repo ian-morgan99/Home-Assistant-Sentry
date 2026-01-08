@@ -70,6 +70,17 @@ class ConfigManager:
                 'fix': 'Either enable "enable_dependency_graph: true" or disable "enable_web_ui: false"'
             })
         
+        # Check if port matches expected ingress_port (8099)
+        # The ingress_port in add-on metadata MUST match the actual server port
+        # or Home Assistant ingress proxy will fail to connect
+        if self.port != 8099:
+            issues.append({
+                'severity': 'WARNING',
+                'message': f'Web UI port is set to {self.port} but ingress_port is hardcoded to 8099',
+                'details': 'Home Assistant Supervisor expects the web server on port 8099 for ingress. Using a different port will break the ingress integration and sidebar panel access.',
+                'fix': 'Set "port: 8099" in add-on configuration to match ingress_port'
+            })
+        
         # Log any configuration issues
         if issues:
             logger.warning("=" * 60)

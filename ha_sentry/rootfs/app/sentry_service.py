@@ -35,8 +35,9 @@ class SentryService:
     """Main service for monitoring and analyzing Home Assistant updates"""
     
     # Constants
-    WEB_UI_PORT = 8099  # Port for dependency visualization web interface
     ADDON_SLUG = 'ha_sentry'  # Addon slug for ingress URLs
+    # Note: Port is configured via self.config.port which must match ingress_port (8099)
+    # in config.json for ingress to work properly
     
     def __init__(self, config):
         """Initialize the sentry service"""
