@@ -1,5 +1,9 @@
 # Changelog
 
+## 2.0.03
+- Add panel_admin field and fix port configuration issues Home Assistant Supervisor fails to establish ingress connection with error "Unable to fetch add-on info to start Ingress" due to missing `panel_admin` configuration field.
+
+
 ## 2.0.02
 - Fix notification links using correct ingress URL format Notification links were redirecting to the Home Assistant dashboard instead of opening the Sentry Web UI. The code was using `/api/hassio_ingress/{slug}/` (backend proxy route) instead of `/hassio/ingress/{slug}/` (frontend navigation route).
 
