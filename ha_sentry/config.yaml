@@ -16,6 +16,7 @@ ingress: true
 ingress_port: 8099
 panel_icon: mdi:family-tree
 panel_title: Sentry
+panel_admin: true
 startup: services
 boot: auto
 auto_update: true
@@ -143,13 +144,14 @@ map:
 #   WHEN TO USE: Enable to access the interactive dependency visualization via the
 #                Sentry sidebar panel. Requires enable_dependency_graph to be true.
 #
-# port: Web interface port
+# port: Web interface port (ADVANCED - DO NOT CHANGE)
 #   - Default: 8099
-#   - Range: 1024-65535
-#   WHEN TO USE: Change if port 8099 is already in use by another add-on.
-#                Common alternatives: 8097, 8098, 8100
-#   IMPORTANT: After changing this, restart the add-on. The web UI will be accessible
-#              via the Sentry sidebar panel regardless of which port you choose.
+#   - MUST match ingress_port in add-on metadata
+#   WARNING: Changing this will break Home Assistant ingress integration!
+#           The port is hardcoded in the add-on configuration and used by HA Supervisor
+#           for the ingress proxy. Only change if you know what you're doing and
+#           understand how to rebuild the add-on with matching ingress_port metadata.
+#   RECOMMENDATION: Leave at default 8099 for proper ingress functionality.
 #
 # REPORTING CONFIGURATION
 # -----------------------
