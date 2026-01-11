@@ -1,5 +1,9 @@
 # Changelog
 
+## 2.0.08
+- Fix installation review scheduling when no updates available The installation review check was placed after the early return when no updates are found, preventing it from running when no updates are available.
+
+
 ## 2.0.07
 - Enable user-configurable WebUI port without breaking ingress Enable web server to listen on both: 1. **Ingress Port (8099)** - Always used for HA sidebar panel 2. **Custom Port (user-configurable)** - For direct browser access
 
