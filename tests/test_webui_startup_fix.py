@@ -3,7 +3,9 @@ import os
 import sys
 
 # Add the app directory to the path
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'ha_sentry', 'rootfs', 'app'))
+app_path = os.path.join(os.path.dirname(__file__), '..', 'ha_sentry', 'rootfs', 'app')
+if app_path not in sys.path:
+    sys.path.insert(0, app_path)
 
 
 def test_webui_startup_simulation():
