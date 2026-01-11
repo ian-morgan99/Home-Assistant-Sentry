@@ -1,5 +1,9 @@
 # Changelog
 
+## 2.0.09
+- Add diagnostic logging to installation review scheduling Users enabling `enable_installation_review` saw no log output indicating whether the feature was running or why it wasn't. The `_should_run_installation_review()` method performed all scheduling logic silently.
+
+
 ## 2.0.08
 - Fix installation review scheduling when no updates available The installation review check was placed after the early return when no updates are found, preventing it from running when no updates are available.
 
