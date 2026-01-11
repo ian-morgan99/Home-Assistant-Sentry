@@ -493,10 +493,31 @@ class HomeAssistantClient:
                             entity_domains[domain] = entity_domains.get(domain, 0) + 1
                             
                             # Track unique integrations via entity attributes
-                            # Most entities have 'attribution' or 'integration' in attributes
+                            # Check multiple possible attributes: integration, attribution, etc.
                             attributes = state.get('attributes', {})
+                            
+                            # Try 'integration' first (most common)
                             if 'integration' in attributes:
                                 integration_domains.add(attributes['integration'])
+                            # Try 'attribution' (used by many integrations)
+                            elif 'attribution' in attributes:
+                                attribution = attributes['attribution']
+                                # Extract integration name from attribution string
+                                # Common formats: "Data provided by X", "Powered by X", etc.
+                                # Also look for integration domain in attribution
+                                if isinstance(attribution, str):
+                                    # If attribution contains a recognizable domain, use it
+                                    parts = attribution.lower().split()
+                                    for part in parts:
+                                        if part in ['hacs', 'mqtt', 'esphome', 'zwave', 'zigbee']:
+                                            integration_domains.add(part)
+                                            break
+                            # Try to infer from entity_id domain for core integrations
+                            elif domain in ['sensor', 'binary_sensor', 'light', 'switch', 
+                                          'climate', 'cover', 'fan', 'lock', 'media_player']:
+                                # For common domains, check device_class or other hints
+                                # Don't add the domain itself as integration unless it's clear
+                                pass
                         
                         summary['entity_domains'] = entity_domains
                         summary['entity_count'] = len(states)

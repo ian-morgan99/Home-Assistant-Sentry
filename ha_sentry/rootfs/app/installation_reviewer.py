@@ -245,56 +245,72 @@ Avoid generic advice - tailor recommendations to the actual installation data pr
         try:
             logger.debug("Parsing AI review response")
             # Try to extract JSON from the response
+            # Look for the first complete JSON object
             json_start = ai_response.find('{')
-            json_end = ai_response.rfind('}') + 1
+            if json_start < 0:
+                raise ValueError("No JSON object found in response")
             
-            if json_start >= 0 and json_end > json_start:
-                json_str = ai_response[json_start:json_end]
-                result = json.loads(json_str)
-                
-                # Validate and normalize the response
-                review = {
-                    'recommendations': result.get('recommendations', []),
-                    'insights': result.get('insights', []),
-                    'warnings': result.get('warnings', []),
-                    'summary': result.get('summary', 'Review completed'),
-                    'ai_powered': True,
-                    'timestamp': datetime.now().isoformat(),
-                    'scope': installation_summary.get('scope', 'full')
-                }
-                
-                # Group recommendations by category
-                categories = {}
-                for rec in review['recommendations']:
-                    category = rec.get('category', 'general')
-                    if category not in categories:
-                        categories[category] = []
-                    categories[category].append(rec)
-                review['categories'] = categories
-                
-                logger.debug(f"Successfully parsed AI review: {len(review['recommendations'])} recommendations")
-                return review
-            else:
-                # If no JSON found, create a structured response from the text
-                logger.warning("No JSON found in AI review response, parsing as text")
-                return {
-                    'recommendations': [
-                        {
-                            'category': 'general',
-                            'priority': 'medium',
-                            'title': 'AI Review',
-                            'description': ai_response[:500],
-                            'rationale': 'AI-generated review'
-                        }
-                    ],
-                    'insights': [],
-                    'warnings': [],
-                    'summary': ai_response[:200],
-                    'ai_powered': True,
-                    'timestamp': datetime.now().isoformat(),
-                    'categories': {'general': []},
-                    'scope': installation_summary.get('scope', 'full')
-                }
+            # Find matching closing brace by counting braces
+            brace_count = 0
+            json_end = -1
+            for i in range(json_start, len(ai_response)):
+                if ai_response[i] == '{':
+                    brace_count += 1
+                elif ai_response[i] == '}':
+                    brace_count -= 1
+                    if brace_count == 0:
+                        json_end = i + 1
+                        break
+            
+            if json_end < 0:
+                raise ValueError("No complete JSON object found in response")
+            
+            json_str = ai_response[json_start:json_end]
+            result = json.loads(json_str)
+            
+            # Validate and normalize the response
+            review = {
+                'recommendations': result.get('recommendations', []),
+                'insights': result.get('insights', []),
+                'warnings': result.get('warnings', []),
+                'summary': result.get('summary', 'Review completed'),
+                'ai_powered': True,
+                'timestamp': datetime.now().isoformat(),
+                'scope': installation_summary.get('scope', 'full')
+            }
+            
+            # Group recommendations by category
+            categories = {}
+            for rec in review['recommendations']:
+                category = rec.get('category', 'general')
+                if category not in categories:
+                    categories[category] = []
+                categories[category].append(rec)
+            review['categories'] = categories
+            
+            logger.debug(f"Successfully parsed AI review: {len(review['recommendations'])} recommendations")
+            return review
+            
+        except (json.JSONDecodeError, ValueError) as e:
+            # If JSON parsing fails, create a structured response from the text
+            logger.warning(f"Failed to parse JSON from AI review response: {e}")
+            general_rec = {
+                'category': 'general',
+                'priority': 'medium',
+                'title': 'AI Review',
+                'description': ai_response[:500],
+                'rationale': 'AI-generated review'
+            }
+            return {
+                'recommendations': [general_rec],
+                'insights': [],
+                'warnings': [],
+                'summary': ai_response[:200],
+                'ai_powered': True,
+                'timestamp': datetime.now().isoformat(),
+                'categories': {'general': [general_rec]},  # Include the recommendation in categories
+                'scope': installation_summary.get('scope', 'full')
+            }
         except Exception as e:
             logger.error(f"Failed to parse AI review response: {e}", exc_info=True)
             return self._heuristic_review(installation_summary)

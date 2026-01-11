@@ -2,7 +2,9 @@
 Main Sentry Service - Coordinates update checking and analysis
 """
 import asyncio
+import json
 import logging
+import os
 from datetime import datetime, timedelta, timezone
 from typing import Dict, List
 from urllib.parse import quote
@@ -519,8 +521,11 @@ If sensors don't appear, check the add-on logs for authentication errors. The ad
                 # Check if installation review should be run
                 if self._should_run_installation_review():
                     logger.info("Installation review is due, will run after update check")
-                    # Run installation review as separate task to avoid blocking
-                    asyncio.create_task(self.run_installation_review())
+                    # Run installation review as separate task but track it for proper error handling
+                    # Store the task reference to avoid silent exception swallowing
+                    review_task = asyncio.create_task(self.run_installation_review())
+                    # Add done callback to log any exceptions
+                    review_task.add_done_callback(self._installation_review_done_callback)
                 
                 # Save machine-readable report (Feature 4) if enabled
                 if self.config.save_reports:
@@ -1046,9 +1051,6 @@ Your Home Assistant system logs are stable with no new errors or warnings.
         Includes dependency graph and analysis results
         """
         try:
-            import json
-            import os
-            
             # Create reports directory if it doesn't exist
             reports_dir = '/data/reports'
             os.makedirs(reports_dir, exist_ok=True)
@@ -1253,8 +1255,6 @@ Your Home Assistant system logs are stable with no new errors or warnings.
     def _save_installation_review_report(self, review_results: Dict):
         """Save installation review report to JSON file"""
         try:
-            import os
-            
             # Create reports directory if it doesn't exist
             reports_dir = '/data/reports'
             os.makedirs(reports_dir, exist_ok=True)
@@ -1300,3 +1300,15 @@ Your Home Assistant system logs are stable with no new errors or warnings.
             return False
         
         return False
+    
+    def _installation_review_done_callback(self, task: asyncio.Task):
+        """Callback to handle completion or errors in installation review task"""
+        try:
+            # Check if task raised an exception
+            if task.exception():
+                logger.error(f"Installation review task failed with exception: {task.exception()}", 
+                           exc_info=task.exception())
+        except asyncio.CancelledError:
+            logger.debug("Installation review task was cancelled")
+        except Exception as e:
+            logger.error(f"Error in installation review done callback: {e}", exc_info=True)
