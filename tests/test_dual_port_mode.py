@@ -83,27 +83,46 @@ def test_config_validation_no_warning():
     try:
         from config_manager import ConfigManager
         
-        # Set up environment variables
-        os.environ['PORT'] = '8098'
-        os.environ['ENABLE_WEB_UI'] = 'true'
-        os.environ['ENABLE_DEPENDENCY_GRAPH'] = 'true'
-        os.environ['AI_ENABLED'] = 'false'
-        os.environ['CHECK_SCHEDULE'] = '02:00'
-        os.environ['SUPERVISOR_TOKEN'] = 'test_token'
+        # Save original environment variables
+        original_env = {
+            'PORT': os.environ.get('PORT'),
+            'ENABLE_WEB_UI': os.environ.get('ENABLE_WEB_UI'),
+            'ENABLE_DEPENDENCY_GRAPH': os.environ.get('ENABLE_DEPENDENCY_GRAPH'),
+            'AI_ENABLED': os.environ.get('AI_ENABLED'),
+            'CHECK_SCHEDULE': os.environ.get('CHECK_SCHEDULE'),
+            'SUPERVISOR_TOKEN': os.environ.get('SUPERVISOR_TOKEN'),
+        }
         
-        # Create config manager
-        config = ConfigManager()
-        
-        # Verify port was set correctly
-        assert config.port == 8098
-        assert config.enable_web_ui is True
-        
-        # The validation should NOT create warnings for port != 8099
-        # It should create informational logs instead
-        print("✓ Config validation test passed (no warning for port != 8099)")
-        print(f"  Port: {config.port}")
-        print(f"  Enable Web UI: {config.enable_web_ui}")
-        return True
+        try:
+            # Set up environment variables for test
+            os.environ['PORT'] = '8098'
+            os.environ['ENABLE_WEB_UI'] = 'true'
+            os.environ['ENABLE_DEPENDENCY_GRAPH'] = 'true'
+            os.environ['AI_ENABLED'] = 'false'
+            os.environ['CHECK_SCHEDULE'] = '02:00'
+            os.environ['SUPERVISOR_TOKEN'] = 'test_token'
+            
+            # Create config manager
+            config = ConfigManager()
+            
+            # Verify port was set correctly
+            assert config.port == 8098
+            assert config.enable_web_ui is True
+            
+            # The validation should NOT create warnings for port != 8099
+            # It should create informational logs instead
+            print("✓ Config validation test passed (no warning for port != 8099)")
+            print(f"  Port: {config.port}")
+            print(f"  Enable Web UI: {config.enable_web_ui}")
+            return True
+        finally:
+            # Restore original environment variables
+            for key, value in original_env.items():
+                if value is None:
+                    os.environ.pop(key, None)
+                else:
+                    os.environ[key] = value
+                    
     except Exception as e:
         print(f"✗ Config validation test failed: {e}")
         import traceback

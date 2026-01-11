@@ -7,6 +7,9 @@ import os
 
 logger = logging.getLogger(__name__)
 
+# Constants for logging formatting
+LOG_SEPARATOR_LENGTH = 60
+
 
 class ConfigManager:
     """Manages add-on configuration from environment variables"""
@@ -101,9 +104,9 @@ class ConfigManager:
         
         # Inform about port configuration (informational, not a warning)
         if self.port != 8099:
-            logger.info("=" * 60)
+            logger.info("=" * LOG_SEPARATOR_LENGTH)
             logger.info("DUAL-PORT WEB UI CONFIGURATION")
-            logger.info("=" * 60)
+            logger.info("=" * LOG_SEPARATOR_LENGTH)
             logger.info(f"Web UI configured for dual-port access:")
             logger.info(f"  • Ingress Port (8099): Used by Home Assistant sidebar panel")
             logger.info(f"  • Direct Access Port ({self.port}): For direct browser access")
@@ -113,22 +116,22 @@ class ConfigManager:
             logger.info(f"  2. Direct Browser: http://homeassistant:{self.port}")
             logger.info("")
             logger.info("The sidebar panel will work regardless of your custom port setting.")
-            logger.info("=" * 60)
+            logger.info("=" * LOG_SEPARATOR_LENGTH)
         else:
             logger.info("Web UI configured for single-port access on port 8099")
             logger.info("  Access via HA sidebar panel or http://homeassistant:8099")
         
         # Log any configuration issues
         if issues:
-            logger.warning("=" * 60)
+            logger.warning("=" * LOG_SEPARATOR_LENGTH)
             logger.warning("CONFIGURATION VALIDATION WARNINGS")
-            logger.warning("=" * 60)
+            logger.warning("=" * LOG_SEPARATOR_LENGTH)
             for issue in issues:
                 logger.warning(f"{issue['severity']}: {issue['message']}")
                 logger.warning(f"  Details: {issue['details']}")
                 logger.warning(f"  Fix: {issue['fix']}")
                 logger.warning("")
-            logger.warning("=" * 60)
+            logger.warning("=" * LOG_SEPARATOR_LENGTH)
         else:
             logger.debug("Configuration validation passed")
     
