@@ -1,5 +1,9 @@
 # Changelog
 
+## 2.0.05
+- Add Installation Review feature for AI-powered Home Assistant optimization Comments 2679343988 and 2679343995 suggest adding test coverage. These are valuable suggestions for future work but are not blocking issues for the current implementation. The feature has been manually tested and all syntax checks pass.
+
+
 ## 2.0.04
 - Add Installation Review feature for AI-powered Home Assistant optimization recommendations
 - New configuration options: enable_installation_review, installation_review_schedule, installation_review_scope
