@@ -1280,26 +1280,44 @@ Your Home Assistant system logs are stable with no new errors or warnings.
     def _should_run_installation_review(self) -> bool:
         """Check if an installation review should be run based on schedule"""
         if not self.config.enable_installation_review:
+            logger.debug("Installation review check: Feature is disabled (enable_installation_review=false)")
             return False
         
         if self._last_installation_review is None:
             # First run - should run
+            logger.info("Installation review check: First run detected - review will be scheduled")
+            logger.info(f"  Schedule mode: {self.config.installation_review_schedule}")
+            logger.info(f"  Review scope: {self.config.installation_review_scope}")
             return True
         
         schedule = self.config.installation_review_schedule
         now = datetime.now()
         time_since_last = now - self._last_installation_review
         
+        logger.debug(f"Installation review check: schedule={schedule}, last_review={self._last_installation_review.strftime('%Y-%m-%d %H:%M:%S')}, days_since={time_since_last.days}")
+        
         if schedule == 'weekly':
             # Run once per week (7 days)
-            return time_since_last.days >= 7
+            should_run = time_since_last.days >= 7
+            if should_run:
+                logger.info(f"Installation review check: Weekly review is due (last run {time_since_last.days} days ago)")
+            else:
+                logger.debug(f"Installation review check: Weekly review not due yet ({time_since_last.days} days since last run, need 7)")
+            return should_run
         elif schedule == 'monthly':
             # Run once per month (30 days)
-            return time_since_last.days >= 30
+            should_run = time_since_last.days >= 30
+            if should_run:
+                logger.info(f"Installation review check: Monthly review is due (last run {time_since_last.days} days ago)")
+            else:
+                logger.debug(f"Installation review check: Monthly review not due yet ({time_since_last.days} days since last run, need 30)")
+            return should_run
         elif schedule == 'manual':
             # Only run when explicitly triggered
+            logger.debug("Installation review check: Schedule set to 'manual' - automatic reviews disabled")
             return False
         
+        logger.warning(f"Installation review check: Unknown schedule '{schedule}' - defaulting to not running")
         return False
     
     def _installation_review_done_callback(self, task: asyncio.Task):

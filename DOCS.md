@@ -388,6 +388,21 @@ The WebUI provides:
 - Or use Method 2 (via add-on settings)
 - Check if you're behind a reverse proxy that might interfere
 
+**"Installation review is not running"**
+- Check add-on logs to understand why the review is or isn't running
+- At standard log level (`log_level: "standard"`), you'll see INFO messages when:
+  - The review is scheduled to run (first time or when schedule is due)
+  - The review completes with recommendations
+- Set `log_level: "maximal"` to see DEBUG messages explaining:
+  - Why the review is not running (schedule not due, feature disabled, manual mode)
+  - Schedule details (last run time, days since last run, schedule type)
+  - Configuration details (schedule mode, review scope)
+- Common reasons review doesn't run:
+  - `enable_installation_review: false` - Feature is disabled
+  - `installation_review_schedule: "manual"` - Automatic reviews are disabled
+  - Review ran recently (less than 7 days for weekly, less than 30 days for monthly)
+- First run: The review will run on the first update check after enabling the feature
+
 ### Notification Links
 
 Since version 2.0.0, notifications include interactive links to help you understand update impacts:
