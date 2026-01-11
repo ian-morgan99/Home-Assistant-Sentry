@@ -495,6 +495,15 @@ If sensors don't appear, check the add-on logs for authentication errors. The ad
                 
                 total_updates = len(all_updates)
                 
+                # Check if installation review should be run (independent of updates)
+                if self._should_run_installation_review():
+                    logger.info("Installation review is due, will run independently")
+                    # Run installation review as separate task but track it for proper error handling
+                    # Store the task reference to avoid silent exception swallowing
+                    review_task = asyncio.create_task(self.run_installation_review())
+                    # Add done callback to log any exceptions
+                    review_task.add_done_callback(self._installation_review_done_callback)
+                
                 if total_updates == 0:
                     logger.info("No updates available")
                     logger.debug("Reporting up-to-date status to Home Assistant")
@@ -518,15 +527,6 @@ If sensors don't appear, check the add-on logs for authentication errors. The ad
                 log_analysis = await self.log_monitor.check_logs(ha_client, self.ai_client)
                 if log_analysis:
                     await self._report_log_analysis(ha_client, log_analysis)
-                
-                # Check if installation review should be run
-                if self._should_run_installation_review():
-                    logger.info("Installation review is due, will run after update check")
-                    # Run installation review as separate task but track it for proper error handling
-                    # Store the task reference to avoid silent exception swallowing
-                    review_task = asyncio.create_task(self.run_installation_review())
-                    # Add done callback to log any exceptions
-                    review_task.add_done_callback(self._installation_review_done_callback)
                 
                 # Save machine-readable report (Feature 4) if enabled
                 if self.config.save_reports:
