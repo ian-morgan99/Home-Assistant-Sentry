@@ -107,7 +107,7 @@ def test_installation_review_not_run_when_manual():
     
     # Verify that _should_run_installation_review returns False for manual
     result = service._should_run_installation_review()
-    assert result == False, "Installation review should not run automatically when schedule is 'manual'"
+    assert result is False, "Installation review should not run automatically when schedule is 'manual'"
     
     print("✓ Installation review correctly respects 'manual' schedule")
     print(f"  _should_run_installation_review returned: {result}")
@@ -132,17 +132,17 @@ def test_installation_review_scheduling_logic():
     
     # First run - should trigger
     service._last_installation_review = None
-    assert service._should_run_installation_review() == True, "First run should trigger review"
+    assert service._should_run_installation_review() is True, "First run should trigger review"
     print("✓ First run triggers review")
     
     # Recent review - should not trigger
     service._last_installation_review = datetime.now() - timedelta(days=3)
-    assert service._should_run_installation_review() == False, "Recent review should not trigger (weekly, 3 days ago)"
+    assert service._should_run_installation_review() is False, "Recent review should not trigger (weekly, 3 days ago)"
     print("✓ Recent review (3 days) does not trigger for weekly schedule")
     
     # Old review - should trigger
     service._last_installation_review = datetime.now() - timedelta(days=8)
-    assert service._should_run_installation_review() == True, "Old review should trigger (weekly, 8 days ago)"
+    assert service._should_run_installation_review() is True, "Old review should trigger (weekly, 8 days ago)"
     print("✓ Old review (8 days) triggers for weekly schedule")
     
     # Test monthly schedule
@@ -152,12 +152,12 @@ def test_installation_review_scheduling_logic():
     
     # Recent review (20 days) - should not trigger for monthly
     service._last_installation_review = datetime.now() - timedelta(days=20)
-    assert service._should_run_installation_review() == False, "Recent review should not trigger (monthly, 20 days ago)"
+    assert service._should_run_installation_review() is False, "Recent review should not trigger (monthly, 20 days ago)"
     print("✓ Recent review (20 days) does not trigger for monthly schedule")
     
     # Old review (31 days) - should trigger for monthly
     service._last_installation_review = datetime.now() - timedelta(days=31)
-    assert service._should_run_installation_review() == True, "Old review should trigger (monthly, 31 days ago)"
+    assert service._should_run_installation_review() is True, "Old review should trigger (monthly, 31 days ago)"
     print("✓ Old review (31 days) triggers for monthly schedule")
     
     return True
