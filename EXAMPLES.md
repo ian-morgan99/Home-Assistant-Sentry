@@ -195,6 +195,71 @@ safety_threshold: 0.7
 
 When `auto_create_dashboard` is enabled, the add-on will automatically create a new dashboard called "Home Assistant Sentry" in your Lovelace interface with all the Sentry widgets pre-configured.
 
+### With Installation Review Feature
+
+For AI-powered recommendations about your Home Assistant setup:
+
+```yaml
+ai_enabled: true
+ai_provider: "ollama"
+ai_endpoint: "http://localhost:11434"
+ai_model: "llama2"
+api_key: ""
+check_schedule: "02:00"
+create_dashboard_entities: true
+check_all_updates: true
+check_addons: true
+check_hacs: true
+safety_threshold: 0.7
+enable_installation_review: true  # Enable installation review
+installation_review_schedule: "weekly"  # Run weekly
+installation_review_scope: "full"  # Review everything
+```
+
+**What it does:**
+- Analyzes your entire Home Assistant installation weekly
+- Reviews integrations, devices, automations, helpers, and dashboards
+- Provides categorized recommendations (security, performance, automation, etc.)
+- Privacy-first: only collects metadata, no sensitive data
+- Sends notification with actionable improvement suggestions
+
+**Schedule Options:**
+- `"weekly"`: Review once per week (recommended)
+- `"monthly"`: Review once per month (for stable setups)
+- `"manual"`: Only when manually triggered (future feature)
+
+**Scope Options:**
+- `"full"`: Complete review (integrations, devices, automations, helpers, dashboards)
+- `"integrations"`: Only integration analysis
+- `"automations"`: Only automation and script analysis
+
+### With Log Monitoring After Updates
+
+For enhanced error detection after updates:
+
+```yaml
+ai_enabled: true
+ai_provider: "ollama"
+ai_endpoint: "http://localhost:11434"
+ai_model: "llama2"
+api_key: ""
+check_schedule: "02:00"
+create_dashboard_entities: true
+check_all_updates: true
+check_addons: true
+check_hacs: true
+safety_threshold: 0.7
+monitor_logs_after_update: true  # Enable log monitoring
+log_check_lookback_hours: 24  # Check last 24 hours
+```
+
+**What it does:**
+- After checking for updates, scans Home Assistant logs for new errors
+- Compares with previous check to identify changes
+- In AI mode: Analyzes and summarizes consequential errors
+- In heuristics mode: Lists changes in error messages
+- Sends color-coded notification (Green/Amber/Red)
+
 ## Configuration Tips
 
 1. **Start Simple**: Begin with AI disabled to test basic functionality

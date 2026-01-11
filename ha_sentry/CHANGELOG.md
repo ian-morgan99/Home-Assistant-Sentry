@@ -1,5 +1,16 @@
 # Changelog
 
+## 2.0.04
+- Add Installation Review feature for AI-powered Home Assistant optimization recommendations
+- New configuration options: enable_installation_review, installation_review_schedule, installation_review_scope
+- Privacy-first data collection: only metadata and counts, no sensitive values
+- AI-powered analysis: comprehensive recommendations by category (security, performance, automation, etc.)
+- Heuristic fallback: rule-based recommendations when AI is disabled
+- Scheduled reviews: weekly, monthly, or manual trigger
+- Categorized recommendations with priority levels (high/medium/low)
+- JSON report saving for external analysis
+- Notification with actionable insights and improvement suggestions
+
 ## 2.0.03
 - Add panel_admin field and fix port configuration issues Home Assistant Supervisor fails to establish ingress connection with error "Unable to fetch add-on info to start Ingress" due to missing `panel_admin` configuration field.
 
