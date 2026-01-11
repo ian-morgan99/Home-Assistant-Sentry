@@ -99,16 +99,24 @@ class ConfigManager:
                 'fix': 'Either enable "enable_dependency_graph: true" or disable "enable_web_ui: false"'
             })
         
-        # Check if port matches expected ingress_port (8099)
-        # The ingress_port in add-on metadata MUST match the actual server port
-        # or Home Assistant ingress proxy will fail to connect
+        # Inform about port configuration (informational, not a warning)
         if self.port != 8099:
-            issues.append({
-                'severity': 'WARNING',
-                'message': f'Web UI port is set to {self.port} but ingress_port is hardcoded to 8099',
-                'details': 'Home Assistant Supervisor expects the web server on port 8099 for ingress. Using a different port will break the ingress integration and sidebar panel access.',
-                'fix': 'Set "port: 8099" in add-on configuration to match ingress_port'
-            })
+            logger.info("=" * 60)
+            logger.info("DUAL-PORT WEB UI CONFIGURATION")
+            logger.info("=" * 60)
+            logger.info(f"Web UI configured for dual-port access:")
+            logger.info(f"  • Ingress Port (8099): Used by Home Assistant sidebar panel")
+            logger.info(f"  • Direct Access Port ({self.port}): For direct browser access")
+            logger.info("")
+            logger.info("Access Methods:")
+            logger.info("  1. Via HA Sidebar: Look for 'Sentry' panel (uses port 8099 internally)")
+            logger.info(f"  2. Direct Browser: http://homeassistant:{self.port}")
+            logger.info("")
+            logger.info("The sidebar panel will work regardless of your custom port setting.")
+            logger.info("=" * 60)
+        else:
+            logger.info("Web UI configured for single-port access on port 8099")
+            logger.info("  Access via HA sidebar panel or http://homeassistant:8099")
         
         # Log any configuration issues
         if issues:
