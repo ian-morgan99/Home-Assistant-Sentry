@@ -1,5 +1,9 @@
 # Changelog
 
+## 2.0.07
+- Enable user-configurable WebUI port without breaking ingress Enable web server to listen on both: 1. **Ingress Port (8099)** - Always used for HA sidebar panel 2. **Custom Port (user-configurable)** - For direct browser access
+
+
 ## 2.0.06
 - Fix: Port is now user-configurable without breaking ingress
 - Feature: Web UI listens on both ingress port (8099) and custom port simultaneously
