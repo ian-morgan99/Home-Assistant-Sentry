@@ -1,5 +1,9 @@
 # Changelog
 
+## 2.0.10
+- Fix hardcoded value in installation review disabled log message The debug log message for disabled installation review always displayed `enable_installation_review=false`, even when the feature was enabled, causing confusion during troubleshooting.
+
+
 ## 2.0.09
 - Add diagnostic logging to installation review scheduling Users enabling `enable_installation_review` saw no log output indicating whether the feature was running or why it wasn't. The `_should_run_installation_review()` method performed all scheduling logic silently.
 
