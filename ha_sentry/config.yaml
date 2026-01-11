@@ -197,6 +197,29 @@ map:
 #   WHEN TO USE: Adjust based on your update frequency. If you update weekly,
 #                consider 48-72 hours. For daily updates, 24 hours is sufficient.
 #
+# INSTALLATION REVIEW CONFIGURATION
+# ----------------------------------
+# enable_installation_review: Enable AI-powered review of your HA installation
+#   - true: Periodically review your installation and suggest improvements
+#   - false: Don't perform installation reviews (default)
+#   WHEN TO USE: Enable if you want AI to analyze your Home Assistant setup and
+#                suggest optimizations, best practices, and potential improvements.
+#                This is a read-only analysis that provides recommendations only.
+#
+# installation_review_schedule: When to run installation reviews
+#   - "weekly": Run once per week (recommended)
+#   - "monthly": Run once per month
+#   - "manual": Only run when manually triggered (future feature)
+#   WHEN TO USE: Choose "weekly" for regular insights, "monthly" for less frequent
+#                reviews. This is separate from daily update checks.
+#
+# installation_review_scope: What aspects to review
+#   - "full": Review integrations, devices, automations, helpers, and dashboards (recommended)
+#   - "integrations": Only review integrations and their configuration
+#   - "automations": Only review automations and scripts
+#   WHEN TO USE: Use "full" for comprehensive analysis. Use specific scopes if you
+#                only want targeted advice in certain areas.
+#
 # ==================================================================================
 
 options:
@@ -220,6 +243,9 @@ options:
   custom_integration_paths: []
   monitor_logs_after_update: false
   log_check_lookback_hours: 24
+  enable_installation_review: false
+  installation_review_schedule: "weekly"
+  installation_review_scope: "full"
 schema:
   ai_enabled: bool
   ai_provider: list(openai|ollama|lmstudio|openwebui)
@@ -242,3 +268,6 @@ schema:
     - str?
   monitor_logs_after_update: bool
   log_check_lookback_hours: int(1,168)
+  enable_installation_review: bool
+  installation_review_schedule: list(weekly|monthly|manual)
+  installation_review_scope: list(full|integrations|automations)

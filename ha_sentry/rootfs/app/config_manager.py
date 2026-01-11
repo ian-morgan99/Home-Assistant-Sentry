@@ -41,6 +41,11 @@ class ConfigManager:
         self.monitor_logs_after_update = self._get_bool_env('MONITOR_LOGS_AFTER_UPDATE', False)
         self.log_check_lookback_hours = int(os.getenv('LOG_CHECK_LOOKBACK_HOURS', '24'))
         
+        # Installation review configuration
+        self.enable_installation_review = self._get_bool_env('ENABLE_INSTALLATION_REVIEW', False)
+        self.installation_review_schedule = os.getenv('INSTALLATION_REVIEW_SCHEDULE', 'weekly').lower()
+        self.installation_review_scope = os.getenv('INSTALLATION_REVIEW_SCOPE', 'full').lower()
+        
         # Validate configuration consistency
         self._validate_config()
         
@@ -60,6 +65,30 @@ class ConfigManager:
     def _validate_config(self):
         """Validate configuration for common issues and mismatches"""
         issues = []
+        
+        # Validate installation review schedule
+        valid_schedules = ['weekly', 'monthly', 'manual']
+        if self.installation_review_schedule not in valid_schedules:
+            issues.append({
+                'severity': 'ERROR',
+                'message': f'Invalid installation_review_schedule: {self.installation_review_schedule}',
+                'details': f'Must be one of: {", ".join(valid_schedules)}',
+                'fix': f'Set "installation_review_schedule" to one of: {", ".join(valid_schedules)}'
+            })
+            # Reset to default to prevent runtime errors
+            self.installation_review_schedule = 'weekly'
+        
+        # Validate installation review scope
+        valid_scopes = ['full', 'integrations', 'automations']
+        if self.installation_review_scope not in valid_scopes:
+            issues.append({
+                'severity': 'ERROR',
+                'message': f'Invalid installation_review_scope: {self.installation_review_scope}',
+                'details': f'Must be one of: {", ".join(valid_scopes)}',
+                'fix': f'Set "installation_review_scope" to one of: {", ".join(valid_scopes)}'
+            })
+            # Reset to default to prevent runtime errors
+            self.installation_review_scope = 'full'
         
         # Check for web UI without dependency graph
         if self.enable_web_ui and not self.enable_dependency_graph:

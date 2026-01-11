@@ -1,6 +1,15 @@
 # Changelog
 
 ## 2.0.04
+- Add Installation Review feature for AI-powered Home Assistant optimization recommendations
+- New configuration options: enable_installation_review, installation_review_schedule, installation_review_scope
+- Privacy-first data collection: only metadata and counts, no sensitive values
+- AI-powered analysis: comprehensive recommendations by category (security, performance, automation, etc.)
+- Heuristic fallback: rule-based recommendations when AI is disabled
+- Scheduled reviews: weekly, monthly, or manual trigger
+- Categorized recommendations with priority levels (high/medium/low)
+- JSON report saving for external analysis
+- Notification with actionable insights and improvement suggestions
 - Fix WebUI startup failure caused by missing environment variable exports The WebUI stopped starting in v2.0.03 due to missing environment variable exports in `run.sh` and a stale export for a removed config option.
 
 

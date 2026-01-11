@@ -54,6 +54,14 @@ A Home Assistant add-on that performs daily reviews of **all available updates**
   - Calculates risk scores based on dependency usage
   - Flags high-risk shared dependencies for special attention
   
+- 🏠 **Installation Review & Recommendations** (NEW):
+  - AI-powered analysis of your entire Home Assistant setup
+  - Reviews integrations, devices, automations, helpers, and dashboards
+  - Provides actionable improvement suggestions by category
+  - Privacy-first: only collects counts and metadata, no sensitive data
+  - Configurable schedule (weekly/monthly) or manual trigger
+  - Categories: security, performance, automation, integration, organization, maintenance
+  
 - 🤖 **AI-Powered Analysis**: Uses configurable AI endpoints to analyze update conflicts and dependencies
 - 🔬 **Deep Dependency Analysis**: Advanced heuristic analysis without AI, checking version changes, pre-releases, and known conflicts
 - 🛡️ **Safety Assessment**: Provides confidence scores and safety recommendations

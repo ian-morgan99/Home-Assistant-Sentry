@@ -4,6 +4,7 @@ Home Assistant API Client
 import aiohttp
 import json
 import logging
+from datetime import datetime
 from typing import Dict, List, Optional
 
 logger = logging.getLogger(__name__)
@@ -437,3 +438,182 @@ class HomeAssistantClient:
         except Exception as e:
             logger.error(f"Error creating dashboard: {e}", exc_info=True)
             return False
+    
+    async def get_installation_summary(self, scope: str = 'full') -> Dict:
+        """
+        Get a privacy-preserving summary of the Home Assistant installation
+        for AI review and recommendations.
+        
+        This method collects metadata about the installation WITHOUT collecting
+        sensitive data like:
+        - Entity state values
+        - Personal information
+        - Location data
+        - API keys or tokens
+        - Device identifiers
+        
+        Args:
+            scope: What to collect - 'full', 'integrations', or 'automations'
+        
+        Returns:
+            Dict with installation summary including:
+            - integration_count: Number of active integrations
+            - device_count: Number of devices
+            - entity_counts: Count by domain (sensor, switch, light, etc.)
+            - automation_count: Number of automations
+            - helper_count: Number of input helpers
+            - dashboard_count: Number of dashboards
+            - integration_list: List of integration domains (no config data)
+            - device_types: Counts by device type/manufacturer
+            - entity_domains: Breakdown of entities by domain
+        """
+        try:
+            logger.info(f"Collecting installation summary (scope: {scope})")
+            summary = {
+                'scope': scope,
+                'timestamp': datetime.now().isoformat()
+            }
+            
+            # Always collect basic integration info (core to all scopes)
+            if scope in ['full', 'integrations']:
+                # Get all entity states to derive integration info
+                url = f"{self.config.ha_url}/api/states"
+                logger.debug(f"Fetching entity states for integration analysis: {url}")
+                async with self.session.get(url) as response:
+                    if response.status == 200:
+                        states = await response.json()
+                        
+                        # Count entities by domain (sensor, light, switch, etc.)
+                        entity_domains = {}
+                        integration_domains = set()
+                        
+                        for state in states:
+                            entity_id = state.get('entity_id', '')
+                            domain = entity_id.split('.')[0] if '.' in entity_id else 'unknown'
+                            entity_domains[domain] = entity_domains.get(domain, 0) + 1
+                            
+                            # Track unique integrations via entity attributes
+                            # Check multiple possible attributes: integration, attribution, etc.
+                            attributes = state.get('attributes', {})
+                            
+                            # Try 'integration' first (most common)
+                            if 'integration' in attributes:
+                                integration_domains.add(attributes['integration'])
+                            # Try 'attribution' (used by many integrations)
+                            elif 'attribution' in attributes:
+                                attribution = attributes['attribution']
+                                # Extract integration name from attribution string
+                                # Common formats: "Data provided by X", "Powered by X", etc.
+                                # Also look for integration domain in attribution
+                                if isinstance(attribution, str):
+                                    # If attribution contains a recognizable domain, use it
+                                    parts = attribution.lower().split()
+                                    for part in parts:
+                                        if part in ['hacs', 'mqtt', 'esphome', 'zwave', 'zigbee']:
+                                            integration_domains.add(part)
+                                            break
+                            # Try to infer from entity_id domain for core integrations
+                            elif domain in ['sensor', 'binary_sensor', 'light', 'switch', 
+                                          'climate', 'cover', 'fan', 'lock', 'media_player']:
+                                # For common domains, check device_class or other hints
+                                # Don't add the domain itself as integration unless it's clear
+                                pass
+                        
+                        summary['entity_domains'] = entity_domains
+                        summary['entity_count'] = len(states)
+                        summary['unique_domains'] = len(entity_domains)
+                        summary['integrations'] = sorted(list(integration_domains))
+                        summary['integration_count'] = len(integration_domains)
+                        
+                        logger.debug(f"Collected entity domain statistics: {len(entity_domains)} unique domains")
+                    else:
+                        logger.warning(f"Failed to fetch states: {response.status}")
+                        summary['entity_domains'] = {}
+                        summary['entity_count'] = 0
+                
+                # Get device registry info (without sensitive device data)
+                try:
+                    url = f"{self.config.ha_url}/api/config/device_registry/list"
+                    logger.debug(f"Fetching device registry: {url}")
+                    async with self.session.get(url) as response:
+                        if response.status == 200:
+                            devices = await response.json()
+                            
+                            # Count devices by manufacturer (anonymized)
+                            manufacturers = {}
+                            device_types = {}
+                            
+                            for device in devices:
+                                # Get manufacturer without exposing specific device IDs
+                                manufacturer = device.get('manufacturer', 'Unknown')
+                                manufacturers[manufacturer] = manufacturers.get(manufacturer, 0) + 1
+                                
+                                # Get model type for categorization
+                                model = device.get('model', 'Unknown')
+                                device_types[model] = device_types.get(model, 0) + 1
+                            
+                            summary['device_count'] = len(devices)
+                            summary['manufacturers'] = manufacturers
+                            summary['device_types'] = device_types
+                            
+                            logger.debug(f"Collected device statistics: {len(devices)} devices from {len(manufacturers)} manufacturers")
+                        else:
+                            logger.warning(f"Failed to fetch device registry: {response.status}")
+                            summary['device_count'] = 0
+                except Exception as e:
+                    logger.warning(f"Error fetching device registry: {e}")
+                    summary['device_count'] = 0
+            
+            # Collect automation and script info
+            if scope in ['full', 'automations']:
+                try:
+                    # Get automation count and basic metadata (no automation logic)
+                    url = f"{self.config.ha_url}/api/states"
+                    async with self.session.get(url) as response:
+                        if response.status == 200:
+                            states = await response.json()
+                            
+                            # Count automations and scripts
+                            automation_count = sum(1 for s in states if s.get('entity_id', '').startswith('automation.'))
+                            script_count = sum(1 for s in states if s.get('entity_id', '').startswith('script.'))
+                            
+                            # Count input helpers (input_boolean, input_number, etc.)
+                            helper_count = sum(1 for s in states if s.get('entity_id', '').startswith('input_'))
+                            
+                            summary['automation_count'] = automation_count
+                            summary['script_count'] = script_count
+                            summary['helper_count'] = helper_count
+                            
+                            logger.debug(f"Collected automation statistics: {automation_count} automations, {script_count} scripts, {helper_count} helpers")
+                except Exception as e:
+                    logger.warning(f"Error collecting automation statistics: {e}")
+                    summary['automation_count'] = 0
+                    summary['script_count'] = 0
+                    summary['helper_count'] = 0
+            
+            # Collect dashboard info (count only, no content)
+            if scope == 'full':
+                try:
+                    # Get dashboard count
+                    url = f"{self.config.ha_url}/api/lovelace/dashboards"
+                    async with self.session.get(url) as response:
+                        if response.status == 200:
+                            dashboards = await response.json()
+                            summary['dashboard_count'] = len(dashboards) if isinstance(dashboards, list) else 0
+                            logger.debug(f"Collected dashboard count: {summary['dashboard_count']}")
+                        else:
+                            # Dashboard API may not be accessible
+                            summary['dashboard_count'] = 0
+                except Exception as e:
+                    logger.debug(f"Dashboard count not available: {e}")
+                    summary['dashboard_count'] = 0
+            
+            logger.info(f"Installation summary collected: {summary.get('entity_count', 0)} entities, "
+                       f"{summary.get('device_count', 0)} devices, "
+                       f"{summary.get('integration_count', 0)} integrations")
+            
+            return summary
+            
+        except Exception as e:
+            logger.error(f"Error collecting installation summary: {e}", exc_info=True)
+            return {'error': str(e), 'scope': scope}

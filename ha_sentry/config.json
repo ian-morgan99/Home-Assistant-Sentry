@@ -43,7 +43,10 @@
     "port": 8099,
     "custom_integration_paths": [],
     "monitor_logs_after_update": false,
-    "log_check_lookback_hours": 24
+    "log_check_lookback_hours": 24,
+    "enable_installation_review": false,
+    "installation_review_schedule": "weekly",
+    "installation_review_scope": "full"
   },
   "schema": {
     "ai_enabled": "bool",
@@ -65,7 +68,10 @@
     "port": "port",
     "custom_integration_paths": ["str?"],
     "monitor_logs_after_update": "bool",
-    "log_check_lookback_hours": "int(1,168)"
+    "log_check_lookback_hours": "int(1,168)",
+    "enable_installation_review": "bool",
+    "installation_review_schedule": "list(weekly|monthly|manual)",
+    "installation_review_scope": "list(full|integrations|automations)"
   },
   "image": "ghcr.io/ian-morgan99/home-assistant-sentry-{arch}"
 }

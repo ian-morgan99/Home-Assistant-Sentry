@@ -2,7 +2,9 @@
 Main Sentry Service - Coordinates update checking and analysis
 """
 import asyncio
+import json
 import logging
+import os
 from datetime import datetime, timedelta, timezone
 from typing import Dict, List
 from urllib.parse import quote
@@ -14,6 +16,7 @@ from dependency_graph_builder import DependencyGraphBuilder
 from web_server import DependencyTreeWebServer
 from log_monitor import LogMonitor
 from log_obfuscator import LogObfuscator
+from installation_reviewer import InstallationReviewer
 
 logger = logging.getLogger(__name__)
 
@@ -64,6 +67,20 @@ class SentryService:
         # Initialize log monitor
         obfuscator = LogObfuscator(enabled=config.obfuscate_logs)
         self.log_monitor = LogMonitor(config, obfuscator=obfuscator)
+        
+        # Initialize installation reviewer if enabled
+        # Always initialize _last_installation_review to avoid AttributeError
+        self._last_installation_review = None  # Track last review timestamp
+        self.installation_reviewer = None
+        if config.enable_installation_review:
+            logger.info("Installation review feature enabled")
+            self.installation_reviewer = InstallationReviewer(
+                config, 
+                ai_client=self.ai_client,
+                dependency_graph=self.dependency_graph  # Will be updated when graph is built
+            )
+        else:
+            logger.debug("Installation review feature disabled in configuration")
         
         logger.info("Sentry Service initialized")
     
@@ -501,6 +518,15 @@ If sensors don't appear, check the add-on logs for authentication errors. The ad
                 log_analysis = await self.log_monitor.check_logs(ha_client, self.ai_client)
                 if log_analysis:
                     await self._report_log_analysis(ha_client, log_analysis)
+                
+                # Check if installation review should be run
+                if self._should_run_installation_review():
+                    logger.info("Installation review is due, will run after update check")
+                    # Run installation review as separate task but track it for proper error handling
+                    # Store the task reference to avoid silent exception swallowing
+                    review_task = asyncio.create_task(self.run_installation_review())
+                    # Add done callback to log any exceptions
+                    review_task.add_done_callback(self._installation_review_done_callback)
                 
                 # Save machine-readable report (Feature 4) if enabled
                 if self.config.save_reports:
@@ -1026,9 +1052,6 @@ Your Home Assistant system logs are stable with no new errors or warnings.
         Includes dependency graph and analysis results
         """
         try:
-            import json
-            import os
-            
             # Create reports directory if it doesn't exist
             reports_dir = '/data/reports'
             os.makedirs(reports_dir, exist_ok=True)
@@ -1083,3 +1106,210 @@ Your Home Assistant system logs are stable with no new errors or warnings.
         except Exception as e:
             logger.warning(f"Failed to save machine-readable report: {e}")
             # Don't fail the entire check just because we couldn't save the report
+    
+    async def run_installation_review(self):
+        """
+        Run an installation review and provide recommendations
+        
+        This analyzes the current Home Assistant installation (devices, integrations,
+        automations, etc.) and provides optimization suggestions.
+        """
+        if not self.config.enable_installation_review:
+            logger.debug("Installation review is disabled, skipping")
+            return
+        
+        if not self.installation_reviewer:
+            logger.warning("Installation reviewer not initialized, cannot run review")
+            return
+        
+        logger.info("=" * 60)
+        logger.info("Starting Installation Review")
+        logger.info("=" * 60)
+        
+        try:
+            async with HomeAssistantClient(self.config) as ha_client:
+                # Collect installation summary
+                logger.info(f"Collecting installation data (scope: {self.config.installation_review_scope})")
+                installation_summary = await ha_client.get_installation_summary(
+                    scope=self.config.installation_review_scope
+                )
+                
+                if 'error' in installation_summary:
+                    logger.error(f"Failed to collect installation summary: {installation_summary['error']}")
+                    return
+                
+                # Update installation reviewer with latest dependency graph
+                if self.dependency_graph:
+                    self.installation_reviewer.dependency_graph = self.dependency_graph
+                
+                # Perform the review
+                logger.info("Analyzing installation and generating recommendations...")
+                review_results = await self.installation_reviewer.review_installation(installation_summary)
+                
+                # Report results via notification
+                await self._report_installation_review(ha_client, review_results)
+                
+                # Save review report if enabled
+                if self.config.save_reports:
+                    self._save_installation_review_report(review_results)
+                
+                # Update last review timestamp
+                self._last_installation_review = datetime.now()
+                
+                logger.info(f"Installation review complete: {len(review_results.get('recommendations', []))} recommendations")
+        
+        except Exception as e:
+            logger.error(f"Error during installation review: {e}", exc_info=True)
+    
+    async def _report_installation_review(self, ha_client: HomeAssistantClient, review_results: Dict):
+        """Report installation review results via notification"""
+        logger.debug("Creating installation review notification")
+        
+        notification_title = "🏠 Home Assistant Installation Review"
+        
+        # Build notification message
+        notification_message = f"""**Installation Review Complete**
+
+{review_results.get('summary', 'Review analysis finished.')}
+
+"""
+        
+        # Add insights if any
+        insights = review_results.get('insights', [])
+        if insights:
+            notification_message += "**📊 Key Insights:**\n"
+            for insight in insights[:5]:  # Limit to 5
+                notification_message += f"- {insight}\n"
+            notification_message += "\n"
+        
+        # Add warnings if any
+        warnings = review_results.get('warnings', [])
+        if warnings:
+            notification_message += "**⚠️ Warnings:**\n"
+            for warning in warnings[:3]:  # Limit to 3
+                severity_emoji = {
+                    'high': '🔴',
+                    'medium': '🟡',
+                    'low': '🟢'
+                }.get(warning.get('severity', 'medium'), '⚠️')
+                notification_message += f"{severity_emoji} {warning.get('description', 'Unknown warning')}\n"
+            notification_message += "\n"
+        
+        # Add recommendations by category
+        categories = review_results.get('categories', {})
+        if categories:
+            notification_message += "**💡 Recommendations:**\n\n"
+            
+            # Priority order for categories
+            category_order = ['security', 'performance', 'automation', 'integration', 'organization', 'maintenance']
+            
+            for category in category_order:
+                if category in categories:
+                    recs = categories[category]
+                    if recs:
+                        category_emoji = {
+                            'security': '🔒',
+                            'performance': '⚡',
+                            'automation': '🤖',
+                            'integration': '🔌',
+                            'organization': '📁',
+                            'maintenance': '🔧'
+                        }.get(category, '📌')
+                        
+                        notification_message += f"**{category_emoji} {category.capitalize()}:**\n"
+                        
+                        for rec in recs[:3]:  # Limit to 3 per category
+                            priority_emoji = {
+                                'high': '❗',
+                                'medium': '➡️',
+                                'low': '💡'
+                            }.get(rec.get('priority', 'medium'), '•')
+                            
+                            notification_message += f"{priority_emoji} **{rec.get('title', 'Recommendation')}**\n"
+                            notification_message += f"   {rec.get('description', '')}\n"
+                        
+                        notification_message += "\n"
+            
+            # Add remaining categories not in priority order
+            for category, recs in categories.items():
+                if category not in category_order and recs:
+                    notification_message += f"**{category.capitalize()}:**\n"
+                    for rec in recs[:2]:  # Limit to 2 for other categories
+                        notification_message += f"• **{rec.get('title', 'Recommendation')}**: {rec.get('description', '')}\n"
+                    notification_message += "\n"
+        
+        # Add footer
+        notification_message += "---\n"
+        notification_message += f"*Analysis powered by: {'AI' if review_results.get('ai_powered') else 'Heuristics'}*\n"
+        notification_message += f"*Review timestamp: {review_results.get('timestamp', datetime.now().isoformat())}*\n"
+        notification_message += f"*Scope: {review_results.get('scope', 'full')}*\n"
+        
+        logger.debug("Creating persistent notification for installation review")
+        await ha_client.create_persistent_notification(
+            notification_title,
+            notification_message,
+            'ha_sentry_installation_review'
+        )
+        
+        logger.info("Installation review results reported to Home Assistant")
+    
+    def _save_installation_review_report(self, review_results: Dict):
+        """Save installation review report to JSON file"""
+        try:
+            # Create reports directory if it doesn't exist
+            reports_dir = '/data/reports'
+            os.makedirs(reports_dir, exist_ok=True)
+            
+            # Save to file
+            report_file = os.path.join(reports_dir, 'latest_installation_review.json')
+            with open(report_file, 'w') as f:
+                json.dump(review_results, f, indent=2)
+            
+            logger.info(f"Installation review report saved to {report_file}")
+            
+            # Also save timestamped version
+            timestamp_file = os.path.join(reports_dir, f"installation_review_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json")
+            with open(timestamp_file, 'w') as f:
+                json.dump(review_results, f, indent=2)
+            
+            logger.debug(f"Timestamped installation review saved to {timestamp_file}")
+            
+        except Exception as e:
+            logger.warning(f"Failed to save installation review report: {e}")
+    
+    def _should_run_installation_review(self) -> bool:
+        """Check if an installation review should be run based on schedule"""
+        if not self.config.enable_installation_review:
+            return False
+        
+        if self._last_installation_review is None:
+            # First run - should run
+            return True
+        
+        schedule = self.config.installation_review_schedule
+        now = datetime.now()
+        time_since_last = now - self._last_installation_review
+        
+        if schedule == 'weekly':
+            # Run once per week (7 days)
+            return time_since_last.days >= 7
+        elif schedule == 'monthly':
+            # Run once per month (30 days)
+            return time_since_last.days >= 30
+        elif schedule == 'manual':
+            # Only run when explicitly triggered
+            return False
+        
+        return False
+    
+    def _installation_review_done_callback(self, task: asyncio.Task):
+        """Callback to handle completion or errors in installation review task"""
+        try:
+            # Check if task raised an exception
+            if task.exception():
+                logger.error(f"Installation review task failed with exception: {task.exception()}", 
+                           exc_info=task.exception())
+        except asyncio.CancelledError:
+            logger.debug("Installation review task was cancelled")
+        except Exception as e:
+            logger.error(f"Error in installation review done callback: {e}", exc_info=True)

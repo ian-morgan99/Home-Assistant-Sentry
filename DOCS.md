@@ -207,6 +207,59 @@ safety_threshold: 0.7
     - Monthly updates: Consider 168 hours (7 days)
   - Lower values = faster analysis, but may miss errors
   - Higher values = more comprehensive, but may include unrelated errors
+
+#### Installation Review Settings
+
+- **enable_installation_review**: Enable AI-powered installation review (default: `false`)
+  - `true`: Periodically review your entire Home Assistant installation
+  - `false`: Disable installation review feature
+  - **Use case**: Get AI-powered recommendations to optimize your setup
+  - **Privacy-first**: Only collects metadata and counts, no sensitive data
+  - **What gets reviewed**: Integrations, devices, automations, helpers, dashboards
+  - **Output**: Categorized recommendations (security, performance, automation, etc.)
+
+- **installation_review_schedule**: When to run installation reviews (default: `"weekly"`)
+  - `"weekly"`: Run once per week (recommended for most users)
+  - `"monthly"`: Run once per month (for stable installations)
+  - `"manual"`: Only run when manually triggered (future feature)
+  - **Note**: Reviews run automatically based on schedule, separate from daily update checks
+  - **First run**: Runs on first update check after enabling
+
+- **installation_review_scope**: What aspects to review (default: `"full"`)
+  - `"full"`: Review integrations, devices, automations, helpers, and dashboards (recommended)
+  - `"integrations"`: Only review integrations and their configuration
+  - `"automations"`: Only review automations and scripts
+  - **Use case**: Use specific scopes if you only want targeted advice
+  - **Performance**: Full scope may take longer but provides comprehensive analysis
+
+**Installation Review Example Notification:**
+```
+🏠 Home Assistant Installation Review
+
+Installation Review Complete
+
+Your installation has 450 entities across 32 integrations and 15 devices.
+
+📊 Key Insights:
+- Large installation with 450 entities - consider using performance optimization techniques
+- Diverse device ecosystem with 5 different manufacturers
+
+💡 Recommendations:
+
+🔒 Security:
+❗ Keep System Updated
+   Regularly update Home Assistant Core, Supervisor, OS, and all integrations
+
+⚡ Performance:
+❗ Recorder Optimization for Sensors
+   You have 250 sensors. Configure recorder to exclude sensors that don't need history
+
+🤖 Automation:
+➡️ Consider Using Input Helpers
+   Input helpers can make automations more flexible and easier to manage
+```
+
+- **obfuscate_logs**: Obfuscate sensitive data in log files (default: `true`, recommended)
   - `true`: Automatically obfuscate IP addresses, API keys, tokens, and passwords in logs
   - `false`: Log all data in plain text (not recommended - use only for specific debugging scenarios)
   
