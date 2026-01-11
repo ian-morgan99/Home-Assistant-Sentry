@@ -25,7 +25,7 @@ This document explains the changes made to address WebUI access issues and clari
 **Solution**: Enhanced startup notification with three clear access methods:
 1. **Sidebar Panel** (preferred): Look for "Sentry" in the Home Assistant sidebar
 2. **Add-on Settings**: Settings → Add-ons → Home Assistant Sentry → Open Web UI
-3. **Direct Ingress URL**: `/api/hassio_ingress/ha_sentry`
+3. **Direct Ingress URL**: `/hassio/ingress/ha_sentry/`
 
 **Result**: Clear, step-by-step instructions for accessing the WebUI.
 
@@ -34,7 +34,7 @@ This document explains the changes made to address WebUI access issues and clari
 **Problem**: Notification links were not clearly explained.
 
 **Solution**: 
-- All notification links use ingress URL format: `/api/hassio_ingress/ha_sentry`
+- All notification links use ingress URL format: `/hassio/ingress/ha_sentry/`
 - Added "Alternative Access Methods" section in notifications
 - Emphasized sidebar panel as the easiest access method
 
@@ -58,11 +58,11 @@ Navigate to: `http://your-home-assistant-address:PORT`
 Default PORT is 8099. This can be customized in the add-on configuration.
 
 ### Method 4: Direct Ingress URL
-Navigate to: `/api/hassio_ingress/ha_sentry`
+Navigate to: `/hassio/ingress/ha_sentry/`
 
 Or click links in notifications that look like:
-- `[🛡️ Open WebUI](/api/hassio_ingress/ha_sentry)`
-- `[🔍 View Impact](/api/hassio_ingress/ha_sentry#whereused:component_name)`
+- `[🛡️ Open WebUI](/hassio/ingress/ha_sentry/)`
+- `[🔍 View Impact](/hassio/ingress/ha_sentry/?mode=whereused&component=component_name)`
 
 ## WebUI Port Configuration
 
@@ -149,7 +149,7 @@ python3 tests/test_ingress_url.py
 Expected output:
 ```
 ✓ Ingress URL generation test passed
-  Base URL: /api/hassio_ingress/ha_sentry
+  Base URL: /hassio/ingress/ha_sentry/
 ✓ Addon slug consistency test passed
 ✓ Ingress configuration test passed
 ```
@@ -191,15 +191,17 @@ The `auto_create_dashboard` option has been removed. If you're seeing these erro
 
 ### Ingress URL Format
 
-The add-on uses the standard Home Assistant ingress format:
+The add-on uses the standard Home Assistant ingress format for frontend navigation:
 ```
-/api/hassio_ingress/{addon_slug}
+/hassio/ingress/{addon_slug}/
 ```
 
 For this add-on:
 ```
-/api/hassio_ingress/ha_sentry
+/hassio/ingress/ha_sentry/
 ```
+
+Note: The backend proxy route `/api/hassio_ingress/ha_sentry` is used internally by Home Assistant but should not be used directly for navigation.
 
 ### URL Parameters
 
@@ -209,7 +211,7 @@ The WebUI supports URL fragments for direct navigation:
 
 Example:
 ```
-/api/hassio_ingress/ha_sentry#whereused:powercalc
+/hassio/ingress/ha_sentry/?mode=whereused&component=powercalc
 ```
 
 ### Addon Slug

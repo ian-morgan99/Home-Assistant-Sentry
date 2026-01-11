@@ -11,6 +11,9 @@ from typing import Dict, List, Optional
 
 logger = logging.getLogger(__name__)
 
+# Import logging constants from config_manager for consistency
+from config_manager import LOG_SEPARATOR_LENGTH
+
 
 class DependencyTreeWebServer:
     """Web server for dependency tree visualization"""
@@ -115,9 +118,9 @@ class DependencyTreeWebServer:
             
             # Report overall status
             if ingress_started or direct_started:
-                logger.info("=" * 60)
+                logger.info("=" * LOG_SEPARATOR_LENGTH)
                 logger.info("✅ Web UI Started Successfully")
-                logger.info("=" * 60)
+                logger.info("=" * LOG_SEPARATOR_LENGTH)
                 
                 if ingress_started:
                     logger.info("📊 Access via Home Assistant Sidebar:")
@@ -133,14 +136,14 @@ class DependencyTreeWebServer:
                     logger.info(f"   http://homeassistant:{INGRESS_PORT}")
                 
                 logger.info(f"📈 Total integrations loaded: {len(self.dependency_graph_builder.integrations)}")
-                logger.info("=" * 60)
+                logger.info("=" * LOG_SEPARATOR_LENGTH)
             else:
-                logger.error("=" * 60)
+                logger.error("=" * LOG_SEPARATOR_LENGTH)
                 logger.error("❌ Web UI Failed to Start")
-                logger.error("=" * 60)
+                logger.error("=" * LOG_SEPARATOR_LENGTH)
                 logger.error("Both ingress and direct access listeners failed to start")
                 logger.error("Check the error messages above for details")
-                logger.error("=" * 60)
+                logger.error("=" * LOG_SEPARATOR_LENGTH)
                 
         except Exception as e:
             logger.error(f"❌ Failed to start web server: {e}", exc_info=True)
