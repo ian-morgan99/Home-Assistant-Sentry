@@ -41,6 +41,11 @@ class ConfigManager:
         self.monitor_logs_after_update = self._get_bool_env('MONITOR_LOGS_AFTER_UPDATE', False)
         self.log_check_lookback_hours = int(os.getenv('LOG_CHECK_LOOKBACK_HOURS', '24'))
         
+        # Installation review configuration
+        self.enable_installation_review = self._get_bool_env('ENABLE_INSTALLATION_REVIEW', False)
+        self.installation_review_schedule = os.getenv('INSTALLATION_REVIEW_SCHEDULE', 'weekly').lower()
+        self.installation_review_scope = os.getenv('INSTALLATION_REVIEW_SCOPE', 'full').lower()
+        
         # Validate configuration consistency
         self._validate_config()
         
