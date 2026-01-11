@@ -7,7 +7,7 @@ when no updates were found prevented installation review from running.
 """
 import sys
 import os
-from unittest.mock import Mock, AsyncMock, patch, MagicMock
+from unittest.mock import AsyncMock, patch
 from datetime import datetime, timedelta
 import asyncio
 
@@ -82,8 +82,12 @@ def test_installation_review_runs_when_no_updates():
     assert len(review_check_called) > 0, "Installation review check was not called"
     assert review_check_called[0] is True, "Installation review should have been scheduled to run"
     
+    # Verify that run_installation_review was actually invoked
+    service.run_installation_review.assert_called_once()
+    
     print("✓ Installation review check was called when no updates were available")
     print(f"  _should_run_installation_review returned: {review_check_called[0]}")
+    print("✓ run_installation_review was invoked")
     
     return True
 
