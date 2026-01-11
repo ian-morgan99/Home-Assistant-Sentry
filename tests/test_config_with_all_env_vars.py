@@ -45,7 +45,11 @@ def test_config_manager_with_all_env_vars():
             os.environ[key] = value
         
         # Import and initialize ConfigManager
-        from config_manager import ConfigManager
+        try:
+            from config_manager import ConfigManager
+        except ImportError as e:
+            raise ImportError(f"Failed to import ConfigManager: {e}. Make sure the app directory is in the Python path.") from e
+        
         config = ConfigManager()
         
         # Verify all values are correctly read

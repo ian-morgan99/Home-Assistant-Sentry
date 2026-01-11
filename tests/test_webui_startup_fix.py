@@ -50,7 +50,11 @@ def test_webui_startup_simulation():
         
         # Step 1: ConfigManager initialization (from main.py)
         print("\n1. Initializing ConfigManager...")
-        from config_manager import ConfigManager
+        try:
+            from config_manager import ConfigManager
+        except ImportError as e:
+            raise ImportError(f"Failed to import ConfigManager: {e}. Make sure the app directory is in the Python path.") from e
+        
         config = ConfigManager()
         print(f"   ✅ ConfigManager initialized")
         print(f"   - enable_web_ui: {config.enable_web_ui}")

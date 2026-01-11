@@ -1,6 +1,7 @@
 """Test that run.sh exports all required environment variables"""
 import subprocess
 import os
+import re
 
 
 def test_run_sh_has_all_required_exports():
@@ -12,7 +13,6 @@ def test_run_sh_has_all_required_exports():
         config_content = f.read()
     
     # Extract option keys from config.yaml (between "options:" and "schema:")
-    import re
     options_match = re.search(r'options:\s*\n(.*?)\nschema:', config_content, re.DOTALL)
     if not options_match:
         raise ValueError("Could not find options section in config.yaml")
