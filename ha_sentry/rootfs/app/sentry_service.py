@@ -1280,7 +1280,7 @@ Your Home Assistant system logs are stable with no new errors or warnings.
     def _should_run_installation_review(self) -> bool:
         """Check if an installation review should be run based on schedule"""
         if not self.config.enable_installation_review:
-            logger.debug("Installation review check: Feature is disabled (enable_installation_review=false)")
+            logger.debug(f"Installation review check: Feature is disabled (enable_installation_review={self.config.enable_installation_review})")
             return False
         
         if self._last_installation_review is None:
