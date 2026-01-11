@@ -1,5 +1,5 @@
 name: Home Assistant Sentry
-version: "2.0.05"
+version: "2.0.06"
 slug: ha_sentry
 description: Daily review of add-on and HACS updates with AI-powered conflict detection
 arch:
@@ -144,14 +144,40 @@ map:
 #   WHEN TO USE: Enable to access the interactive dependency visualization via the
 #                Sentry sidebar panel. Requires enable_dependency_graph to be true.
 #
-# port: Web interface port (ADVANCED - DO NOT CHANGE)
+# port: Web interface port for DIRECT browser access
 #   - Default: 8099
-#   - MUST match ingress_port in add-on metadata
-#   WARNING: Changing this will break Home Assistant ingress integration!
-#           The port is hardcoded in the add-on configuration and used by HA Supervisor
-#           for the ingress proxy. Only change if you know what you're doing and
-#           understand how to rebuild the add-on with matching ingress_port metadata.
-#   RECOMMENDATION: Leave at default 8099 for proper ingress functionality.
+#   - Range: 1024-65535
+#   WHEN TO USE: Change if port 8099 is already in use on your system
+#
+#   IMPORTANT: Dual-Port Configuration
+#   The Web UI supports two access methods:
+#
+#   1. Home Assistant Sidebar Panel (Ingress - Always Port 8099)
+#      • Uses HA's ingress proxy system (internal routing)
+#      • Always uses port 8099 internally (required by HA Supervisor)
+#      • Works regardless of your "port" setting
+#      • Access: Look for "Sentry" panel in HA sidebar
+#
+#   2. Direct Browser Access (Custom Port - User Configurable)
+#      • Direct HTTP access to the web server
+#      • Uses the port number you configure here
+#      • Access: http://homeassistant:PORT
+#
+#   EXAMPLES:
+#   • port: 8099
+#     → Sidebar panel works (ingress on 8099)
+#     → Direct access: http://homeassistant:8099
+#     → Single web server instance (both use same port)
+#
+#   • port: 8098
+#     → Sidebar panel still works (ingress on 8099)
+#     → Direct access: http://homeassistant:8098
+#     → Two web server instances (one for ingress, one for direct access)
+#
+#   WHY DUAL PORTS?
+#   • Ingress requires port 8099 (HA Supervisor requirement)
+#   • Custom port allows direct access when 8099 conflicts with other services
+#   • Both can run simultaneously without issues
 #
 # REPORTING CONFIGURATION
 # -----------------------

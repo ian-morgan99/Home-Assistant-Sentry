@@ -108,8 +108,11 @@ After the first check completes (happens immediately on startup):
    - Click the **"Sentry"** panel in your Home Assistant sidebar (easiest method)
    - Or click any link in the notification
    - Or go to Settings → Add-ons → Home Assistant Sentry → Open Web UI
+   - Or navigate directly to `http://homeassistant:8099` (or your configured port)
 
 The WebUI provides interactive dependency visualization, "Where Used" analysis, and change impact reports.
+
+**Note on Port Configuration**: By default, the WebUI runs on port 8099. If this port conflicts with another service, you can change it in the add-on configuration. The sidebar panel will continue to work regardless of your port setting. See [DOCS.md](DOCS.md#webui-port-configuration) for details.
 
 ## Creating a Dashboard Card
 

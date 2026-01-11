@@ -1,5 +1,13 @@
 # Changelog
 
+## 2.0.06
+- Fix: Port is now user-configurable without breaking ingress
+- Feature: Web UI listens on both ingress port (8099) and custom port simultaneously
+- Sidebar panel always works regardless of port configuration
+- Add comprehensive documentation for dual-port configuration options
+- Remove misleading port configuration warnings
+- Improve startup logging to show both access methods
+
 ## 2.0.05
 - Add Installation Review feature for AI-powered Home Assistant optimization Comments 2679343988 and 2679343995 suggest adding test coverage. These are valuable suggestions for future work but are not blocking issues for the current implementation. The feature has been manually tested and all syntax checks pass.
 

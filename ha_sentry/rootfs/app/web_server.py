@@ -11,6 +11,9 @@ from typing import Dict, List, Optional
 
 logger = logging.getLogger(__name__)
 
+# Import logging constants from config_manager for consistency
+from config_manager import LOG_SEPARATOR_LENGTH
+
 
 class DependencyTreeWebServer:
     """Web server for dependency tree visualization"""
@@ -38,7 +41,7 @@ class DependencyTreeWebServer:
         Args:
             dependency_graph_builder: DependencyGraphBuilder instance
             config_manager: ConfigManager instance
-            port: Port to run the server on
+            port: Port to run the server on (for direct access)
             sentry_service: Optional reference to SentryService for status checking
         """
         self.dependency_graph_builder = dependency_graph_builder
@@ -47,10 +50,13 @@ class DependencyTreeWebServer:
         self.sentry_service = sentry_service  # Reference to get build status
         self.app = None
         self.runner = None
-        self.site = None
+        self.ingress_site = None  # Site for ingress port (8099)
+        self.direct_site = None   # Site for direct access port (user-configured)
         
     async def start(self):
-        """Start the web server"""
+        """Start the web server on ingress port (8099) and optionally on custom port"""
+        INGRESS_PORT = 8099
+        
         try:
             if not self.config.enable_web_ui:
                 logger.info("Web UI disabled in configuration")
@@ -65,37 +71,97 @@ class DependencyTreeWebServer:
                 logger.error("To fix: Set 'enable_dependency_graph: true' in add-on configuration")
                 logger.error("Note: Web UI requires dependency graph to be enabled")
                 return
-                
-            logger.info(f"Starting dependency tree web server on port {self.port}")
-            logger.info(f"  Binding to: 0.0.0.0:{self.port}")
-            logger.info(f"  Web UI configuration: enable_web_ui={self.config.enable_web_ui}")
             
+            # Create the application with routes
             self.app = web.Application(middlewares=[self.error_middleware])
             self._setup_routes()
             
             self.runner = web.AppRunner(self.app)
             await self.runner.setup()
-            self.site = web.TCPSite(self.runner, '0.0.0.0', self.port)
-            await self.site.start()
             
-            logger.info(f"✅ Dependency tree visualization started successfully")
-            logger.info(f"   Available at http://localhost:{self.port}")
-            logger.info(f"   Or via Home Assistant ingress: /api/hassio_ingress/ha_sentry")
-            logger.info(f"   Also accessible from the 'Sentry' panel in your Home Assistant sidebar")
-            logger.info(f"   Total integrations: {len(self.dependency_graph_builder.integrations)}")
+            # Track which ports successfully started
+            ingress_started = False
+            direct_started = False
+            
+            # Start ingress listener on port 8099 (required for HA sidebar panel)
+            try:
+                logger.info(f"Starting ingress listener on port {INGRESS_PORT}")
+                logger.info(f"  Binding to: 0.0.0.0:{INGRESS_PORT}")
+                self.ingress_site = web.TCPSite(self.runner, '0.0.0.0', INGRESS_PORT)
+                await self.ingress_site.start()
+                ingress_started = True
+                logger.info(f"✅ Ingress listener started successfully on port {INGRESS_PORT}")
+            except Exception as e:
+                logger.error(f"❌ Failed to start ingress listener on port {INGRESS_PORT}: {e}")
+                logger.error("   Home Assistant sidebar panel will NOT work")
+                logger.error(f"   Common cause: Port {INGRESS_PORT} is already in use by another service")
+            
+            # If user configured a different port, also start direct access listener
+            if self.port != INGRESS_PORT:
+                try:
+                    logger.info(f"Starting direct access listener on port {self.port}")
+                    logger.info(f"  Binding to: 0.0.0.0:{self.port}")
+                    self.direct_site = web.TCPSite(self.runner, '0.0.0.0', self.port)
+                    await self.direct_site.start()
+                    direct_started = True
+                    logger.info(f"✅ Direct access listener started successfully on port {self.port}")
+                except Exception as e:
+                    logger.error(f"❌ Failed to start direct access listener on port {self.port}: {e}")
+                    logger.error(f"   Direct browser access at http://homeassistant:{self.port} will NOT work")
+                    logger.error(f"   Common cause: Port {self.port} is already in use")
+                    if ingress_started:
+                        logger.info(f"   Ingress access via sidebar panel still works")
+            else:
+                # Port is 8099, so ingress and direct access use the same listener
+                direct_started = ingress_started
+                logger.info("Using single listener for both ingress and direct access (port 8099)")
+            
+            # Report overall status
+            if ingress_started or direct_started:
+                logger.info("=" * LOG_SEPARATOR_LENGTH)
+                logger.info("✅ Web UI Started Successfully")
+                logger.info("=" * LOG_SEPARATOR_LENGTH)
+                
+                if ingress_started:
+                    logger.info("📊 Access via Home Assistant Sidebar:")
+                    logger.info("   Look for the 'Sentry' panel in your HA sidebar")
+                    logger.info("   Or: Settings → Add-ons → Home Assistant Sentry → Open Web UI")
+                    logger.info(f"   Ingress URL: /hassio/ingress/ha_sentry/")
+                
+                if direct_started and self.port != INGRESS_PORT:
+                    logger.info(f"🌐 Direct Browser Access:")
+                    logger.info(f"   http://homeassistant:{self.port}")
+                elif direct_started:
+                    logger.info(f"🌐 Direct Browser Access:")
+                    logger.info(f"   http://homeassistant:{INGRESS_PORT}")
+                
+                logger.info(f"📈 Total integrations loaded: {len(self.dependency_graph_builder.integrations)}")
+                logger.info("=" * LOG_SEPARATOR_LENGTH)
+            else:
+                logger.error("=" * LOG_SEPARATOR_LENGTH)
+                logger.error("❌ Web UI Failed to Start")
+                logger.error("=" * LOG_SEPARATOR_LENGTH)
+                logger.error("Both ingress and direct access listeners failed to start")
+                logger.error("Check the error messages above for details")
+                logger.error("=" * LOG_SEPARATOR_LENGTH)
+                
         except Exception as e:
             logger.error(f"❌ Failed to start web server: {e}", exc_info=True)
             logger.error("Web UI will not be available")
             logger.error("Common causes:")
-            logger.error(f"  1. Port {self.port} is already in use")
-            logger.error("  2. Permission denied binding to the port")
+            logger.error(f"  1. Ports are already in use")
+            logger.error("  2. Permission denied binding to the ports")
             logger.error("  3. Network configuration issue")
             logger.error("Check the error details above for more information")
         
     async def stop(self):
         """Stop the web server"""
-        if self.site:
-            await self.site.stop()
+        if self.ingress_site:
+            await self.ingress_site.stop()
+            logger.debug("Ingress listener stopped")
+        if self.direct_site:
+            await self.direct_site.stop()
+            logger.debug("Direct access listener stopped")
         if self.runner:
             await self.runner.cleanup()
         logger.info("Web server stopped")
