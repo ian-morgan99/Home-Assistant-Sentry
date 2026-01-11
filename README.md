@@ -307,6 +307,55 @@ The add-on includes an interactive web interface for visualizing component depen
    - Go to **Settings** → **Add-ons** → **Home Assistant Sentry**
    - Click **Open Web UI** button
 
+3. **Via Direct Browser Access** (Optional):
+   - Navigate to `http://your-home-assistant-address:PORT` (default PORT is 8099)
+   - Useful if you need to access the UI from outside Home Assistant
+
+### Web UI Port Configuration
+
+The Web UI supports two access methods with flexible port configuration:
+
+#### Two Access Methods
+
+1. **Home Assistant Sidebar Panel (Ingress)**
+   - Uses Home Assistant's ingress proxy system
+   - Always uses port 8099 internally (required by HA Supervisor)
+   - Works regardless of your `port` configuration
+   - **This is the recommended access method**
+
+2. **Direct Browser Access**
+   - Direct HTTP access to the web server
+   - Uses the port you configure (default: 8099)
+   - Useful for bookmarks or external access
+   - Access via `http://homeassistant:PORT`
+
+#### Configuration Examples
+
+**Default Configuration (Single Port):**
+```yaml
+port: 8099
+```
+- Sidebar panel works ✅
+- Direct access at `http://homeassistant:8099` ✅
+- Single web server instance
+
+**Custom Port (Dual Port Mode):**
+```yaml
+port: 8098
+```
+- Sidebar panel **still works** ✅ (uses port 8099 internally)
+- Direct access at `http://homeassistant:8098` ✅
+- Two web server instances (one for ingress, one for direct access)
+
+#### When to Use Custom Port
+
+Change the default port (8099) if:
+- Port 8099 is already in use by another service
+- You want to use a different port for direct browser bookmarks
+- You need to avoid port conflicts on your system
+
+**Important**: The sidebar panel will always work regardless of your port setting, as it uses Home Assistant's internal ingress routing on port 8099.
+
 ### Features
 
 #### 1. Dependencies View

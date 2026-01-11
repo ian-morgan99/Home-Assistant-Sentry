@@ -52,12 +52,64 @@ This document explains the changes made to address WebUI access issues and clari
 2. Find **Home Assistant Sentry**
 3. Click **Open Web UI** button
 
-### Method 3: Direct URL
+### Method 3: Direct Browser Access
+Navigate to: `http://your-home-assistant-address:PORT`
+
+Default PORT is 8099. This can be customized in the add-on configuration.
+
+### Method 4: Direct Ingress URL
 Navigate to: `/api/hassio_ingress/ha_sentry`
 
 Or click links in notifications that look like:
 - `[🛡️ Open WebUI](/api/hassio_ingress/ha_sentry)`
 - `[🔍 View Impact](/api/hassio_ingress/ha_sentry#whereused:component_name)`
+
+## WebUI Port Configuration
+
+The WebUI supports flexible port configuration with dual-port mode:
+
+### Understanding Dual-Port Mode
+
+The add-on can listen on two ports simultaneously to support both Home Assistant ingress and direct browser access:
+
+1. **Ingress Port (8099)** - Always Active
+   - Required for Home Assistant sidebar panel integration
+   - Used by Methods 1, 2, and 4 above
+   - Fixed at port 8099 (HA Supervisor requirement)
+   - Cannot be changed
+
+2. **Direct Access Port** - User Configurable
+   - Used for Method 3 (direct browser access)
+   - Default: 8099 (single port mode)
+   - Can be changed to any port 1024-65535
+   - Useful if port 8099 conflicts with another service
+
+### Configuration Examples
+
+**Default (Single Port Mode):**
+```yaml
+port: 8099
+```
+- Sidebar panel works ✅
+- Direct access: `http://homeassistant:8099` ✅
+- Single web server instance
+
+**Custom Port (Dual Port Mode):**
+```yaml
+port: 8098
+```
+- Sidebar panel **still works** ✅ (uses port 8099 internally)
+- Direct access: `http://homeassistant:8098` ✅
+- Two web server instances running
+
+### When to Use Custom Port
+
+Change the default port if:
+- Port 8099 is already in use by another service
+- You want direct browser access on a different port
+- You need to avoid port conflicts on your system
+
+**Important**: The sidebar panel (Method 1) and add-on "Open Web UI" button (Method 2) will always work regardless of your `port` setting, as they use Home Assistant's internal ingress routing on port 8099.
 
 ## Configuration Changes Required
 

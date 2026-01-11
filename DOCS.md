@@ -290,11 +290,69 @@ This is the easiest and most reliable method.
 2. Find **Home Assistant Sentry**
 3. Click the **Open Web UI** button
 
-#### Method 3: Direct Ingress URL
+#### Method 3: Direct Browser Access
+
+Navigate directly to: `http://your-home-assistant-address:PORT`
+
+Default PORT is 8099. This can be configured in the add-on settings.
+
+#### Method 4: Direct Ingress URL
 
 Navigate directly to: `/api/hassio_ingress/ha_sentry/`
 
 Or click links in notifications that use this format.
+
+### WebUI Port Configuration
+
+The WebUI supports flexible port configuration with two access methods:
+
+#### Understanding Dual-Port Mode
+
+The add-on can listen on two ports simultaneously:
+
+1. **Ingress Port (8099)** - Required for Home Assistant integration
+   - Used by the sidebar panel (Method 1)
+   - Used by the add-on "Open Web UI" button (Method 2)
+   - Always port 8099 (required by HA Supervisor)
+   - Cannot be changed
+
+2. **Direct Access Port** - Configurable for direct browser access
+   - Used for direct HTTP access (Method 3)
+   - Default: 8099 (same as ingress)
+   - Can be changed to any port (1024-65535)
+   - Useful if port 8099 conflicts with another service
+
+#### Configuration
+
+In the add-on configuration tab:
+
+```yaml
+port: 8099  # Default - single port mode
+```
+
+Or for custom port:
+
+```yaml
+port: 8098  # Custom - dual port mode
+```
+
+**How it works:**
+
+- `port: 8099`: Web server listens only on port 8099
+  - Sidebar panel works ✅
+  - Direct access: `http://homeassistant:8099` ✅
+  
+- `port: 8098`: Web server listens on BOTH 8099 and 8098
+  - Sidebar panel works ✅ (uses port 8099 internally)
+  - Direct access: `http://homeassistant:8098` ✅
+  - Ingress still uses port 8099 in the background
+
+**When to use a custom port:**
+- Port 8099 is already in use by another service
+- You want to access the UI via a different port for bookmarking
+- You need to avoid port conflicts
+
+**Important:** The sidebar panel always works regardless of your `port` setting, because it uses Home Assistant's internal ingress system on port 8099.
 
 ### WebUI Features
 
