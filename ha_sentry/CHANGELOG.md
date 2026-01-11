@@ -10,6 +10,8 @@
 - Categorized recommendations with priority levels (high/medium/low)
 - JSON report saving for external analysis
 - Notification with actionable insights and improvement suggestions
+- Fix WebUI startup failure caused by missing environment variable exports The WebUI stopped starting in v2.0.03 due to missing environment variable exports in `run.sh` and a stale export for a removed config option.
+
 
 ## 2.0.03
 - Add panel_admin field and fix port configuration issues Home Assistant Supervisor fails to establish ingress connection with error "Unable to fetch add-on info to start Ingress" due to missing `panel_admin` configuration field.
