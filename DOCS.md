@@ -298,7 +298,7 @@ Default PORT is 8099. This can be configured in the add-on settings.
 
 #### Method 4: Direct Ingress URL
 
-Navigate directly to: `/api/hassio_ingress/ha_sentry/`
+Navigate directly to: `/hassio/ingress/ha_sentry/`
 
 Or click links in notifications that use this format.
 
