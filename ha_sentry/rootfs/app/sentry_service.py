@@ -69,6 +69,8 @@ class SentryService:
         self.log_monitor = LogMonitor(config, obfuscator=obfuscator)
         
         # Initialize installation reviewer if enabled
+        # Always initialize _last_installation_review to avoid AttributeError
+        self._last_installation_review = None  # Track last review timestamp
         self.installation_reviewer = None
         if config.enable_installation_review:
             logger.info("Installation review feature enabled")
@@ -77,7 +79,6 @@ class SentryService:
                 ai_client=self.ai_client,
                 dependency_graph=self.dependency_graph  # Will be updated when graph is built
             )
-            self._last_installation_review = None  # Track last review timestamp
         else:
             logger.debug("Installation review feature disabled in configuration")
         
