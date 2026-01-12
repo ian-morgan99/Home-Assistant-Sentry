@@ -153,7 +153,6 @@ This fix resolves the issue reported as "Daily review now working but results no
 ## Future Improvements
 
 Potential enhancements for future versions:
-1. Make timeout configurable via add-on configuration
-2. Add progress percentage tracking for AI calls
-3. Implement streaming responses for real-time progress
-4. Add metrics for average AI response time per model
+1. Add progress percentage tracking for AI calls
+2. Implement streaming responses for real-time progress
+3. Add metrics for average AI response time per model
