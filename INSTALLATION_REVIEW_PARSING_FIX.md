@@ -120,7 +120,7 @@ If installation reviews are still timing out after this fix:
 ```
 2026-01-12 03:00:00 - installation_reviewer - INFO - Sending installation review request to AI (lmstudio - qwen3-8b...)
 2026-01-12 03:00:00 - installation_reviewer - INFO - ⏳ Waiting for AI to analyze installation... (this may take several minutes)
-2026-01-12 03:00:00 - installation_reviewer - INFO - Waiting for AI response (timeout: 300.0s / 5.0 minutes)
+2026-01-12 03:00:00 - installation_reviewer - INFO - Waiting for AI response (timeout: 1200.0s / 20.0 minutes)
 2026-01-12 03:04:30 - installation_reviewer - INFO - ✅ AI call completed successfully
 2026-01-12 03:04:30 - installation_reviewer - INFO - ✅ AI review response received: 2847 characters
 2026-01-12 03:04:30 - installation_reviewer - INFO - Parsing AI response into structured format...
