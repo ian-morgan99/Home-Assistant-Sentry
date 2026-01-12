@@ -1,5 +1,9 @@
 # Changelog
 
+## 2.0.12
+- Make installation review timeout configurable and add progress logging Installation reviews were timing out before AI reasoning models could complete analysis. The 160s timeout was insufficient for models like `qwen3-8b-claude-sonnet-4.5-reasoning-distill@q8_0` analyzing 2500+ entities.
+
+
 ## 2.0.11
 - Fix installation review config, log monitoring baseline, and WebUI notification access Three features were non-functional: installation review ignored config, log monitoring failed across HA restarts, and WebUI notification links redirected incorrectly.
 
