@@ -73,14 +73,23 @@ class SentryService:
         self._last_installation_review = None  # Track last review timestamp
         self.installation_reviewer = None
         if config.enable_installation_review:
-            logger.info("Installation review feature enabled")
+            logger.info("=" * 60)
+            logger.info("INSTALLATION REVIEW FEATURE ENABLED")
+            logger.info("=" * 60)
+            logger.info(f"  Schedule: {config.installation_review_schedule}")
+            logger.info(f"  Scope: {config.installation_review_scope}")
+            logger.info(f"  AI-powered: {config.ai_enabled}")
+            logger.info("Installation reviews will analyze your HA setup and provide recommendations")
+            logger.info("=" * 60)
             self.installation_reviewer = InstallationReviewer(
                 config, 
                 ai_client=self.ai_client,
                 dependency_graph=self.dependency_graph  # Will be updated when graph is built
             )
         else:
-            logger.debug("Installation review feature disabled in configuration")
+            logger.info("Installation review feature is disabled in configuration")
+            logger.debug(f"  enable_installation_review: {config.enable_installation_review}")
+            logger.debug("  To enable: Set 'enable_installation_review: true' in add-on config")
         
         logger.info("Sentry Service initialized")
     
@@ -882,22 +891,28 @@ No updates are currently available for:
         
         # Add web UI links section if enabled
         if self.config.enable_web_ui:
-            notification_message += "\n---\n**📊 Interactive WebUI - Detailed Analysis:**\n"
+            notification_message += "\n---\n**📊 Interactive WebUI - Detailed Analysis:**\n\n"
+            notification_message += "**How to Access WebUI:**\n"
+            notification_message += "1. **Via Sidebar Panel** (Recommended): Look for the '**Sentry**' panel in your Home Assistant sidebar\n"
+            notification_message += "2. **Via Add-on Settings**: Settings → Add-ons → Home Assistant Sentry → Open Web UI\n"
             
-            # Add impact report link if we have changed components (both safe and review required)
+            # Add impact report info if we have changed components
             if changed_components:
+                notification_message += f"\n**Analysis Available:**\n"
+                notification_message += f"- View {len(changed_components)} changed components\n"
+                notification_message += "- See affected dependencies and impact\n"
+                notification_message += "- Access via the Sentry panel above\n"
+                
+                # Generate URL for logging but don't rely on clickable links in notifications
                 components_param = ','.join(changed_components[:10])  # Limit to avoid URL length issues
                 impact_url = self._get_ingress_url(mode="impact", component=components_param)
-                notification_message += f"- [⚡ Change Impact Report]({impact_url}) - View {len(changed_components)} changed components and their affected dependencies\n"
                 logger.debug(f"Generated impact report URL: {impact_url}")
+                logger.info(f"Impact analysis available for components: {', '.join(changed_components[:5])}")
             
-            # Always add link to main web UI (ingress panel)
+            # Log the main web UI URL for debugging
             web_ui_url = self._get_ingress_url()
-            notification_message += f"- [🛡️ Open WebUI]({web_ui_url}) - Full dependency visualization and analysis\n"
             logger.debug(f"Generated web UI URL: {web_ui_url}")
-            notification_message += "\n**Alternative Access Methods:**\n"
-            notification_message += "- Look for the '**Sentry**' panel in your Home Assistant sidebar (easiest)\n"
-            notification_message += "- Or: Settings → Add-ons → Home Assistant Sentry → Open Web UI\n"
+            logger.info("WebUI access: Look for 'Sentry' panel in HA sidebar or use Add-on Settings")
         
         notification_message += f"\n*Analysis powered by: {'AI' if analysis.get('ai_analysis') else 'Heuristics'}*"
         notification_message += f"\n*Last check: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}*"
