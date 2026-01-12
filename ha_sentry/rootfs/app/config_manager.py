@@ -48,6 +48,7 @@ class ConfigManager:
         self.enable_installation_review = self._get_bool_env('ENABLE_INSTALLATION_REVIEW', False)
         self.installation_review_schedule = os.getenv('INSTALLATION_REVIEW_SCHEDULE', 'weekly').lower()
         self.installation_review_scope = os.getenv('INSTALLATION_REVIEW_SCOPE', 'full').lower()
+        self.installation_review_timeout = int(os.getenv('INSTALLATION_REVIEW_TIMEOUT', '1200'))
         
         # Validate configuration consistency
         self._validate_config()
@@ -92,6 +93,17 @@ class ConfigManager:
             })
             # Reset to default to prevent runtime errors
             self.installation_review_scope = 'full'
+        
+        # Validate installation review timeout
+        if self.installation_review_timeout < 60 or self.installation_review_timeout > 3600:
+            issues.append({
+                'severity': 'ERROR',
+                'message': f'Invalid installation_review_timeout: {self.installation_review_timeout}',
+                'details': 'Must be between 60 and 3600 seconds (1 minute to 1 hour)',
+                'fix': 'Set "installation_review_timeout" to a value between 60 and 3600'
+            })
+            # Reset to default to prevent runtime errors
+            self.installation_review_timeout = 1200
         
         # Check for web UI without dependency graph
         if self.enable_web_ui and not self.enable_dependency_graph:

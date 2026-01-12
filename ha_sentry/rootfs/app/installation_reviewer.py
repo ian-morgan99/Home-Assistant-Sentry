@@ -88,6 +88,7 @@ class InstallationReviewer:
         
         def _sync_ai_call():
             logger.debug("Starting synchronous AI API call for installation review")
+            logger.info("⏳ Waiting for AI to analyze installation... (this may take several minutes)")
             try:
                 result = self.ai_client.client.chat.completions.create(
                     model=self.config.ai_model,
@@ -111,27 +112,45 @@ class InstallationReviewer:
                 raise
         
         # Run in thread pool with async timeout
+        # Installation reviews need more time than update analysis because they analyze
+        # the entire HA setup, not just a few updates. Reasoning models especially need
+        # extra time. The timeout is now configurable via installation_review_timeout
+        # in the add-on configuration (default: 1200s / 20 minutes).
+        # 
+        # Local AI providers can be slow and may have queued requests. Since reviews
+        # typically run overnight, longer timeouts are acceptable and don't impact UX.
+        timeout_seconds = float(self.config.installation_review_timeout)
         try:
-            logger.debug("Executing AI call with asyncio.to_thread and 160s timeout")
+            logger.info(f"Waiting for AI response (timeout: {timeout_seconds}s / {timeout_seconds/60:.1f} minutes)")
+            logger.debug(f"Executing AI call with asyncio.to_thread and {timeout_seconds}s timeout")
             response = await asyncio.wait_for(
                 asyncio.to_thread(_sync_ai_call),
-                timeout=160.0
+                timeout=timeout_seconds
             )
-            logger.debug("AI call completed within timeout")
+            logger.info("✅ AI call completed successfully")
+            logger.debug(f"AI call completed within {timeout_seconds}s timeout")
         except asyncio.TimeoutError:
-            logger.error("AI installation review timed out after 160 seconds")
+            logger.error(f"❌ AI installation review timed out after {timeout_seconds} seconds ({timeout_seconds/60:.1f} minutes)")
             logger.error(f"AI Provider: {self.config.ai_provider}")
             logger.error(f"AI Endpoint: {self.config.ai_endpoint}")
             logger.error(f"AI Model: {self.config.ai_model}")
+            logger.error("This timeout may occur if:")
+            logger.error("  1. The AI model is slow (especially reasoning models)")
+            logger.error("  2. The hardware running the AI is underpowered")
+            logger.error("  3. The AI endpoint is unresponsive")
+            logger.error("Consider using a faster AI model or disabling installation reviews.")
             raise
         
         # Parse AI response
         ai_response = response.choices[0].message.content
-        logger.info(f"AI review completed: {len(ai_response)} chars")
-        logger.debug(f"AI response: {ai_response[:200]}...")
+        logger.info(f"✅ AI review response received: {len(ai_response)} characters")
+        logger.debug(f"AI response preview: {ai_response[:200]}...")
         
         # Parse the structured response
-        return self._parse_ai_review_response(ai_response, installation_summary)
+        logger.info("Parsing AI response into structured format...")
+        parsed_result = self._parse_ai_review_response(ai_response, installation_summary)
+        logger.info(f"✅ Parsing complete: {len(parsed_result.get('recommendations', []))} recommendations generated")
+        return parsed_result
     
     def _build_ai_context(self, installation_summary: Dict) -> str:
         """Build context string for AI analysis"""
@@ -243,12 +262,17 @@ Avoid generic advice - tailor recommendations to the actual installation data pr
     def _parse_ai_review_response(self, ai_response: str, installation_summary: Dict) -> Dict:
         """Parse AI review response into structured format"""
         try:
-            logger.debug("Parsing AI review response")
+            logger.debug("Parsing AI review response...")
+            logger.debug(f"Response length: {len(ai_response)} chars")
+            
             # Try to extract JSON from the response
             # Look for the first complete JSON object
             json_start = ai_response.find('{')
             if json_start < 0:
+                logger.warning("No JSON object found in AI response")
                 raise ValueError("No JSON object found in response")
+            
+            logger.debug(f"Found JSON start at position {json_start}")
             
             # Find matching closing brace by counting braces
             brace_count = 0
@@ -263,10 +287,19 @@ Avoid generic advice - tailor recommendations to the actual installation data pr
                         break
             
             if json_end < 0:
+                logger.warning("No complete JSON object found in AI response (unmatched braces)")
+                logger.warning("This may occur if:")
+                logger.warning("  1. The AI response was truncated or incomplete")
+                logger.warning("  2. The AI generated malformed JSON")
+                logger.warning("  3. The max_tokens limit was reached before completion")
+                logger.warning("A fallback structured response will be created from the text.")
                 raise ValueError("No complete JSON object found in response")
             
+            logger.debug(f"Found JSON end at position {json_end}, extracting JSON substring")
             json_str = ai_response[json_start:json_end]
+            logger.debug(f"Parsing JSON string of length {len(json_str)}")
             result = json.loads(json_str)
+            logger.debug("JSON parsing successful")
             
             # Validate and normalize the response
             review = {
@@ -280,6 +313,7 @@ Avoid generic advice - tailor recommendations to the actual installation data pr
             }
             
             # Group recommendations by category
+            logger.debug("Grouping recommendations by category...")
             categories = {}
             for rec in review['recommendations']:
                 category = rec.get('category', 'general')
@@ -288,12 +322,17 @@ Avoid generic advice - tailor recommendations to the actual installation data pr
                 categories[category].append(rec)
             review['categories'] = categories
             
-            logger.debug(f"Successfully parsed AI review: {len(review['recommendations'])} recommendations")
+            logger.info(f"✅ Successfully parsed AI review:")
+            logger.info(f"   - {len(review['recommendations'])} recommendations")
+            logger.info(f"   - {len(review['insights'])} insights") 
+            logger.info(f"   - {len(review['warnings'])} warnings")
+            logger.info(f"   - {len(categories)} categories")
             return review
             
         except (json.JSONDecodeError, ValueError) as e:
             # If JSON parsing fails, create a structured response from the text
             logger.warning(f"Failed to parse JSON from AI review response: {e}")
+            logger.warning("Creating fallback structured response from AI text")
             general_rec = {
                 'category': 'general',
                 'priority': 'medium',
@@ -301,7 +340,7 @@ Avoid generic advice - tailor recommendations to the actual installation data pr
                 'description': ai_response[:500],
                 'rationale': 'AI-generated review'
             }
-            return {
+            result = {
                 'recommendations': [general_rec],
                 'insights': [],
                 'warnings': [],
@@ -311,8 +350,11 @@ Avoid generic advice - tailor recommendations to the actual installation data pr
                 'categories': {'general': [general_rec]},  # Include the recommendation in categories
                 'scope': installation_summary.get('scope', 'full')
             }
+            logger.info(f"✅ Created fallback review with 1 recommendation from AI text")
+            return result
         except Exception as e:
             logger.error(f"Failed to parse AI review response: {e}", exc_info=True)
+            logger.info("Falling back to heuristic review")
             return self._heuristic_review(installation_summary)
     
     def _heuristic_review(self, installation_summary: Dict) -> Dict:
