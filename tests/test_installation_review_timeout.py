@@ -1,10 +1,11 @@
 """
-Test for installation review timeout and logging improvements
+Tests for installation review timeout configurability and logging improvements.
 
-This test verifies:
-1. The timeout is set to 300 seconds (5 minutes) for installation reviews
-2. Progress logging is present and clear
-3. Parsing logs provide detailed feedback
+These tests verify:
+1. The timeout for installation reviews is configurable and read from configuration
+2. The default installation review timeout is 1200 seconds (20 minutes)
+3. Progress logging is present and clear
+4. Parsing logs provide detailed feedback
 """
 import sys
 import os
