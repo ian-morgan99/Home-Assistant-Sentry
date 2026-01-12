@@ -115,6 +115,10 @@ class InstallationReviewer:
         # Installation reviews need more time than update analysis because they analyze
         # the entire HA setup, not just a few updates. Reasoning models especially need
         # extra time. Use 300s (5 minutes) to accommodate slow hardware and reasoning models.
+        # 
+        # TODO: Consider making this configurable via add-on configuration for users with
+        # particularly fast or slow hardware/models. For now, 300s is a reasonable default
+        # that works for most setups while being 2x longer than update analysis timeout.
         timeout_seconds = 300.0
         try:
             logger.info(f"Waiting for AI response (timeout: {timeout_seconds}s / {timeout_seconds/60:.1f} minutes)")
@@ -284,6 +288,11 @@ Avoid generic advice - tailor recommendations to the actual installation data pr
             
             if json_end < 0:
                 logger.warning("No complete JSON object found in AI response (unmatched braces)")
+                logger.warning("This may occur if:")
+                logger.warning("  1. The AI response was truncated or incomplete")
+                logger.warning("  2. The AI generated malformed JSON")
+                logger.warning("  3. The max_tokens limit was reached before completion")
+                logger.warning("A fallback structured response will be created from the text.")
                 raise ValueError("No complete JSON object found in response")
             
             logger.debug(f"Found JSON end at position {json_end}, extracting JSON substring")

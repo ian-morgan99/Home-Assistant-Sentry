@@ -8,6 +8,7 @@ This test verifies:
 """
 import sys
 import os
+import traceback
 
 # Add the app directory to Python path
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'ha_sentry', 'rootfs', 'app'))
@@ -195,7 +196,6 @@ if __name__ == '__main__':
                 failed += 1
         except Exception as e:
             print(f"✗ Test failed with exception: {e}")
-            import traceback
             traceback.print_exc()
             failed += 1
         print()
