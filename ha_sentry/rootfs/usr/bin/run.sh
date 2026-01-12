@@ -23,6 +23,9 @@ export ENABLE_WEB_UI=$(bashio::config 'enable_web_ui')
 export PORT=$(bashio::config 'port')
 export MONITOR_LOGS_AFTER_UPDATE=$(bashio::config 'monitor_logs_after_update')
 export LOG_CHECK_LOOKBACK_HOURS=$(bashio::config 'log_check_lookback_hours')
+export ENABLE_INSTALLATION_REVIEW=$(bashio::config 'enable_installation_review')
+export INSTALLATION_REVIEW_SCHEDULE=$(bashio::config 'installation_review_schedule')
+export INSTALLATION_REVIEW_SCOPE=$(bashio::config 'installation_review_scope')
 
 # Parse custom integration paths with proper error handling
 if CUSTOM_PATHS=$(bashio::config 'custom_integration_paths' | jq -c '.' 2>/dev/null); then

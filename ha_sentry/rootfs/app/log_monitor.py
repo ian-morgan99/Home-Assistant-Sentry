@@ -42,8 +42,9 @@ class LogMonitor:
         r'breaking change',
     ]
     
-    # Log storage file
+    # Log storage files
     PREVIOUS_LOGS_FILE = '/data/previous_logs.json'
+    BASELINE_LOGS_FILE = '/data/baseline_logs.json'  # Long-term baseline for comparison
     
     def __init__(self, config, obfuscator: Optional[LogObfuscator] = None):
         """
@@ -196,6 +197,9 @@ class LogMonitor:
         """
         Save current error logs to disk for next comparison
         
+        Also maintains a baseline snapshot for long-term comparison across HA restarts.
+        The baseline is only updated when the system appears stable (fewer errors).
+        
         Args:
             error_lines: Current error log lines to save
         """
@@ -207,10 +211,28 @@ class LogMonitor:
             }
             
             os.makedirs(os.path.dirname(self.PREVIOUS_LOGS_FILE), exist_ok=True)
+            
+            # Always save current logs
             with open(self.PREVIOUS_LOGS_FILE, 'w') as f:
                 json.dump(data, f, indent=2)
-            
             logger.debug(f"Saved {len(error_lines)} error lines to {self.PREVIOUS_LOGS_FILE}")
+            
+            # Update baseline if this appears to be a stable state
+            # Baseline is updated when we have fewer than 20 errors or no previous baseline exists
+            baseline_should_update = False
+            if not os.path.exists(self.BASELINE_LOGS_FILE):
+                baseline_should_update = True
+                logger.info("Creating initial baseline log snapshot for future comparisons")
+            elif len(error_lines) < 20:
+                # System appears stable, update baseline
+                baseline_should_update = True
+                logger.debug(f"Updating baseline log snapshot (stable state with {len(error_lines)} errors)")
+            
+            if baseline_should_update:
+                with open(self.BASELINE_LOGS_FILE, 'w') as f:
+                    json.dump(data, f, indent=2)
+                logger.debug(f"Updated baseline log snapshot with {len(error_lines)} errors")
+                
         except Exception as e:
             logger.warning(f"Failed to save logs: {e}")
     
@@ -218,22 +240,48 @@ class LogMonitor:
         """
         Load previous error logs from disk
         
+        Tries to load from previous_logs.json first. If that fails or appears
+        to be from after a restart (very few or no errors), falls back to
+        baseline_logs.json which persists across HA restarts.
+        
         Returns:
             List of previous error log lines, or empty list if none exist
         """
         try:
-            if not os.path.exists(self.PREVIOUS_LOGS_FILE):
-                logger.debug("No previous logs file found - this may be the first run")
-                return []
+            # Try loading recent previous logs first
+            if os.path.exists(self.PREVIOUS_LOGS_FILE):
+                with open(self.PREVIOUS_LOGS_FILE, 'r') as f:
+                    data = json.load(f)
+                
+                previous_errors = data.get('errors', [])
+                previous_time = data.get('timestamp', 'unknown')
+                
+                # If previous logs are empty or very sparse, might indicate HA restart cleared logs
+                # Fall back to baseline for better comparison
+                if len(previous_errors) > 0:
+                    logger.info(f"Loaded {len(previous_errors)} previous error lines from {previous_time}")
+                    return previous_errors
+                else:
+                    logger.info("Previous logs appear empty (possible HA restart), trying baseline logs")
+            else:
+                logger.debug("No previous logs file found")
             
-            with open(self.PREVIOUS_LOGS_FILE, 'r') as f:
-                data = json.load(f)
+            # Fall back to baseline logs for comparison across restarts
+            if os.path.exists(self.BASELINE_LOGS_FILE):
+                with open(self.BASELINE_LOGS_FILE, 'r') as f:
+                    data = json.load(f)
+                
+                baseline_errors = data.get('errors', [])
+                baseline_time = data.get('timestamp', 'unknown')
+                
+                if len(baseline_errors) > 0:
+                    logger.info(f"Loaded {len(baseline_errors)} baseline error lines from {baseline_time}")
+                    logger.info("Using baseline for comparison (helps detect issues across HA restarts)")
+                    return baseline_errors
             
-            previous_errors = data.get('errors', [])
-            previous_time = data.get('timestamp', 'unknown')
-            logger.info(f"Loaded {len(previous_errors)} previous error lines from {previous_time}")
+            logger.debug("No baseline logs found - this may be the first run")
+            return []
             
-            return previous_errors
         except Exception as e:
             logger.warning(f"Failed to load previous logs: {e}")
             return []
@@ -455,6 +503,10 @@ Be concise but clear in your recommendations."""
         """
         Main method to check logs for errors after updates
         
+        This method compares current logs against a baseline to detect new errors.
+        The baseline persists across Home Assistant restarts, solving the issue where
+        HA clears its logs on restart (which often happens after updates).
+        
         Args:
             ha_client: HomeAssistantClient instance
             ai_client: Optional AIClient instance for AI-powered analysis
@@ -469,6 +521,8 @@ Be concise but clear in your recommendations."""
         logger.info("=" * 60)
         logger.info("LOG MONITORING CHECK")
         logger.info("=" * 60)
+        logger.info("Comparing current logs against baseline to detect new errors")
+        logger.info("Note: Baseline persists across HA restarts for accurate comparison")
         
         # Fetch current logs
         log_lines = await self.fetch_logs(ha_client)
@@ -479,7 +533,7 @@ Be concise but clear in your recommendations."""
         # Filter to recent errors
         current_errors = self.filter_recent_errors(log_lines)
         
-        # Load previous errors
+        # Load previous errors (will use baseline if needed)
         previous_errors = self.load_previous_logs()
         
         # Enhanced debug logging for maximal log level
@@ -495,14 +549,20 @@ Be concise but clear in your recommendations."""
         logger.debug(f"Lookback period: {self.lookback_hours} hours")
         logger.debug(f"Comparing logs from: {lookback_start.strftime('%Y-%m-%d %H:%M:%S')} to {current_time.strftime('%Y-%m-%d %H:%M:%S')}")
         logger.debug(f"Current errors found: {len(current_errors)}")
-        logger.debug(f"Previous errors loaded: {len(previous_errors)}")
+        logger.debug(f"Previous/baseline errors loaded: {len(previous_errors)}")
         
         # Log whether we can determine changes
         can_determine_changes = len(previous_errors) > 0
         if can_determine_changes:
             logger.debug("Previous log data available - can determine changes")
         else:
-            logger.debug("No previous log data available - this may be first run or previous logs were cleared")
+            logger.info("=" * 60)
+            logger.info("ESTABLISHING BASELINE")
+            logger.info("=" * 60)
+            logger.info("No previous log data available - this may be first run")
+            logger.info("Creating baseline snapshot for future comparisons")
+            logger.info("Future checks will compare against this baseline to detect new errors")
+            logger.info("=" * 60)
         
         # Log sample of current errors for debugging (maximal level only)
         if current_errors and logger.isEnabledFor(logging.DEBUG):
@@ -514,7 +574,7 @@ Be concise but clear in your recommendations."""
         
         # Log sample of previous errors for debugging (maximal level only)
         if previous_errors and logger.isEnabledFor(logging.DEBUG):
-            logger.debug("Sample of previous error entries (up to 5):")
+            logger.debug("Sample of previous/baseline error entries (up to 5):")
             for i, error in enumerate(previous_errors[:5], 1):
                 # Truncate long lines for readability
                 preview = error[:150] + "..." if len(error) > 150 else error
