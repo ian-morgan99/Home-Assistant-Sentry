@@ -14,9 +14,6 @@ import traceback
 # Add the app directory to Python path
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'ha_sentry', 'rootfs', 'app'))
 
-import re
-
-
 def test_timeout_is_configurable():
     """Verify that the timeout for installation reviews is configurable"""
     
