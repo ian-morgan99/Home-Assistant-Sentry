@@ -1160,21 +1160,37 @@ Your Home Assistant system logs are stable with no new errors or warnings.
                 # Perform the review
                 logger.info("Analyzing installation and generating recommendations...")
                 review_results = await self.installation_reviewer.review_installation(installation_summary)
+                logger.info(f"✅ Review analysis complete")
                 
                 # Report results via notification
+                logger.info("Reporting installation review results to Home Assistant...")
                 await self._report_installation_review(ha_client, review_results)
+                logger.info("✅ Installation review notification sent")
                 
                 # Save review report if enabled
                 if self.config.save_reports:
+                    logger.info("Saving installation review report to file...")
                     self._save_installation_review_report(review_results)
+                    logger.info("✅ Installation review report saved")
                 
                 # Update last review timestamp
                 self._last_installation_review = datetime.now()
                 
-                logger.info(f"Installation review complete: {len(review_results.get('recommendations', []))} recommendations")
+                logger.info("=" * 60)
+                logger.info("INSTALLATION REVIEW COMPLETED SUCCESSFULLY")
+                logger.info("=" * 60)
+                logger.info(f"  Recommendations: {len(review_results.get('recommendations', []))}")
+                logger.info(f"  Insights: {len(review_results.get('insights', []))}")
+                logger.info(f"  Warnings: {len(review_results.get('warnings', []))}")
+                logger.info(f"  AI-powered: {review_results.get('ai_powered', False)}")
+                logger.info("=" * 60)
         
         except Exception as e:
+            logger.error("=" * 60)
+            logger.error("INSTALLATION REVIEW FAILED")
+            logger.error("=" * 60)
             logger.error(f"Error during installation review: {e}", exc_info=True)
+            logger.error("=" * 60)
     
     async def _report_installation_review(self, ha_client: HomeAssistantClient, review_results: Dict):
         """Report installation review results via notification"""
