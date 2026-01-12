@@ -114,12 +114,12 @@ class InstallationReviewer:
         # Run in thread pool with async timeout
         # Installation reviews need more time than update analysis because they analyze
         # the entire HA setup, not just a few updates. Reasoning models especially need
-        # extra time. Use 300s (5 minutes) to accommodate slow hardware and reasoning models.
+        # extra time. The timeout is now configurable via installation_review_timeout
+        # in the add-on configuration (default: 1200s / 20 minutes).
         # 
-        # TODO: Consider making this configurable via add-on configuration for users with
-        # particularly fast or slow hardware/models. For now, 300s is a reasonable default
-        # that works for most setups while being 2x longer than update analysis timeout.
-        timeout_seconds = 300.0
+        # Local AI providers can be slow and may have queued requests. Since reviews
+        # typically run overnight, longer timeouts are acceptable and don't impact UX.
+        timeout_seconds = float(self.config.installation_review_timeout)
         try:
             logger.info(f"Waiting for AI response (timeout: {timeout_seconds}s / {timeout_seconds/60:.1f} minutes)")
             logger.debug(f"Executing AI call with asyncio.to_thread and {timeout_seconds}s timeout")

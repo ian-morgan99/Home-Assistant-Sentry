@@ -246,6 +246,14 @@ map:
 #   WHEN TO USE: Use "full" for comprehensive analysis. Use specific scopes if you
 #                only want targeted advice in certain areas.
 #
+# installation_review_timeout: Maximum time to wait for AI review response (seconds)
+#   - Default: 1200 (20 minutes)
+#   - Range: 60-3600 (1 minute to 1 hour)
+#   WHEN TO USE: Increase for slow AI providers, reasoning models, or queued requests.
+#                Reviews typically run overnight, so longer timeouts are acceptable.
+#                Decrease only if you're using very fast AI services and want quicker
+#                failure detection. Local AI with queue systems may need 20-30 minutes.
+#
 # ==================================================================================
 
 options:
@@ -272,6 +280,7 @@ options:
   enable_installation_review: false
   installation_review_schedule: "weekly"
   installation_review_scope: "full"
+  installation_review_timeout: 1200
 schema:
   ai_enabled: bool
   ai_provider: list(openai|ollama|lmstudio|openwebui)
@@ -297,3 +306,4 @@ schema:
   enable_installation_review: bool
   installation_review_schedule: list(weekly|monthly|manual)
   installation_review_scope: list(full|integrations|automations)
+  installation_review_timeout: int(60,3600)

@@ -16,10 +16,10 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'ha_sentry', 'r
 import re
 
 
-def test_timeout_value_is_300_seconds():
-    """Verify that the timeout for installation reviews is set to 300 seconds"""
+def test_timeout_is_configurable():
+    """Verify that the timeout for installation reviews is configurable"""
     
-    print("Testing installation review timeout value...")
+    print("Testing installation review timeout is configurable...")
     
     # Read the installation_reviewer.py file
     reviewer_path = os.path.join(
@@ -34,17 +34,38 @@ def test_timeout_value_is_300_seconds():
     with open(reviewer_path, 'r') as f:
         content = f.read()
     
-    # Check that timeout_seconds = 300.0 is set
-    assert 'timeout_seconds = 300.0' in content, \
-        "Installation review timeout should be set to 300.0 seconds"
+    # Check that timeout is read from config, not hardcoded
+    assert 'timeout_seconds = float(self.config.installation_review_timeout)' in content, \
+        "Installation review timeout should be read from config"
     
-    print("✓ Timeout correctly set to 300 seconds (5 minutes)")
+    print("✓ Timeout correctly read from configuration")
     
     # Verify the timeout is used in asyncio.wait_for (on separate line due to formatting)
     assert 'timeout=timeout_seconds' in content, \
         "Timeout should be passed to asyncio.wait_for"
     
     print("✓ Timeout correctly used in asyncio.wait_for call")
+    
+    # Check that the config has the timeout parameter
+    config_path = os.path.join(
+        os.path.dirname(__file__), 
+        '..', 
+        'ha_sentry', 
+        'config.yaml'
+    )
+    
+    with open(config_path, 'r') as f:
+        config_content = f.read()
+    
+    # Verify configuration file has the timeout setting
+    assert 'installation_review_timeout:' in config_content, \
+        "Config should have installation_review_timeout parameter"
+    
+    # Verify default is 1200 (20 minutes)
+    assert 'installation_review_timeout: 1200' in config_content, \
+        "Default timeout should be 1200 seconds (20 minutes)"
+    
+    print("✓ Configuration has installation_review_timeout parameter with 1200s default")
     
     return True
 
@@ -179,7 +200,7 @@ if __name__ == '__main__':
     print("Running Installation Review Timeout and Logging Tests...\n")
     
     tests = [
-        test_timeout_value_is_300_seconds,
+        test_timeout_is_configurable,
         test_progress_logging_exists,
         test_parsing_logs_exist,
         test_sentry_service_logging_improvements,
