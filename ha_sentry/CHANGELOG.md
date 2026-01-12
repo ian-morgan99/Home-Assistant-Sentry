@@ -1,5 +1,9 @@
 # Changelog
 
+## 2.0.11
+- Fix installation review config, log monitoring baseline, and WebUI notification access Three features were non-functional: installation review ignored config, log monitoring failed across HA restarts, and WebUI notification links redirected incorrectly.
+
+
 ## 2.0.10
 - Fix hardcoded value in installation review disabled log message The debug log message for disabled installation review always displayed `enable_installation_review=false`, even when the feature was enabled, causing confusion during troubleshooting.
 
