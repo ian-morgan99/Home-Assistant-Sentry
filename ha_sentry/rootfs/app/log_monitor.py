@@ -265,13 +265,19 @@ class LogMonitor:
                 previous_errors = data.get('errors', [])
                 previous_time = data.get('timestamp', 'unknown')
                 
-                # If previous logs are empty or very sparse, might indicate HA restart cleared logs
-                # Fall back to baseline for better comparison
-                if len(previous_errors) > 0:
+                # If previous logs have 6+ errors, use them (normal operation)
+                # If previous logs have 0-5 errors and a baseline exists, use baseline instead
+                # This is because 0-5 errors likely indicates HA restart cleared logs
+                if len(previous_errors) >= 6:
+                    logger.info(f"Loaded {len(previous_errors)} previous error lines from {previous_time}")
+                    return previous_errors
+                elif len(previous_errors) > 0 and not os.path.exists(self.BASELINE_LOGS_FILE):
+                    # Few errors but no baseline - use what we have
                     logger.info(f"Loaded {len(previous_errors)} previous error lines from {previous_time}")
                     return previous_errors
                 else:
-                    logger.info("Previous logs appear empty (possible HA restart), trying baseline logs")
+                    # Few or no errors, and baseline exists - fall back to baseline
+                    logger.info(f"Previous logs have few errors ({len(previous_errors)}) - checking baseline for better comparison")
             else:
                 logger.debug("No previous logs file found")
             

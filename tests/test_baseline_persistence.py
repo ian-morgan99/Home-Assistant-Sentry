@@ -153,7 +153,7 @@ def test_baseline_creation_on_first_run():
 
 def test_load_previous_logs_fallback():
     """
-    Test that load_previous_logs correctly falls back to baseline when previous logs are empty
+    Test that load_previous_logs correctly falls back to baseline in various scenarios
     """
     try:
         from log_monitor import LogMonitor
@@ -174,8 +174,8 @@ def test_load_previous_logs_fallback():
             monitor.PREVIOUS_LOGS_FILE = os.path.join(tmpdir, 'previous_logs.json')
             monitor.BASELINE_LOGS_FILE = os.path.join(tmpdir, 'baseline_logs.json')
             
-            # Create baseline with errors
-            baseline_errors = [f'ERROR baseline {i}' for i in range(5)]
+            # Create baseline with 10 errors
+            baseline_errors = [f'ERROR baseline {i}' for i in range(10)]
             baseline_data = {
                 'timestamp': '2025-01-12T10:00:00',
                 'errors': baseline_errors,
@@ -184,7 +184,8 @@ def test_load_previous_logs_fallback():
             with open(monitor.BASELINE_LOGS_FILE, 'w') as f:
                 json.dump(baseline_data, f)
             
-            # Create previous logs with NO errors (simulating restart)
+            # Test 1: Previous logs with 0 errors should fall back to baseline
+            print("Test 1: Previous logs with 0 errors -> use baseline")
             previous_data = {
                 'timestamp': '2025-01-12T11:00:00',
                 'errors': [],
@@ -193,13 +194,56 @@ def test_load_previous_logs_fallback():
             with open(monitor.PREVIOUS_LOGS_FILE, 'w') as f:
                 json.dump(previous_data, f)
             
-            # Load should fall back to baseline
-            print("Testing fallback to baseline when previous logs are empty")
             loaded = monitor.load_previous_logs()
-            
-            assert len(loaded) == 5, f"Should load 5 errors from baseline, got {len(loaded)}"
+            assert len(loaded) == 10, f"Should load 10 errors from baseline, got {len(loaded)}"
             assert 'baseline' in loaded[0], "Should load baseline errors"
-            print(f"✓ Correctly fell back to baseline with {len(loaded)} errors")
+            print(f"✓ Correctly fell back to baseline (0 errors case)")
+            
+            # Test 2: Previous logs with 3 errors should fall back to baseline
+            print("\nTest 2: Previous logs with 3 errors -> use baseline (likely restart)")
+            previous_data = {
+                'timestamp': '2025-01-12T11:30:00',
+                'errors': ['ERROR recent 1', 'ERROR recent 2', 'WARNING recent 3'],
+                'lookback_hours': 24
+            }
+            with open(monitor.PREVIOUS_LOGS_FILE, 'w') as f:
+                json.dump(previous_data, f)
+            
+            loaded = monitor.load_previous_logs()
+            assert len(loaded) == 10, f"Should load 10 errors from baseline, got {len(loaded)}"
+            assert 'baseline' in loaded[0], "Should load baseline errors, not recent"
+            print(f"✓ Correctly fell back to baseline (3 errors case)")
+            
+            # Test 3: Previous logs with 8 errors should use previous_logs
+            print("\nTest 3: Previous logs with 8 errors -> use previous_logs (normal operation)")
+            previous_data = {
+                'timestamp': '2025-01-12T12:00:00',
+                'errors': [f'ERROR recent {i}' for i in range(8)],
+                'lookback_hours': 24
+            }
+            with open(monitor.PREVIOUS_LOGS_FILE, 'w') as f:
+                json.dump(previous_data, f)
+            
+            loaded = monitor.load_previous_logs()
+            assert len(loaded) == 8, f"Should load 8 errors from previous_logs, got {len(loaded)}"
+            assert 'recent' in loaded[0], "Should load recent errors, not baseline"
+            print(f"✓ Correctly used previous_logs (8 errors case)")
+            
+            # Test 4: Previous logs with few errors but no baseline should use previous_logs
+            print("\nTest 4: Previous logs with 3 errors, no baseline -> use previous_logs")
+            os.remove(monitor.BASELINE_LOGS_FILE)
+            previous_data = {
+                'timestamp': '2025-01-12T13:00:00',
+                'errors': ['ERROR solo 1', 'ERROR solo 2', 'WARNING solo 3'],
+                'lookback_hours': 24
+            }
+            with open(monitor.PREVIOUS_LOGS_FILE, 'w') as f:
+                json.dump(previous_data, f)
+            
+            loaded = monitor.load_previous_logs()
+            assert len(loaded) == 3, f"Should load 3 errors from previous_logs, got {len(loaded)}"
+            assert 'solo' in loaded[0], "Should load solo errors"
+            print(f"✓ Correctly used previous_logs when no baseline exists (3 errors case)")
             
         return True
         
