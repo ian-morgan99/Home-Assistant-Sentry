@@ -218,15 +218,24 @@ class LogMonitor:
             logger.debug(f"Saved {len(error_lines)} error lines to {self.PREVIOUS_LOGS_FILE}")
             
             # Update baseline if this appears to be a stable state
-            # Baseline is updated when we have fewer than 20 errors or no previous baseline exists
+            # Baseline is updated when:
+            # 1. No baseline exists yet (first run)
+            # 2. We have 6-20 errors (stable state with some activity)
+            # 
+            # We do NOT update when we have 0-5 errors and a baseline exists, because
+            # this likely indicates HA just restarted and cleared logs. Preserving the
+            # pre-restart baseline allows meaningful comparisons after restarts.
             baseline_should_update = False
             if not os.path.exists(self.BASELINE_LOGS_FILE):
                 baseline_should_update = True
                 logger.info("Creating initial baseline log snapshot for future comparisons")
-            elif len(error_lines) < 20:
-                # System appears stable, update baseline
+            elif 6 <= len(error_lines) < 20:
+                # System appears stable with some activity, update baseline
                 baseline_should_update = True
                 logger.debug(f"Updating baseline log snapshot (stable state with {len(error_lines)} errors)")
+            elif len(error_lines) < 6:
+                # Very few errors - likely HA restart cleared logs, preserve existing baseline
+                logger.debug(f"Not updating baseline (only {len(error_lines)} errors - may indicate HA restart)")
             
             if baseline_should_update:
                 with open(self.BASELINE_LOGS_FILE, 'w') as f:
