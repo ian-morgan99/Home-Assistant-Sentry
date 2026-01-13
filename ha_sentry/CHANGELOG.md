@@ -1,5 +1,9 @@
 # Changelog
 
+## 2.0.13
+- Fix OpenWebUI endpoint to use /api instead of /v1 OpenWebUI uses `/api/chat/completions` for its API endpoint, not `/v1/chat/completions` like other OpenAI-compatible providers. This caused 405 Method Not Allowed errors when attempting to use OpenWebUI as the AI provider.
+
+
 ## 2.0.12
 - Make installation review timeout configurable and add progress logging Installation reviews were timing out before AI reasoning models could complete analysis. The 160s timeout was insufficient for models like `qwen3-8b-claude-sonnet-4.5-reasoning-distill@q8_0` analyzing 2500+ entities.
 
