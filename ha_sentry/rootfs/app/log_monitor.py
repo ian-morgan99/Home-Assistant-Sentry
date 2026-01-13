@@ -235,7 +235,7 @@ class LogMonitor:
             if not os.path.exists(self.BASELINE_LOGS_FILE):
                 baseline_should_update = True
                 logger.info("Creating initial baseline log snapshot for future comparisons")
-            elif self.MIN_ERRORS_FOR_BASELINE_UPDATE <= len(error_lines) < self.MAX_ERRORS_FOR_BASELINE_UPDATE:
+            elif self.MIN_ERRORS_FOR_BASELINE_UPDATE <= len(error_lines) <= self.MAX_ERRORS_FOR_BASELINE_UPDATE:
                 # System appears stable with some activity, update baseline
                 baseline_should_update = True
                 logger.debug(f"Updating baseline log snapshot (stable state with {len(error_lines)} errors)")
