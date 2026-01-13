@@ -84,10 +84,10 @@ class AIClient:
                     timeout=timeout
                 )
             elif self.config.ai_provider == 'openwebui':
-                # OpenWebUI with compatible endpoint
+                # OpenWebUI uses /api/chat/completions endpoint
                 base_url = self.config.ai_endpoint
-                if not base_url.endswith('/v1'):
-                    base_url = f"{base_url}/v1"
+                if not base_url.endswith('/api'):
+                    base_url = f"{base_url}/api"
                 logger.debug(f"Configuring OpenWebUI client with base_url: {base_url}")
                 self.client = OpenAI(
                     base_url=base_url,
