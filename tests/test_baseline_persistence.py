@@ -87,7 +87,7 @@ def test_baseline_not_overwritten_on_restart():
             print(f"✓ Previous logs updated with {len(previous_data['errors'])} errors")
             
             # Step 5: Test that baseline IS updated when we have 6-20 errors (genuinely stable)
-            print("\nStep 4: Testing baseline update with 8 errors (genuinely stable)")
+            print("\nStep 5: Testing baseline update with 8 errors (genuinely stable)")
             stable_errors = [f'2025-01-12 12:00:00 ERROR stable error {i}' for i in range(8)]
             monitor.save_current_logs(stable_errors)
             
