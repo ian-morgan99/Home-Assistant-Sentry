@@ -46,6 +46,12 @@ class LogMonitor:
     PREVIOUS_LOGS_FILE = '/data/previous_logs.json'
     BASELINE_LOGS_FILE = '/data/baseline_logs.json'  # Long-term baseline for comparison
     
+    # Baseline management thresholds
+    # These thresholds help distinguish between HA restarts (0-5 errors) and stable operation (6-20 errors)
+    MIN_ERRORS_FOR_BASELINE_UPDATE = 6  # Minimum errors to update baseline (avoids overwriting after HA restart)
+    MAX_ERRORS_FOR_BASELINE_UPDATE = 20  # Maximum errors for baseline update (genuine stable state)
+    MIN_ERRORS_FOR_PREVIOUS_LOGS = 6  # Minimum errors in previous_logs to use it instead of baseline
+    
     def __init__(self, config, obfuscator: Optional[LogObfuscator] = None):
         """
         Initialize the log monitor
@@ -218,15 +224,24 @@ class LogMonitor:
             logger.debug(f"Saved {len(error_lines)} error lines to {self.PREVIOUS_LOGS_FILE}")
             
             # Update baseline if this appears to be a stable state
-            # Baseline is updated when we have fewer than 20 errors or no previous baseline exists
+            # Baseline is updated when:
+            # 1. No baseline exists yet (first run)
+            # 2. We have MIN_ERRORS_FOR_BASELINE_UPDATE to MAX_ERRORS_FOR_BASELINE_UPDATE errors (stable state with some activity)
+            # 
+            # We do NOT update when we have fewer than MIN_ERRORS_FOR_BASELINE_UPDATE errors and a baseline exists, because
+            # this likely indicates HA just restarted and cleared logs. Preserving the
+            # pre-restart baseline allows meaningful comparisons after restarts.
             baseline_should_update = False
             if not os.path.exists(self.BASELINE_LOGS_FILE):
                 baseline_should_update = True
                 logger.info("Creating initial baseline log snapshot for future comparisons")
-            elif len(error_lines) < 20:
-                # System appears stable, update baseline
+            elif self.MIN_ERRORS_FOR_BASELINE_UPDATE <= len(error_lines) <= self.MAX_ERRORS_FOR_BASELINE_UPDATE:
+                # System appears stable with some activity, update baseline
                 baseline_should_update = True
                 logger.debug(f"Updating baseline log snapshot (stable state with {len(error_lines)} errors)")
+            elif len(error_lines) < self.MIN_ERRORS_FOR_BASELINE_UPDATE:
+                # Very few errors - likely HA restart cleared logs, preserve existing baseline
+                logger.debug(f"Not updating baseline (only {len(error_lines)} errors - may indicate HA restart)")
             
             if baseline_should_update:
                 with open(self.BASELINE_LOGS_FILE, 'w') as f:
@@ -256,13 +271,19 @@ class LogMonitor:
                 previous_errors = data.get('errors', [])
                 previous_time = data.get('timestamp', 'unknown')
                 
-                # If previous logs are empty or very sparse, might indicate HA restart cleared logs
-                # Fall back to baseline for better comparison
-                if len(previous_errors) > 0:
+                # If previous logs have MIN_ERRORS_FOR_PREVIOUS_LOGS+ errors, use them (normal operation)
+                # If previous logs have fewer errors and a baseline exists, use baseline instead
+                # This is because few errors likely indicates HA restart cleared logs
+                if len(previous_errors) >= self.MIN_ERRORS_FOR_PREVIOUS_LOGS:
+                    logger.info(f"Loaded {len(previous_errors)} previous error lines from {previous_time}")
+                    return previous_errors
+                elif len(previous_errors) > 0 and not os.path.exists(self.BASELINE_LOGS_FILE):
+                    # Few errors but no baseline - use what we have
                     logger.info(f"Loaded {len(previous_errors)} previous error lines from {previous_time}")
                     return previous_errors
                 else:
-                    logger.info("Previous logs appear empty (possible HA restart), trying baseline logs")
+                    # Few or no errors, and baseline exists - fall back to baseline
+                    logger.info(f"Previous logs have few errors ({len(previous_errors)}) - checking baseline for better comparison")
             else:
                 logger.debug("No previous logs file found")
             
