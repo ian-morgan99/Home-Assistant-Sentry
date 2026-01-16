@@ -1,5 +1,9 @@
 # Changelog
 
+## 2.0.14
+- Fix log monitoring baseline overwrite after Home Assistant restarts After HA restarts, logs are cleared and the baseline was being overwritten with the resulting 0-5 startup errors, losing the meaningful pre-restart baseline needed for comparison.
+
+
 ## 2.0.13
 - Fix OpenWebUI endpoint to use /api instead of /v1 OpenWebUI uses `/api/chat/completions` for its API endpoint, not `/v1/chat/completions` like other OpenAI-compatible providers. This caused 405 Method Not Allowed errors when attempting to use OpenWebUI as the AI provider.
 
