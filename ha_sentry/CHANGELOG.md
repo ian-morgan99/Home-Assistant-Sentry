@@ -1,5 +1,9 @@
 # Changelog
 
+## 2.1.02
+- Fix sidebar panel HTTP 401 error after Home Assistant restart
+
+
 ## 2.1.01
 - Add orphan / broken-entity audit (v2.1.0)
 
