@@ -1542,6 +1542,30 @@ class DependencyTreeWebServer:
                         
                         if (!response.ok) {
                             addDiagnosticLog(`Status poll failed: HTTP ${response.status}`, 'warning');
+                            // 401 means the ingress session is no longer valid
+                            // (e.g. after an HA restart). Fail fast with a
+                            // descriptive error so the caller can render the
+                            // dedicated 401 UI instead of polling 30+ times.
+                            if (response.status === 401) {
+                                clearInterval(pollInterval);
+                                hideProgressBar();
+                                updateStatusIndicator('error', 'Session expired');
+                                updateStatusDetail('Ingress session expired after Home Assistant restart');
+                                showDetailedError(
+                                    'Session Expired (HTTP 401)',
+                                    'Home Assistant could not authenticate the add-on ingress session. ' +
+                                    'This is a known Home Assistant bug that affects add-on sidebar panels ' +
+                                    'after a Home Assistant restart.',
+                                    [
+                                        'Click "Refresh Page" below - this re-establishes the ingress session',
+                                        'If refresh does not work, open the add-on from the Home Assistant sidebar menu (Settings > Add-ons)',
+                                        'Toggle the "Show in sidebar" switch off and back on for this add-on',
+                                        'As a last resort, log out of Home Assistant and log back in, then clear your browser cookies for this site'
+                                    ]
+                                );
+                                reject(new Error('HTTP 401: ingress session expired'));
+                                return;
+                            }
                             if (pollAttempts >= MAX_POLL_ATTEMPTS) {
                                 clearInterval(pollInterval);
                                 reject(new Error(`Status API returned ${response.status} after ${elapsed}s`));
@@ -1902,6 +1926,28 @@ class DependencyTreeWebServer:
                     addDiagnosticLog('Status response: HTTP ' + statusResponse.status, 'info');
                     
                     if (!statusResponse.ok) {
+                        // 401 Unauthorized: known HA ingress bug after reboot.
+                        // Surface a dedicated UI instead of a generic
+                        // "Status Check Failed" error.
+                        if (statusResponse.status === 401) {
+                            addDiagnosticLog('Ingress session expired (HTTP 401)', 'error');
+                            updateStatusIndicator('error', 'Session expired');
+                            updateStatusDetail('Ingress session expired after Home Assistant restart');
+                            showDetailedError(
+                                'Session Expired (HTTP 401)',
+                                'Home Assistant could not authenticate the add-on ingress session. ' +
+                                'This is a known Home Assistant bug that affects add-on sidebar panels ' +
+                                'after a Home Assistant restart (the panel persists but loses its auth ' +
+                                'token). The add-on itself is running fine.',
+                                [
+                                    'Click "Refresh Page" below - this re-establishes the ingress session',
+                                    'If refresh does not work, open the add-on directly from the Home Assistant sidebar menu (Settings > Add-ons)',
+                                    'Toggle the "Show in sidebar" switch off and back on for this add-on',
+                                    'As a last resort, log out of Home Assistant and log back in, then clear your browser cookies for this site'
+                                ]
+                            );
+                            return;
+                        }
                         throw new Error(`Status API returned HTTP ${statusResponse.status}`);
                     }
                     
@@ -2017,6 +2063,35 @@ class DependencyTreeWebServer:
                 
                 console.log('[API] Components response received:', response.status, response.statusText);
                 addDiagnosticLog('Components fetch response: HTTP ' + response.status, 'info');
+                
+                // Handle 401 Unauthorized: known HA ingress issue where the add-on's
+                // sidebar panel does not re-authenticate after a Home Assistant
+                // reboot (HA Core <-> Supervisor ingress re-registration bug).
+                // See: https://github.com/home-assistant/frontend/issues/53316
+                // We surface a dedicated error with the documented workaround so
+                // the user is not stuck on a generic "Failed to load components"
+                // page.
+                if (response.status === 401) {
+                    addDiagnosticLog('Unauthorized (401) - ingress session expired or not registered', 'error');
+                    updateStatusIndicator('error', 'Session expired');
+                    updateStatusDetail('Ingress session expired after Home Assistant restart');
+                    
+                    showDetailedError(
+                        'Session Expired (HTTP 401)',
+                        'Home Assistant could not authenticate the add-on ingress session. ' +
+                        'This is a known Home Assistant bug that affects add-on sidebar panels ' +
+                        'after a Home Assistant restart (the panel persists but loses its auth ' +
+                        'token). The add-on itself is running fine.',
+                        [
+                            'Click "Refresh Page" below - this re-establishes the ingress session',
+                            'If refresh does not work, open the add-on directly from the Home Assistant sidebar menu (Settings > Add-ons)',
+                            'Toggle the "Show in sidebar" switch off and back on for this add-on',
+                            'As a last resort, log out of Home Assistant and log back in, then clear your browser cookies for this site',
+                            'See the add-on DOCS.md "Troubleshooting" section for full details'
+                        ]
+                    );
+                    return;
+                }
                 
                 // Handle error responses
                 if (response.status === 503) {

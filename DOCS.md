@@ -793,6 +793,54 @@ card:
   - Update entity permissions in HA configuration
   - Supervisor API access (requires `hassio_api: true` in config)
 - Check Developer Tools → States for update.* entities to verify they exist
+
+#### 10. Sidebar Panel Shows "Session Expired (HTTP 401)" After Home Assistant Restart
+
+**Problem**: After restarting Home Assistant, clicking the "Sentry" sidebar panel shows a "Session Expired (HTTP 401)" error and the WebUI does not load.
+
+**This is a known Home Assistant bug**, not an add-on bug. The add-on is running fine.
+
+**Root Cause**: When Home Assistant restarts, the supervisor sometimes fails to re-register the auth token for ingress panels. The sidebar menu entry persists (because the add-on is still installed and the panel config is still in `config.yaml`), but Home Assistant can no longer authenticate requests to it. This affects many add-ons and is tracked upstream as:
+- `home-assistant/frontend` issue #53316 — "Add-on sidebar panel (ingress_panel) not re-registered after Core restart"
+- `home-assistant/supervisor` issue #7015 — "Ingress sidebar entries disappear after Home Assistant restart"
+
+**Symptoms**:
+- "Sentry" panel still appears in the sidebar after a Home Assistant reboot
+- Clicking it shows: "Failed to load components: HTTP 401 Unauthorized"
+- The add-on log shows it is starting and running normally
+- Visiting `http://<your-ha-host>:8099` directly (bypassing ingress) still works
+
+**Workarounds (try in order)**:
+
+1. **Refresh the page** (most common fix) — the add-on WebUI now shows a "🔄 Refresh Page" button on the dedicated 401 error page. Clicking it re-issues the request and the supervisor usually re-establishes the session.
+
+2. **Re-toggle the sidebar entry**:
+   - Go to Settings → Add-ons → Home Assistant Sentry
+   - Toggle the "Show in sidebar" switch **off**, wait a few seconds, then toggle it back **on**
+   - This forces the supervisor to re-register the panel
+
+3. **Open the add-on via Settings instead of the sidebar**:
+   - Settings → Add-ons → Home Assistant Sentry → "Open Web UI" button
+   - This bypasses the broken panel entry entirely
+
+4. **Log out and back in** (last resort):
+   - Click your user profile in the Home Assistant sidebar → "Log out"
+   - Clear your browser cookies for this Home Assistant instance
+   - Log back in and try the Sentry panel again
+
+**Why we do not "fix" this from the add-on side**:
+- The 401 is returned by the **Home Assistant supervisor**, not the add-on's own web server (the add-on never even sees the request)
+- We cannot re-register the panel from the add-on — the supervisor controls that registration
+- We deliberately keep `panel_admin: true` for security (it restricts the panel to admin users only); removing it would not fix this bug and would weaken security
+- We do not auto-reload the page on 401, because that would create an infinite reload loop on the rare systems where this condition is permanent
+
+**What the add-on does do**:
+- When any API call returns HTTP 401, the WebUI now renders a clear "Session Expired (HTTP 401)" error page instead of the generic "Failed to load components" page
+- The dedicated page explains what is happening, points at this section of the docs, and offers the refresh button
+- The status polling loop short-circuits on 401 (no 30-attempt timeout) so the error appears within a second rather than after 30 seconds
+
+If the workarounds above do not resolve the issue, please report it on the Home Assistant frontend repository (links above) — it is not a bug in Home Assistant Sentry.
+
 #### 7. Dependency Graph Issues
 
 **Problem**: WebUI shows "Loading components..." forever or "No integrations found", or logs show "NO INTEGRATION PATHS FOUND"
