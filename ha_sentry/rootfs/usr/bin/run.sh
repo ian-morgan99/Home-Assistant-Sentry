@@ -26,6 +26,9 @@ export LOG_CHECK_LOOKBACK_HOURS=$(bashio::config 'log_check_lookback_hours')
 export ENABLE_INSTALLATION_REVIEW=$(bashio::config 'enable_installation_review')
 export INSTALLATION_REVIEW_SCHEDULE=$(bashio::config 'installation_review_schedule')
 export INSTALLATION_REVIEW_SCOPE=$(bashio::config 'installation_review_scope')
+export INSTALLATION_REVIEW_TIMEOUT=$(bashio::config 'installation_review_timeout')
+export ENABLE_ORPHANED_ENTITY_CHECK=$(bashio::config 'enable_orphaned_entity_check')
+export ORPHANED_THRESHOLD_DAYS=$(bashio::config 'orphaned_threshold_days')
 
 # Parse custom integration paths with proper error handling
 if CUSTOM_PATHS=$(bashio::config 'custom_integration_paths' | jq -c '.' 2>/dev/null); then

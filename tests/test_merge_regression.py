@@ -197,11 +197,13 @@ def test_dependency_graph_path_logging_no_duplicates():
     handler.setLevel(logging.DEBUG)
     formatter = logging.Formatter('%(levelname)s: %(message)s')
     handler.setFormatter(formatter)
-    
-    # Get the logger and add our handler
+
+    # Get the logger and add our handler. Disable propagation so pytest's
+    # caplog/own handlers don't strip messages before we can capture them.
     logger = logging.getLogger('dependency_graph_builder')
     logger.addHandler(handler)
     logger.setLevel(logging.DEBUG)
+    logger.propagate = False
     
     # Create builder and try to build from non-existent paths
     builder = DependencyGraphBuilder()
@@ -212,7 +214,7 @@ def test_dependency_graph_path_logging_no_duplicates():
     
     # Check that we don't have duplicate "Path does not exist" messages at the same level
     lines = log_output.split('\n')
-    debug_path_messages = [l for l in lines if 'DEBUG: Path does not exist: /nonexistent/path' in l]
+    debug_path_messages = [l for l in lines if 'DEBUG: ✗ Path does not exist: /nonexistent/path' in l]
     warning_path_messages = [l for l in lines if 'WARNING: Path does not exist: /nonexistent/path' in l]
     
     # We should have debug messages (one per path) but NO individual warning messages
@@ -220,14 +222,15 @@ def test_dependency_graph_path_logging_no_duplicates():
     assert len(debug_path_messages) == 2, f"Expected 2 debug messages for missing paths, got {len(debug_path_messages)}"
     assert len(warning_path_messages) == 0, f"Expected 0 individual warning messages for missing paths, got {len(warning_path_messages)}"
     
-    # Verify summary warning exists
-    summary_warnings = [l for l in lines if 'WARNING: Missing' in l and 'path(s):' in l]
+    # Verify summary warning exists (matches current builder text)
+    summary_warnings = [l for l in lines if 'WARNING: Checked' in l and 'path(s)/pattern(s), none contain integrations' in l]
     assert len(summary_warnings) == 1, "Expected 1 summary warning message"
-    
+
     print("✓ No duplicate path logging detected")
-    
+
     # Clean up
     logger.removeHandler(handler)
+    logger.propagate = True
 
 
 def test_custom_paths_integration_with_fallback():

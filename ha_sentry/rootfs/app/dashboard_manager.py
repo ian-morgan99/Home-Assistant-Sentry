@@ -123,7 +123,58 @@ class DashboardManager:
         
         logger.info("✅ Dashboard sensors updated successfully!")
         logger.info("📊 View your sensors at: Developer Tools > States > Search 'sensor.ha_sentry'")
-    
+
+    async def update_orphan_sensors(self, report: Dict):
+        """Update orphan / ghost / broken / stale sensors from an advisory report.
+
+        The report is produced by the orphaned-entity analyzer and is
+        informational only; these sensors are designed to make findings
+        visible on the Home Assistant dashboard.
+        """
+        summary = (report or {}).get('summary', {}) or {}
+        now = datetime.now().isoformat()
+
+        await self.ha_client.set_sensor_state(
+            'sensor.ha_sentry_orphaned_entities_count',
+            str(summary.get('orphaned_entities', 0)),
+            {
+                'friendly_name': 'Orphaned Entities',
+                'icon': 'mdi:link-variant-off',
+                'unit_of_measurement': 'entities',
+                'last_check': now,
+            },
+        )
+        await self.ha_client.set_sensor_state(
+            'sensor.ha_sentry_ghost_entities_count',
+            str(summary.get('ghost_entities', 0)),
+            {
+                'friendly_name': 'Ghost Entities',
+                'icon': 'mdi:ghost',
+                'unit_of_measurement': 'entities',
+                'last_check': now,
+            },
+        )
+        await self.ha_client.set_sensor_state(
+            'sensor.ha_sentry_broken_config_entries_count',
+            str(summary.get('broken_config_entries', 0)),
+            {
+                'friendly_name': 'Broken Config Entries',
+                'icon': 'mdi:alert-circle',
+                'unit_of_measurement': 'entries',
+                'last_check': now,
+            },
+        )
+        await self.ha_client.set_sensor_state(
+            'sensor.ha_sentry_stale_entities_count',
+            str(summary.get('stale_entities', 0)),
+            {
+                'friendly_name': 'Stale Entities',
+                'icon': 'mdi:clock-alert',
+                'unit_of_measurement': 'entities',
+                'last_check': now,
+            },
+        )
+
     async def create_sentry_dashboard(self):
         """Create the default Sentry dashboard in Lovelace
         

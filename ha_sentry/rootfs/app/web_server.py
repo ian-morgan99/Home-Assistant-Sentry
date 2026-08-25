@@ -214,7 +214,10 @@ class DependencyTreeWebServer:
         self.app.router.add_get('/api/where-used/{component}', self._handle_where_used)
         self.app.router.add_get('/api/change-impact', self._handle_change_impact)
         self.app.router.add_get('/api/graph-data', self._handle_graph_data)
-        
+        # Orphan / broken-entity advisory endpoints (read-only).
+        self.app.router.add_get('/api/orphaned-entities', self._handle_orphaned_entities)
+        self.app.router.add_get('/api/broken-entities', self._handle_broken_entities)
+
         # IMPORTANT: Catch-all route for 404 handling - MUST BE LAST
         # This route catches all unmatched paths and returns appropriate 404 responses
         # (JSON for API/ingress paths, HTML for browser requests).
@@ -393,7 +396,79 @@ class DependencyTreeWebServer:
                 'components_count': 0,
                 'ready': False
             }, status=500)
-        
+
+    async def _handle_orphaned_entities(self, request):
+        """Return the most recent orphan / ghost / stale entity report.
+
+        Advisory only; the response is whatever the last check produced, or
+        an empty report if the feature is disabled or has not yet run.
+        """
+        try:
+            report = None
+            if self.sentry_service:
+                report = getattr(self.sentry_service, 'orphaned_entity_report', None)
+            if not report:
+                # Always return a well-formed response so the UI can render.
+                return web.json_response({
+                    'summary': {
+                        'orphaned_entities': 0,
+                        'ghost_entities': 0,
+                        'broken_config_entries': 0,
+                        'orphaned_devices': 0,
+                        'stale_entities': 0,
+                    },
+                    'orphaned_entities': [],
+                    'ghost_entities': [],
+                    'orphaned_devices': [],
+                    'stale_entities': [],
+                    'meta': {
+                        'status': getattr(
+                            self.sentry_service, '_orphaned_check_status', 'not_started'
+                        ) if self.sentry_service else 'not_started',
+                    },
+                })
+            # Report already has summary + lists; just attach status meta.
+            meta = dict(report.get('meta', {}))
+            meta['status'] = getattr(
+                self.sentry_service, '_orphaned_check_status', 'completed'
+            )
+            return web.json_response({**report, 'meta': meta})
+        except Exception as e:
+            logger.error(f"Error returning orphan-entity report: {e}", exc_info=True)
+            return web.json_response({
+                'error': 'Failed to retrieve orphan-entity report',
+                'message': str(e),
+            }, status=500)
+
+    async def _handle_broken_entities(self, request):
+        """Return broken config entries (and their downstream entity impact).
+
+        Like the orphan endpoint, this is advisory and read-only.
+        """
+        try:
+            report = None
+            if self.sentry_service:
+                report = getattr(self.sentry_service, 'orphaned_entity_report', None)
+            summary = (report or {}).get('summary', {}) or {}
+            broken = (report or {}).get('broken_config_entries', [])
+            return web.json_response({
+                'summary': {
+                    'broken_config_entries': summary.get('broken_config_entries', 0),
+                },
+                'broken_config_entries': broken,
+                'meta': {
+                    'status': getattr(
+                        self.sentry_service, '_orphaned_check_status', 'not_started'
+                    ) if self.sentry_service else 'not_started',
+                },
+            })
+        except Exception as e:
+            logger.error(f"Error returning broken-entity report: {e}", exc_info=True)
+            return web.json_response({
+                'error': 'Failed to retrieve broken-entity report',
+                'message': str(e),
+            }, status=500)
+
     async def _handle_get_components(self, request):
         """Get list of all components (integrations and addons)"""
         try:

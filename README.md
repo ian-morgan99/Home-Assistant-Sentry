@@ -62,6 +62,14 @@ A Home Assistant add-on that performs daily reviews of **all available updates**
   - Configurable schedule (weekly/monthly) or manual trigger
   - Categories: security, performance, automation, integration, organization, maintenance
   
+- 🧹 **Orphan / Broken-Entity Audit** (NEW):
+  - Reads the entity, device, and config-entry registries via the Supervisor WebSocket API
+  - Detects **orphaned entities** (whose owning integration is gone), **ghost entities** (in the registry but not in `/api/states`), and **broken config entries** (in `setup_error` / `setup_retry` / `migration_error` states)
+  - Flags **stale entities** that have not been updated within a configurable threshold (default 30 days)
+  - Suggests user-actionable resolutions for every finding
+  - Findings are exposed through new web endpoints (`/api/orphaned-entities`, `/api/broken-entities`) and four advisory dashboard sensors
+  - **Advisory only**: Sentry never modifies or removes anything; you decide what to do
+  
 - 🤖 **AI-Powered Analysis**: Uses configurable AI endpoints to analyze update conflicts and dependencies
 - 🔬 **Deep Dependency Analysis**: Advanced heuristic analysis without AI, checking version changes, pre-releases, and known conflicts
 - 🛡️ **Safety Assessment**: Provides confidence scores and safety recommendations
@@ -180,6 +188,8 @@ enable_web_ui: true
 | `save_reports` | Save machine-readable JSON reports to `/data/reports/` | `true` |
 | `enable_web_ui` | Enable web-based dependency tree visualization interface | `true` |
 | `custom_integration_paths` | Custom paths to scan for integrations (see [Troubleshooting](#troubleshooting)) | `[]` |
+| `enable_orphaned_entity_check` | Detect orphaned / ghost / broken entities and config entries (advisory only) | `true` |
+| `orphaned_threshold_days` | Days without updates before an entity is reported as stale (0 disables) | `30` |
 
 ### AI Provider Examples
 
@@ -253,6 +263,17 @@ When `create_dashboard_entities` is enabled, the add-on creates the following se
 - **sensor.ha_sentry_hacs_updates**: Number of HACS updates with details
 - **sensor.ha_sentry_issues**: Number and details of detected issues
 - **sensor.ha_sentry_confidence**: Analysis confidence score
+
+#### Orphan / broken-entity sensors
+
+When `enable_orphaned_entity_check` is enabled (default), the add-on also publishes:
+
+- **sensor.ha_sentry_orphaned_entities_count**: Number of entities whose owning integration appears to be gone
+- **sensor.ha_sentry_ghost_entities_count**: Number of entities in the registry but not currently exposed in `/api/states`
+- **sensor.ha_sentry_broken_config_entries_count**: Number of config entries in `setup_error` / `setup_retry` / `migration_error`
+- **sensor.ha_sentry_stale_entities_count**: Number of entities that have not been updated within `orphaned_threshold_days` (0 disables this category)
+
+All four sensors are advisory only. Use the new **Orphan / Broken Entities** card in the Sentry web UI, or call `/api/orphaned-entities` and `/api/broken-entities` directly, to see per-entity detail and suggested resolutions.
 
 ### Example Dashboard Card
 

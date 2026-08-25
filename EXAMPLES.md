@@ -266,6 +266,53 @@ log_check_lookback_hours: 24  # Check last 24 hours
 2. **Use Local AI**: Ollama or LMStudio for privacy and no API costs
 3. **Test Schedule**: Use a time when you're awake for initial testing
 4. **Adjust Threshold**: Start with 0.7 and adjust based on your comfort level
+### With Orphan / Broken-Entity Audit
+
+The orphan / broken-entity audit runs alongside the daily update check and reports
+advisory findings (orphaned entities, ghost entities, stale entities, and broken
+config entries). It is read-only — Sentry never modifies, removes, or disables
+anything based on these findings.
+
+```yaml
+ai_enabled: true
+ai_provider: "ollama"
+ai_endpoint: "http://localhost:11434"
+ai_model: "llama2"
+api_key: ""
+check_schedule: "02:00"
+create_dashboard_entities: true
+check_all_updates: true
+check_addons: true
+check_hacs: true
+safety_threshold: 0.7
+enable_orphaned_entity_check: true   # default; advisory audit on every check
+orphaned_threshold_days: 30           # 0 = disable stale-entity detection only
+```
+
+**What gets published when enabled:**
+- `sensor.ha_sentry_orphaned_entities` — count + list of orphaned entities
+- `sensor.ha_sentry_broken_entities` — count + breakdown by category
+- `sensor.ha_sentry_broken_config_entries` — count + list of entries in error state
+- `sensor.ha_sentry_orphan_audit_status` — `idle` / `running` / `disabled` / `error`
+
+**WebUI endpoints (read-only JSON):**
+- `GET /api/orphaned-entities`
+- `GET /api/broken-entities`
+
+**Tuning tips:**
+- Set `orphaned_threshold_days: 0` if you only want the orphan / ghost / config-entry
+  categories and no stale-entity findings.
+- Disable with `enable_orphaned_entity_check: false` if you only want the update
+  advisory and do not want the extra WebSocket traffic.
+- A failure in any single registry is logged at WARNING level but does not abort
+  the audit or the update check.
+
+## Configuration Tips
+
+1. **Start Simple**: Begin with AI disabled to test basic functionality
+2. **Use Local AI**: Ollama or LMStudio for privacy and no API costs
+3. **Test Schedule**: Use a time when you're awake for initial testing
+4. **Adjust Threshold**: Start with 0.7 and adjust based on your comfort level
 5. **Enable Logging**: Check the add-on logs to see what's happening
 
 ## Troubleshooting Configuration

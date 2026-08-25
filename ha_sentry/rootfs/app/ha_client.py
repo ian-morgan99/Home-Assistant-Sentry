@@ -2,6 +2,7 @@
 Home Assistant API Client
 """
 import aiohttp
+import asyncio
 import json
 import logging
 from datetime import datetime
@@ -89,7 +90,167 @@ class HomeAssistantClient:
         logger.error("See documentation: https://github.com/ian-morgan99/Home-Assistant-Sentry/blob/main/DOCS.md#dashboard-integration")
         logger.error("The add-on will continue to work normally and update sensor entities.")
         logger.error("=" * 60)
-    
+
+    # ------------------------------------------------------------------
+    # WebSocket API access (read-only; for orphan / broken-entity audit)
+    # ------------------------------------------------------------------
+
+    async def _ws_call(self, command_type: str, payload: Optional[Dict] = None) -> List:
+        """Send a single command over the Supervisor WebSocket and return its result list.
+
+        Uses the Home Assistant WebSocket API as proxied by the Supervisor at
+        ``ws://supervisor/core/websocket``. All commands issued here are
+        read-only (entity/device/area registry lists and config entry list).
+        """
+        url = "ws://supervisor/core/websocket"
+        ws = None
+        try:
+            ws = await self.session.ws_connect(url, autoclose=True, autoping=True)
+            # Phase 1: wait for `auth_required` (HA) then send `auth`.
+            msg = await ws.receive_json(timeout=15)
+            if msg.get("type") != "auth_required":
+                logger.debug("WebSocket did not start with auth_required: %s", msg.get("type"))
+            await ws.send_json({
+                "type": "auth",
+                "access_token": self.config.supervisor_token,
+            })
+            auth_msg = await ws.receive_json(timeout=15)
+            if auth_msg.get("type") != "auth_ok":
+                logger.error("WebSocket auth failed: %s", auth_msg)
+                return []
+
+            # Phase 2: send the actual command with a fresh id.
+            request_id = 1
+            command = {"id": request_id, "type": command_type}
+            if payload:
+                command.update(payload)
+            await ws.send_json(command)
+
+            # Phase 3: wait for the matching result message.
+            while True:
+                msg = await ws.receive_json(timeout=30)
+                if msg.get("id") == request_id and msg.get("type") == "result":
+                    if not msg.get("success", False):
+                        logger.error(
+                            "WebSocket command %s failed: %s",
+                            command_type,
+                            msg.get("error"),
+                        )
+                        return []
+                    result = msg.get("result")
+                    if isinstance(result, list):
+                        return result
+                    return []
+        except Exception as exc:
+            logger.error("WebSocket call %s failed: %s", command_type, exc)
+            return []
+        finally:
+            if ws is not None:
+                try:
+                    await ws.close()
+                except Exception:
+                    pass
+
+    async def get_states(self) -> List[Dict]:
+        """Return the current entity states from /api/states (REST).
+
+        Returns an empty list on failure. Used to detect ghost entities
+        (in registry but no live state).
+        """
+        try:
+            url = f"{self.config.ha_url}/api/states"
+            async with self.session.get(url) as response:
+                if response.status == 200:
+                    return await response.json()
+                logger.warning("get_states: unexpected status %s", response.status)
+                return []
+        except Exception as exc:
+            logger.error("get_states failed: %s", exc)
+            return []
+
+    async def get_entity_registry(self) -> List[Dict]:
+        """Return the full entity registry via the WebSocket API.
+
+        Empty list on failure. Read-only; no modifications are ever made.
+        """
+        return await self._ws_call("config/entity_registry/list")
+
+    async def get_device_registry(self) -> List[Dict]:
+        """Return the full device registry via the WebSocket API.
+
+        Empty list on failure. Read-only.
+        """
+        return await self._ws_call("config/device_registry/list")
+
+    async def get_config_entries(self) -> List[Dict]:
+        """Return all config entries via the WebSocket API.
+
+        Empty list on failure. Read-only; used to detect broken / setup-error
+        integrations.
+        """
+        return await self._ws_call("config/config_entries/get")
+
+    async def get_areas(self) -> List[Dict]:
+        """Return the area registry via the WebSocket API.
+
+        Empty list on failure. Read-only.
+        """
+        return await self._ws_call("config/area_registry/list")
+
+    async def get_orphaned_entity_report(self) -> Dict:
+        """Return an orphan / broken-entity report using the WebSocket API.
+
+        Pulls entity, device, and config-entry registries, compares the entity
+        registry against the live /api/states list, and returns a structured
+        report. All data is read-only. Missing / unavailable data yields empty
+        lists so the rest of the application keeps working.
+        """
+        # If disabled in config, return an empty-but-valid report.
+        if hasattr(self.config, "enable_orphaned_entity_check") \
+                and not self.config.enable_orphaned_entity_check:
+            from orphaned_entity_analyzer import analyze
+            return analyze(
+                entities=[], devices=[], config_entries=[], states=[],
+                stale_threshold_days=getattr(
+                    self.config, "orphaned_threshold_days", 30) or 0,
+            )
+
+        try:
+            entities, devices, config_entries, states = await asyncio.gather(
+                self.get_entity_registry(),
+                self.get_device_registry(),
+                self.get_config_entries(),
+                self.get_states(),
+                return_exceptions=True,
+            )
+        except Exception as exc:
+            logger.error("Orphaned-entity report fetch failed: %s", exc)
+            entities, devices, config_entries, states = [], [], [], []
+
+        # Coerce any exceptions to empty lists.
+        if isinstance(entities, Exception):
+            logger.warning("entity_registry fetch failed: %s", entities)
+            entities = []
+        if isinstance(devices, Exception):
+            logger.warning("device_registry fetch failed: %s", devices)
+            devices = []
+        if isinstance(config_entries, Exception):
+            logger.warning("config_entries fetch failed: %s", config_entries)
+            config_entries = []
+        if isinstance(states, Exception):
+            logger.warning("states fetch failed: %s", states)
+            states = []
+
+        from orphaned_entity_analyzer import analyze
+        threshold = getattr(self.config, "orphaned_threshold_days", 30) or 0
+        return analyze(
+            entities=entities,
+            devices=devices,
+            config_entries=config_entries,
+            states=states,
+            stale_threshold_days=threshold,
+        )
+
     async def get_addon_updates(self) -> List[Dict]:
         """Get available add-on updates from Supervisor API"""
         try:

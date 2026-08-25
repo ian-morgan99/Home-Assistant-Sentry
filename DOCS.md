@@ -259,6 +259,24 @@ Your installation has 450 entities across 32 integrations and 15 devices.
    Input helpers can make automations more flexible and easier to manage
 ```
 
+#### Orphan / Broken-Entity Settings
+
+- **enable_orphaned_entity_check**: Detect orphaned / ghost / broken entities and config entries (default: `true`)
+  - `true`: Each daily check reads the entity, device, and config-entry registries and compares them against the live `/api/states` list
+  - `false`: Skip the audit entirely (faster checks, no orphan sensors)
+  - **Advisory only**: Sentry never modifies, removes, or disables anything based on these findings
+  - **What gets reported**:
+    - **Orphaned entities**: Entities in the registry whose owning config entry no longer exists
+    - **Ghost entities**: Entities in the registry but not currently exposed by Home Assistant
+    - **Broken config entries**: Entries in `setup_error`, `setup_retry`, or `migration_error` state
+    - **Stale entities**: Entities that have not been updated within `orphaned_threshold_days`
+  - **Output**: Four advisory sensors + new web endpoints (`/api/orphaned-entities`, `/api/broken-entities`)
+
+- **orphaned_threshold_days**: Days without updates before an entity is reported as stale (default: `30`, range: `0-365`)
+  - `30`: A reasonable starting point for most installations
+  - `0`: Disable stale-entity detection entirely (other categories still run)
+  - Higher values: Reduce noise for sensors that legitimately update rarely
+
 - **obfuscate_logs**: Obfuscate sensitive data in log files (default: `true`, recommended)
   - `true`: Automatically obfuscate IP addresses, API keys, tokens, and passwords in logs
   - `false`: Log all data in plain text (not recommended - use only for specific debugging scenarios)
@@ -439,6 +457,22 @@ Since version 2.0.0, notifications include interactive links to help you underst
 
 **Always use the WebUI** - it provides all features and more than the dashboard would have provided.
 
+### Orphan / Broken-Entity WebUI
+
+The WebUI exposes two read-only JSON endpoints that mirror the data published as sensors. Both endpoints are also reachable directly via the add-on ingress URL:
+
+- **`/api/orphaned-entities`** – Returns a JSON document with:
+  - `orphaned`: entities present in the registry whose config entry no longer exists
+  - `meta.status`: `idle` | `running` | `disabled` | `error`
+  - `meta.last_run`: ISO timestamp of the most recent successful audit
+- **`/api/broken-entities`** – Returns a JSON document with:
+  - `ghost_entities`: in the registry but not currently exposed by HA
+  - `stale_entities`: not updated within `orphaned_threshold_days`
+  - `broken_config_entries`: entries in `setup_error` / `setup_retry` / `migration_error`
+  - `meta.status`, `meta.last_run`
+
+Both endpoints return well-formed empty results when the audit is disabled, hasn't run yet, or fails. Sentry only reads from the registries — it never modifies, removes, or disables anything.
+
 ## AI Provider Setup
 
 ### Setting up Ollama
@@ -520,6 +554,26 @@ When enabled, these sensors are created:
 5. **sensor.ha_sentry_issues**
    - Count of detected issues
    - Attributes include issue details and severity
+
+6. **sensor.ha_sentry_orphaned_entities**
+   - Count of orphaned entities (entity present in registry but config entry missing)
+   - Attributes list each entity with its entity_id, last_updated, and platform
+   - State: numeric count
+
+7. **sensor.ha_sentry_broken_entities**
+   - Count of ghost / stale / broken entities
+   - Attributes group by category (`ghost_entities`, `stale_entities`, `broken_config_entries`)
+   - State: numeric count of total findings
+
+8. **sensor.ha_sentry_broken_config_entries**
+   - Count of config entries in failed / error / retry state
+   - Attributes list each entry with title, entry_id, and error state
+   - State: numeric count
+
+9. **sensor.ha_sentry_orphan_audit_status**
+   - State: `idle`, `running`, `disabled`, `error`
+   - Attributes include `last_run`, `error`, and timestamp of last successful audit
+   - Useful for automations that react to audit completion
 
 6. **sensor.ha_sentry_confidence**
    - Analysis confidence score (0-1)
@@ -809,6 +863,24 @@ card:
 - Enhanced analysis of update impacts
 
 **Note**: The dependency graph and WebUI are optional features. The add-on will continue to function normally for update monitoring and analysis even without them.
+
+#### 8. Orphan / Broken-Entity Audit Not Running
+
+**Problem**: `sensor.ha_sentry_orphaned_entities` is `unknown` or `0` and the audit sensor shows `disabled` or `error`.
+
+**Solutions**:
+- Check `enable_orphaned_entity_check` is `true` (the feature is enabled by default).
+- Review add-on logs for the `Orphan / broken-entity audit` section.
+- Ensure the add-on has the `hassio_api: true` privilege — the audit needs the Supervisor token to open a WebSocket to the core registries.
+- Confirm your Home Assistant version is **2024.11 or later** (older versions may not expose the entity / device / config-entry registries the audit depends on).
+- Set `log_level: "maximal"` to see per-registry read timing and any per-call errors.
+- A failure in any single registry is logged at WARNING level but does **not** abort the rest of the audit or the daily update check.
+
+**What the audit does NOT do** (by design):
+- It does not remove, rename, or disable any entity, device, or config entry.
+- It does not modify the `.storage/` directory or any HA files.
+- It does not block the user from updating Home Assistant.
+- All findings are advisory; the user decides what to do with them.
 
 ### Checking Logs
 

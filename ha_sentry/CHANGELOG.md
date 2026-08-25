@@ -1,5 +1,10 @@
 # Changelog
 
+## 2.1.0
+- Add orphaned / ghost / broken / stale entity audit A new advisory audit reads the entity, device, and config-entry registries via the Supervisor WebSocket API and compares them against the live `/api/states` list. Findings are reported as advisory suggestions only -- Sentry never modifies or removes anything. New web endpoints (`/api/orphaned-entities`, `/api/broken-entities`) and four new dashboard sensors make the findings visible.
+- Add configurable `enable_orphaned_entity_check` and `orphaned_threshold_days` options The orphan audit can be disabled entirely, and the staleness threshold can be tuned between 0 and 365 days.
+
+
 ## 2.0.14
 - Fix log monitoring baseline overwrite after Home Assistant restarts After HA restarts, logs are cleared and the baseline was being overwritten with the resulting 0-5 startup errors, losing the meaningful pre-restart baseline needed for comparison.
 

@@ -1,5 +1,5 @@
 name: Home Assistant Sentry
-version: "2.0.14"
+version: "2.1.0"
 slug: ha_sentry
 description: Daily review of add-on and HACS updates with AI-powered conflict detection
 arch:
@@ -254,6 +254,24 @@ map:
 #                Decrease only if you're using very fast AI services and want quicker
 #                failure detection. Local AI with queue systems may need 20-30 minutes.
 #
+# enable_orphaned_entity_check: Detect orphaned / ghost / broken entities, devices,
+#   and config entries by reading the entity, device, and config-entry registries
+#   (via the Supervisor WebSocket API) and comparing against the live entity
+#   state list. Findings are advisory only -- Sentry never modifies or removes
+#   anything. Sentry may also flag entities that have not been updated recently
+#   (see orphaned_threshold_days).
+#   - Default: true
+#   WHEN TO USE: Keep enabled to surface integration drift early. Disable only if
+#                you do not want the extra registry snapshot during daily checks.
+#
+# orphaned_threshold_days: Entities that have not been updated within this many
+#   days may be reported as "stale" so you can decide whether to clean them up.
+#   Set to 0 to disable stale detection entirely.
+#   - Default: 30
+#   - Range: 0-365
+#   WHEN TO USE: 30 days is a reasonable starting point. Increase if you have
+#                sensors that legitimately update rarely. Set to 0 to disable.
+#
 # ==================================================================================
 
 options:
@@ -281,6 +299,8 @@ options:
   installation_review_schedule: "weekly"
   installation_review_scope: "full"
   installation_review_timeout: 1200
+  enable_orphaned_entity_check: true
+  orphaned_threshold_days: 30
 schema:
   ai_enabled: bool
   ai_provider: list(openai|ollama|lmstudio|openwebui)
@@ -307,3 +327,5 @@ schema:
   installation_review_schedule: list(weekly|monthly|manual)
   installation_review_scope: list(full|integrations|automations)
   installation_review_timeout: int(60,3600)
+  enable_orphaned_entity_check: bool
+  orphaned_threshold_days: int(0,365)

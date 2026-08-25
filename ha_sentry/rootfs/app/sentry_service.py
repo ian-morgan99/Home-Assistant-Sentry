@@ -52,6 +52,10 @@ class SentryService:
         self._graph_build_task = None
         self._graph_build_status = 'not_started'  # Track graph build status: not_started, building, completed, failed
         self._graph_build_error = None  # Store error message if build fails
+        # Latest orphaned / broken-entity report (advisory only; never acted on).
+        # Stored in-memory only; never persisted to disk automatically.
+        self.orphaned_entity_report = None
+        self._orphaned_check_status = 'not_started'  # not_started|completed|failed|disabled
         
         # Note: Dependency graph will be built asynchronously after service starts
         # This ensures the web server starts quickly without blocking
@@ -441,11 +445,17 @@ If sensors don't appear, check the add-on logs for authentication errors. The ad
         
         try:
             async with HomeAssistantClient(self.config) as ha_client:
+                # Always run the orphan / broken-entity audit on each cycle
+                # so advisory dashboard sensors are kept current even when
+                # no HA updates are pending. Failure here must not break the
+                # update check itself.
+                await self._run_orphaned_entity_check(ha_client)
+
                 # Gather updates - use comprehensive update checking by default
                 all_updates = []
                 addon_updates = []
                 hacs_updates = []
-                
+
                 if self.config.check_all_updates:
                     # New comprehensive method: get all update entities
                     logger.info("Checking for all available updates (Core, Supervisor, OS, Add-ons, Integrations)...")
@@ -543,7 +553,42 @@ If sensors don't appear, check the add-on logs for authentication errors. The ad
                 
         except Exception as e:
             logger.error(f"Error during update check: {e}", exc_info=True)
-    
+
+    async def _run_orphaned_entity_check(self, ha_client: HomeAssistantClient) -> None:
+        """Fetch the orphan / broken-entity report and update advisory sensors.
+
+        Sentry NEVER acts on this report; it is purely informational. Findings
+        may include suggestions, but no entity, device, or config entry is ever
+        removed or modified by the add-on.
+        """
+        if not getattr(self.config, "enable_orphaned_entity_check", True):
+            self._orphaned_check_status = 'disabled'
+            logger.debug("Orphaned entity check is disabled in configuration")
+            return
+
+        try:
+            report = await ha_client.get_orphaned_entity_report()
+            self.orphaned_entity_report = report
+            self._orphaned_check_status = 'completed'
+            summary = report.get('summary', {}) if isinstance(report, dict) else {}
+            logger.info(
+                "Orphan / broken-entity audit: "
+                f"orphaned={summary.get('orphaned_entities', 0)}, "
+                f"ghost={summary.get('ghost_entities', 0)}, "
+                f"broken={summary.get('broken_config_entries', 0)}, "
+                f"stale={summary.get('stale_entities', 0)}"
+            )
+            # Reflect findings in dashboard sensors (advisory only).
+            try:
+                if self.config.create_dashboard_entities:
+                    dashboard_mgr = DashboardManager(ha_client)
+                    await dashboard_mgr.update_orphan_sensors(report)
+            except Exception as exc:
+                logger.warning(f"Failed to update orphan-entity sensors: {exc}")
+        except Exception as exc:
+            self._orphaned_check_status = 'failed'
+            logger.warning(f"Orphan / broken-entity audit failed: {exc}")
+
     async def _report_no_updates(self, ha_client: HomeAssistantClient):
         """Report when no updates are available"""
         logger.info("All systems up to date - no updates available")

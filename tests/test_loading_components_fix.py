@@ -22,7 +22,10 @@ def test_status_tracking():
         check_schedule = "02:00"
         ai_enabled = False
         save_reports = False
-        
+        obfuscate_logs = False
+        log_check_lookback_hours = 24
+        enable_installation_review = False
+
     config = MockConfig()
     service = SentryService(config)
     
@@ -50,7 +53,10 @@ def test_status_tracking_disabled():
         check_schedule = "02:00"
         ai_enabled = False
         save_reports = False
-    
+        obfuscate_logs = False
+        log_check_lookback_hours = 24
+        enable_installation_review = False
+
     config = MockConfig()
     service = SentryService(config)
     
@@ -73,24 +79,27 @@ def test_ingress_url_format():
         check_schedule = "02:00"
         ai_enabled = False
         save_reports = False
-    
+        obfuscate_logs = False
+        log_check_lookback_hours = 24
+        enable_installation_review = False
+
     config = MockConfig()
     service = SentryService(config)
     
-    # Test base URL
+    # Test base URL (frontend navigation route used for ingress links)
     base_url = service._get_ingress_url()
-    assert base_url == "/api/hassio_ingress/ha_sentry", f"Expected '/api/hassio_ingress/ha_sentry', got '{base_url}'"
+    assert base_url == "/hassio/ingress/ha_sentry/", f"Expected '/hassio/ingress/ha_sentry/', got '{base_url}'"
     print(f"✓ Base ingress URL correct: {base_url}")
-    
+
     # Test URL with fragment
     url_with_fragment = service._get_ingress_url() + "#whereused:component"
     assert "#whereused:component" in url_with_fragment, "Fragment not included"
-    assert url_with_fragment.startswith("/api/hassio_ingress/ha_sentry"), "Base URL incorrect"
+    assert url_with_fragment.startswith("/hassio/ingress/ha_sentry"), "Base URL incorrect"
     print(f"✓ URL with fragment correct: {url_with_fragment}")
-    
+
     # Test URL with path
     url_with_path = service._get_ingress_url("some/path")
-    assert url_with_path == "/api/hassio_ingress/ha_sentry/some/path", f"Expected '/api/hassio_ingress/ha_sentry/some/path', got '{url_with_path}'"
+    assert url_with_path == "/hassio/ingress/ha_sentry/some/path", f"Expected '/hassio/ingress/ha_sentry/some/path', got '{url_with_path}'"
     print(f"✓ URL with path correct: {url_with_path}")
     
     return True

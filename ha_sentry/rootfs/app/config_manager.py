@@ -49,6 +49,15 @@ class ConfigManager:
         self.installation_review_schedule = os.getenv('INSTALLATION_REVIEW_SCHEDULE', 'weekly').lower()
         self.installation_review_scope = os.getenv('INSTALLATION_REVIEW_SCOPE', 'full').lower()
         self.installation_review_timeout = int(os.getenv('INSTALLATION_REVIEW_TIMEOUT', '1200'))
+
+        # Orphaned / broken entity audit configuration
+        self.enable_orphaned_entity_check = self._get_bool_env('ENABLE_ORPHANED_ENTITY_CHECK', True)
+        try:
+            self.orphaned_threshold_days = int(os.getenv('ORPHANED_THRESHOLD_DAYS', '30'))
+        except ValueError:
+            self.orphaned_threshold_days = 30
+        if self.orphaned_threshold_days < 0:
+            self.orphaned_threshold_days = 30
         
         # Validate configuration consistency
         self._validate_config()
